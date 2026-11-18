@@ -64,6 +64,8 @@ jobs:
         working-directory: apps/worker
         env:
           GL_ACCOUNT_KEY: ${{ secrets.GL_ACCOUNT_KEY }}
+          # 디스코드 봇 서비스 키 (선택). 비어 있으면 봇 기능이 꺼진 상태로 유지된다.
+          BOT_API_KEY: ${{ secrets.BOT_API_KEY }}
         run: |
           test -n "$GL_ACCOUNT_KEY" || { echo "::error::GitHub 시크릿 GL_ACCOUNT_KEY 가 비어 있습니다"; exit 1; }
-          jq -n --arg gl "$GL_ACCOUNT_KEY" '{GL_ACCOUNT_KEY: $gl}' | npx wrangler secret bulk
+          jq -n --arg gl "$GL_ACCOUNT_KEY" --arg bot "$BOT_API_KEY" '{GL_ACCOUNT_KEY: $gl} + (if $bot != "" then {BOT_API_KEY: $bot} else {} end)' | npx wrangler secret bulk

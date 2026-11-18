@@ -2,3 +2,5 @@
 GL_ACCOUNT_KEY=replace-with-service-key
 # 관리자(GL Account 사용자 ID, 쉼표 구분) — 로컬 개발용
 ADMIN_USER_IDS=
+# 디스코드 봇 서비스 키 (선택, 임의의 긴 문자열) — 로컬 개발용
+BOT_API_KEY=

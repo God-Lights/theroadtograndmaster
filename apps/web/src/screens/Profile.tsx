@@ -1,6 +1,7 @@
 import { getNextTier, getProfTier, itemById } from '@rtgm/data';
 import { ACCOUNT_ORIGIN } from '../api';
 import { useGame } from '../game';
+import { DiscordLink } from '../components/DiscordLink';
 import { AdminEvents, Events } from '../components/Events';
 import { Icon } from '../Icon';
 
@@ -53,6 +54,8 @@ export function Profile() {
         <div className="stat-row"><span className="stat-label">아이템 종류</span><span>{inv.items.length} 종</span></div>
         <div className="stat-row"><span className="stat-label">총 수량</span><span>{total} 개</span></div>
       </div>
+
+      <DiscordLink />
 
       {me.isAdmin && <AdminEvents />}
 
