@@ -24,7 +24,7 @@
       }
     ],
     "recommendedProficiency": 0,
-    "exploreCooldownSec": 3
+    "exploreCooldownSec": 90
   },
   {
     "id": "forest",
@@ -51,7 +51,7 @@
       }
     ],
     "recommendedProficiency": 30,
-    "exploreCooldownSec": 5
+    "exploreCooldownSec": 90
   },
   {
     "id": "graveyard",
@@ -79,7 +79,7 @@
       }
     ],
     "recommendedProficiency": 60,
-    "exploreCooldownSec": 8
+    "exploreCooldownSec": 90
   },
   {
     "id": "midrealm_1",
@@ -117,7 +117,7 @@
       }
     ],
     "recommendedProficiency": 800,
-    "exploreCooldownSec": 12
+    "exploreCooldownSec": 90
   },
   {
     "id": "midrealm_2",
@@ -155,6 +155,6 @@
       }
     ],
     "recommendedProficiency": 1300,
-    "exploreCooldownSec": 20
+    "exploreCooldownSec": 90
   }
 ]
