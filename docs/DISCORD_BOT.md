@@ -1,4 +1,54 @@
-# RTGM 디스코드 봇 연동 가이드
+# RTGM 디스코드 봇
+
+RTGM 서버(Cloudflare Worker)에 **봇이 내장**돼 있어요. 별도 서버 없이 디스코드의 *상호작용 엔드포인트(HTTP)* 로 슬래시 명령어·버튼·선택 메뉴를 받아서 게임 API를 호출해요. (게이트웨이 상시 접속이 필요 없어요.)
+
+## 설정 (처음 한 번)
+
+1. **디스코드 앱 만들기**: [Developer Portal](https://discord.com/developers/applications) → New Application.
+   - *General Information*의 **Application ID**, **Public Key**를 적어 둬요.
+   - *Bot* 탭에서 봇을 만들고 **Token**을 복사해요 (한 번만 보여요).
+2. **Interactions Endpoint URL** 설정: *General Information* → `https://rtgm.officialgl.com/discord/interactions` 를 저장해요. (저장할 때 디스코드가 서명 검증 요청을 보내서, 아래 3번 값이 배포돼 있어야 저장돼요.)
+3. **GitHub 저장소 설정**에 값을 넣어요 (Settings → Secrets and variables → Actions):
+
+| 종류 | 이름 | 값 |
+|---|---|---|
+| Variable | `DISCORD_PUBLIC_KEY` | 앱의 Public Key (공개 값) |
+| Variable | `DISCORD_APP_ID` | Application ID |
+| Variable | `DISCORD_GUILD_ID` | (선택) 테스트용 서버 ID — 있으면 그 서버에만 명령어가 즉시 등록돼요. 비우면 전역 등록(반영까지 최대 1시간) |
+| Variable | `DISCORD_ANNOUNCE_CHANNEL_ID` | (선택) 보스·레이드·던전 소식을 올릴 채널 ID |
+| Secret | `BOT_API_KEY` | 임의의 긴 문자열 (봇이 게임 API를 부를 때 쓰는 내부 키) |
+| Secret | `DISCORD_BOT_TOKEN` | 봇 토큰 (명령어 등록과 소식 채널 게시에 쓰여요) |
+
+4. **배포**(main에 머지 또는 워크플로우 수동 실행)하면 값이 Worker에 반영되고 슬래시 명령어가 등록돼요.
+5. **서버에 초대**: OAuth2 → URL Generator에서 scope `applications.commands` (+ 소식 채널을 쓰면 `bot`, 권한 *메시지 보내기*)를 골라 만든 링크로 초대해요.
+6. 웹 **내 정보 → 디스코드 연동**에서 코드를 만들고 디스코드에서 `/연동 코드:XXXXXXXX` 를 실행하면 끝이에요.
+
+> 키와 토큰은 GitHub 시크릿으로만 두세요. 코드·로그·채팅에 붙여 넣지 마세요. 유출됐다면 디스코드에서 토큰을 재발급하고 시크릿을 바꾼 뒤 다시 배포하세요.
+
+## 명령어 (모든 응답은 나만 보여요)
+
+| 명령어 | 설명 |
+|---|---|
+| `/연동 코드` · `/도움말` | 계정 연동 · 사용법 |
+| `/프로필` | 달런트·숙련도·스탯·장비·탐험 대기시간 |
+| `/탐험 지역` · `/보스 보스` | 지역 탐험(1분 30초 대기), 보스 도전 — 버튼으로 공격·방어, 메뉴로 스킬·아이템 |
+| `/던전` | 로그라이크 던전: 입장 → 층 내려가기 → 후퇴 (전투는 같은 화면에서) |
+| `/인벤토리` · `/스킬` | 장비·스킬 장착/해제 (메뉴) |
+| `/상점` · `/구매` · `/판매` · `/제작` | 이름은 자동 완성돼요 |
+| `/소식` | 최근 전체 알림 |
+
+레이드·PvP·팀전·길드·교환소는 웹에서 해요 (봇 명령어는 순차로 추가 예정). 명령어 목록은 `apps/worker/src/bot/commands.json` 에 있고, 바꾸면 배포 때 자동으로 다시 등록돼요.
+
+## 내부 구조
+
+- `POST /discord/interactions` (공개 경로, Ed25519 서명 검증·5분 지난 요청 거절) → `apps/worker/src/bot/handler.ts` 가 명령을 해석하고, 같은 Worker의 게임 API를 **그 디스코드 사용자로** 호출해요 (아래 API 연동 방식과 동일).
+- 화면(embed·버튼·메뉴) 생성은 `bot/ui.ts`, 오류 문구는 웹과 같은 `ERROR_TEXT`(`packages/data`)를 써요.
+- 소식 중계: 크론(1분)이 새 `announcements`를 채널에 올려요 (`bot/relay.ts`). 처음에는 지난 소식을 올리지 않아요.
+- 서명이나 키 설정이 없으면 엔드포인트는 404/401로 꺼져 있어요.
+
+---
+
+# 외부 봇을 직접 만들 때 (API 연동 가이드)
 
 봇은 **게임 서버의 API를 사용자 대신 호출**하는 클라이언트예요. 게임 로직은 모두 서버에 있고, 봇은 슬래시 명령어·버튼·선택 메뉴를 API 호출로 바꿔 주면 돼요. 웹과 봇은 같은 데이터를 쓰기 때문에 웹에서 하던 전투를 봇에서 이어서 해도 돼요.
 

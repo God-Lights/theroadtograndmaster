@@ -310,3 +310,5 @@ export function rogueRoom(dungeon: RogueDungeon, floor: number, rand: number): R
   for (const [k, w] of Object.entries(ROGUE_EVENT_WEIGHTS)) { r -= w; if (r < 0) return k as RogueEvent; }
   return 'nothing';
 }
+
+export { ERROR_TEXT, errorMessage, fmtWait } from './errors';

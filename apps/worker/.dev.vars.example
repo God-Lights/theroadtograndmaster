@@ -4,3 +4,7 @@ GL_ACCOUNT_KEY=replace-with-service-key
 ADMIN_USER_IDS=
 # 디스코드 봇 서비스 키 (선택, 임의의 긴 문자열) — 로컬 개발용
 BOT_API_KEY=
+# 디스코드 봇 (선택): 앱 Public Key, 봇 토큰, 소식 채널 ID
+DISCORD_PUBLIC_KEY=
+DISCORD_BOT_TOKEN=
+DISCORD_ANNOUNCE_CHANNEL_ID=
