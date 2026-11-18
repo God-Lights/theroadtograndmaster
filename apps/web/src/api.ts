@@ -99,6 +99,23 @@ export interface RaidLobbyPayload {
   room: RaidRoomView | null;
 }
 
+export interface TeamPlayerView {
+  userId: string; nickname: string; team: 'A' | 'B' | null; role: RaidMemberView['role']; ready: boolean; slot: string | null; submitted: boolean; miss: number; delta: number;
+}
+export interface TeamMatchView {
+  id: string; code: string | null; ranked: boolean; status: 'lobby' | 'active' | 'done'; leaderId: string | null; teamSize: number; roundSeconds: number;
+  players: TeamPlayerView[]; mySlot: string | null; myTeam: 'A' | 'B' | null; myRole: RaidMemberView['role'];
+  round: number; deadline: number; serverNow: number; needsAction: boolean;
+  state: Omit<BattleState, 'rngSeed'> | null; skills: Record<string, SkillDef>; log: LogEntry[]; result?: 'win' | 'loss' | 'draw';
+}
+export interface TeamStatus {
+  rating: number; wins: number; losses: number; draws: number; queued: { role: string; since: number } | null;
+  roles: { id: string; label: string; desc: string; skills: SkillData[] }[];
+  cap: { maxHp: number; atk: number; def: number };
+  ranking: { rank: number; id: string; nickname: string; rating: number; wins: number; losses: number; me: boolean }[];
+  match: TeamMatchView | null;
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -181,6 +198,10 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_ready: () => '모든 파티원이 역할을 고르고 준비해야 해요.',
   raid_active: () => '진행 중인 레이드에서는 나갈 수 없어요.',
   raid_cooldown: (d) => `아직 대기시간이에요. ${fmtWait(Number(d.until) - Date.now())} 뒤에 다시 도전할 수 있어요.`,
+  need_both_teams: () => '양 팀에 한 명 이상 있어야 시작할 수 있어요.',
+  match_active: () => '진행 중인 대전에서는 나갈 수 없어요.',
+  not_in_match: () => '대전에 참가 중이 아니에요.',
+  taunted: () => '상대가 도발 중이에요. 도발한 상대만 노릴 수 있어요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -280,5 +301,16 @@ export const api = {
   raidLeave: () => post<{ ok: true }>('/api/raid/leave', {}),
   raidStart: () => post<{ ok: true }>('/api/raid/start', {}),
   raidAct: (body: { action: 'attack' | 'guard' | 'skill'; skillId?: string; targetId?: string }) => post<RaidRoomView>('/api/raid/action', body),
+  teamStatus: () => request<TeamStatus>('/api/team/status'),
+  teamQueue: (role: string) => post<{ queued: boolean; matchId?: string }>('/api/team/queue', { role }),
+  teamQueueLeave: () => post<{ ok: true }>('/api/team/queue/leave', {}),
+  teamRoomCreate: () => post<{ id: string }>('/api/team/room/create', {}),
+  teamRoomJoin: (code: string) => post<{ ok: true }>('/api/team/room/join', { code }),
+  teamRoomTeam: (team: 'A' | 'B') => post<{ ok: true }>('/api/team/room/team', { team }),
+  teamRoomRole: (role: string) => post<{ ok: true }>('/api/team/room/role', { role }),
+  teamRoomReady: (ready: boolean) => post<{ ok: true }>('/api/team/room/ready', { ready }),
+  teamRoomLeave: () => post<{ ok: true }>('/api/team/room/leave', {}),
+  teamRoomStart: () => post<{ ok: true }>('/api/team/room/start', {}),
+  teamAct: (body: { action: 'attack' | 'guard' | 'skill'; skillId?: string; targetId?: string }) => post<TeamMatchView>('/api/team/action', body),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

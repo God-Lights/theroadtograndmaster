@@ -283,3 +283,5 @@ input[type=datetime-local]{display:block;width:100%;margin-top:4px;padding:10px 
 .stars{color:var(--gold);letter-spacing:.05em;font-size:.85em}
 .battle-stack.party-wide{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .battle-stack.party-wide .fighter-name{font-size:.78rem}
+.team-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.team-col{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px;min-height:96px}

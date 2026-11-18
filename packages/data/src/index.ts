@@ -233,3 +233,17 @@ export function raidBossHp(bossId: string, partySize: number): number {
 }
 /** 한 역할을 맡을 수 있는 최대 인원 (4인 레이드는 역할당 1명, 8인은 2명) */
 export const raidRoleCap = (bossId: string): number => Math.max(1, Math.floor(RAID_BOSSES[bossId]!.maxParty / RAID_ROLE_IDS.length));
+
+// ─── PvP 규칙 (서버 판정과 위키가 같은 값을 쓴다) ─────────────────────────────
+
+export const PVP_RULES = {
+  /** PvP 스탯 상한: 장비 스탯을 이 값으로 자른 뒤 (팀전은 역할 배율을 곱한다) */
+  cap: { maxHp: 300, atk: 60, def: 30 },
+  roundSeconds: 45,
+  maxRounds: 40,
+  missLimit: 3,
+  startRating: 1000,
+  kFactor: 32,
+  teamSize: 4,
+  queueSeconds: 180,
+} as const;
