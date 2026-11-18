@@ -1,6 +1,6 @@
 import type { BossScript, PatternDef } from '@rtgm/engine';
 import {
-  BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
+  BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, RAID_ROLES, RAID_ROLE_IDS, raidKit, raidRoleCap, raidSkillById, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
   entryCost, itemById, mobById,
   type DungeonData, type ItemData, type MobData, type RecipeData, type SkillData,
 } from './index';
@@ -45,17 +45,19 @@ export const RARITY_LABEL: Record<string, string> = { basic: '기본', normal: '
 // ─── 보스 패턴 설명 ───────────────────────────────────────────────────────────
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+const TARGET_TEXT: Record<string, string> = { random: '무작위 한 명', lowest_hp: 'HP 비율이 가장 낮은 한 명', highest_hp: 'HP 비율이 가장 높은 한 명', all: '파티 전체', first: '' };
+const aimText = (rule: string | undefined) => (rule && TARGET_TEXT[rule] ? ` (대상: ${TARGET_TEXT[rule]})` : '');
 const unbreakable = (v: number) => v >= 1; // 끊기 기준이 보스 최대 HP 이상이면 사실상 끊을 수 없다
 
 /** 패턴 한 줄 설명 (페이즈 번호는 1부터, 충전 기술의 페이즈별 수치용) */
 export function describePattern(def: PatternDef, phase = 1): string {
   switch (def.kind) {
     case 'attack':
-      return `공격력 ${pct(def.mult)}${def.hits && def.hits > 1 ? ` × ${def.hits}회` : ''} 피해`;
+      return `공격력 ${pct(def.mult)}${def.hits && def.hits > 1 ? ` × ${def.hits}회` : ''} 피해${aimText(def.target)}`;
     case 'debuff':
-      return `대상 공격력 -${pct(1 - def.atkMult)} (${def.turns}라운드)`;
+      return `대상 공격력 -${pct(1 - def.atkMult)} (${def.turns}라운드)${aimText(def.target)}`;
     case 'drain':
-      return `대상 최대 HP의 ${pct(def.pct)}를 빼앗아 자신이 회복`;
+      return `대상 최대 HP의 ${pct(def.pct)}를 빼앗아 자신이 회복${aimText(def.target)}`;
     case 'summon':
       return `하수인을 최대 ${def.count}체까지 소환 (${def.minPhase}페이즈부터)`;
     case 'stance':
@@ -72,7 +74,7 @@ export function describePattern(def: PatternDef, phase = 1): string {
       const need = def.interruptPct[i]!;
       const charge = rounds >= 2 ? `${rounds}라운드 충전 후 ` : '충전 없이 바로 ';
       const brk = unbreakable(need) ? ' (끊을 수 없음)' : ` (한 라운드에 보스 최대 HP의 ${pct(need)} 이상 피해를 주면 끊김)`;
-      return `${charge}공격력 ${pct(def.mult)} 강타${brk}`;
+      return `${charge}공격력 ${pct(def.mult)} 강타${aimText(def.target)}${brk}`;
     }
   }
 }
@@ -100,13 +102,22 @@ export interface BossView {
   minion?: string;
   stance?: string[];
   hunger?: string;
+  enrage?: string;
 }
 
 /** 몹의 패턴 스크립트를 사람이 읽는 형태로 바꾼다. 스크립트가 없으면 undefined (일반 AI) */
 export function bossView(mobId: string): BossView | undefined {
   const raw = BOSS_SCRIPTS[mobId];
-  if (!raw) return undefined;
-  const script = raw as unknown as Omit<BossScript, 'bossId'>;
+  return raw ? scriptView(raw as unknown as Omit<BossScript, 'bossId'>) : undefined;
+}
+
+/** 레이드 보스의 패턴 보기 */
+export const raidBossView = (id: string): BossView | undefined => {
+  const b = RAID_BOSSES[id];
+  return b ? scriptView(b.script as unknown as Omit<BossScript, 'bossId'>) : undefined;
+};
+
+function scriptView(script: Omit<BossScript, 'bossId'>): BossView {
   const phases: PhaseView[] = script.phases.map((p, i) => {
     const total = p.pool.reduce((a, b) => a + b.weight, 0);
     return {
@@ -121,7 +132,7 @@ export function bossView(mobId: string): BossView | undefined {
     const inPhases = script.phases.map((p, i) => (p.pool.some((e) => e.id === id) ? i + 1 : 0)).filter((n) => n > 0);
     return {
       id, name: def.name, text: describePattern(def, inPhases[0] ?? 1),
-      telegraph: def.kind === 'charge_attack' ? def.telegraphCharge : def.telegraph, phases: inPhases,
+      telegraph: (def.kind === 'charge_attack' ? def.telegraphCharge : def.telegraph).replace('{target}', '지목된 대상'), phases: inPhases,
     };
   });
   const view: BossView = { patterns, phases };
@@ -143,6 +154,7 @@ export function bossView(mobId: string): BossView | undefined {
       `${s.reversalFromPhase}페이즈부터 ${s.reversalEvery}라운드마다 규칙이 뒤집혀요 (공격 → 공세, 방어 → 반격).`,
     ];
   }
+  if (script.enrage) view.enrage = `${script.enrage.fromRound}라운드부터 매 라운드 공격력이 +${pct(script.enrage.perRound)}씩 쌓여요 (격노).`;
   if (script.hunger) {
     const h = script.hunger;
     view.hunger = `허기: 매 라운드 +${h.perRound} (최대 ${h.max}), 허기 1당 공격력 +${pct(h.atkPerStack)}. 식사로 해소해요.`;
@@ -152,7 +164,7 @@ export function bossView(mobId: string): BossView | undefined {
 
 // ─── 검색 ────────────────────────────────────────────────────────────────────
 
-export type WikiKind = 'item' | 'mob' | 'skill' | 'dungeon' | 'recipe';
+export type WikiKind = 'item' | 'mob' | 'skill' | 'dungeon' | 'recipe' | 'raid';
 export interface WikiEntry {
   kind: WikiKind;
   id: string;
@@ -161,7 +173,7 @@ export interface WikiEntry {
   hint: string;
 }
 
-export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '던전', recipe: '제작' };
+export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '던전', recipe: '제작', raid: '레이드' };
 
 /** 위키의 모든 항목 (검색 색인) */
 export function wikiEntries(): WikiEntry[] {
@@ -170,7 +182,8 @@ export function wikiEntries(): WikiEntry[] {
   const skills = SKILLS.map((s): WikiEntry => ({ kind: 'skill', id: s.id, name: s.name, hint: `${s.ultimate ? '궁극기' : '스킬'} · ${s.role}` }));
   const dungeons = DUNGEONS.map((d): WikiEntry => ({ kind: 'dungeon', id: d.id, name: d.name, hint: `숙련도 ${d.minProficiency}~` }));
   const recipes = RECIPES.map((r): WikiEntry => ({ kind: 'recipe', id: r.id, name: `${itemById(r.resultId)?.name ?? r.resultId} 제작`, hint: `숙련도 ${r.unlockProficiency}에 해금` }));
-  return [...items, ...mobs, ...skills, ...dungeons, ...recipes];
+  const raids = Object.values(RAID_BOSSES).map((b): WikiEntry => ({ kind: 'raid', id: b.id, name: b.name, hint: `${'★'.repeat(b.star)} · ${b.recParty}~${b.maxParty}명` }));
+  return [...items, ...mobs, ...skills, ...dungeons, ...recipes, ...raids];
 }
 
 const dungeonName = (id: string) => DUNGEONS.find((d: DungeonData) => d.id === id)?.name ?? id;
@@ -195,3 +208,10 @@ export const skillsByRole = (): Record<string, SkillData[]> => {
   for (const s of SKILLS) (out[s.ultimate ? '궁극기' : s.role] ??= []).push(s);
   return out;
 };
+
+/** 레이드 역할 설명과 스킬 */
+export const raidRoleViews = () => RAID_ROLE_IDS.map((r) => ({
+  id: r, label: RAID_ROLES[r].label, desc: RAID_ROLES[r].desc,
+  skills: raidKit(r).map((id) => raidSkillById(id)!).filter(Boolean),
+}));
+export { RAID_BOSSES, raidRoleCap };

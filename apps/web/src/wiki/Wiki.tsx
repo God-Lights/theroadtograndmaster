@@ -4,7 +4,7 @@ import {
   dungeonById, getProfTier, itemById, mobById, skillById,
 } from '@rtgm/data';
 import {
-  RARITY_LABEL, TYPE_LABEL, WIKI_KIND_LABEL, bossView, itemSources, itemUses, mobSummary, searchWiki, skillsByRole, wikiEntries,
+  RARITY_LABEL, RAID_BOSSES, TYPE_LABEL, WIKI_KIND_LABEL, bossView, raidBossView, raidRoleCap, raidRoleViews, itemSources, itemUses, mobSummary, searchWiki, skillsByRole, wikiEntries,
   type WikiEntry,
 } from '@rtgm/data/src/wiki';
 import { AP_MAX, AP_REGEN, GAUGE_MAX, GUARD_REDUCTION } from '@rtgm/engine';
@@ -36,6 +36,7 @@ const SECTIONS = [
   { id: 'guide', label: '게임 가이드', desc: '전투·AP·궁극기 규칙' },
   { id: 'items', label: '아이템', desc: `${ITEMS.length}종 · 얻는 곳과 쓰임` },
   { id: 'mobs', label: '몹·보스', desc: `${MOBS.length}종 · 드롭과 패턴` },
+  { id: 'raids', label: '레이드', desc: `${Object.keys(RAID_BOSSES).length}종 · 별 등급과 역할` },
   { id: 'skills', label: '스킬', desc: `${SKILLS.length}종 · 역할별` },
   { id: 'dungeons', label: '던전', desc: `${DUNGEONS.length}곳 · 입장 조건` },
   { id: 'recipes', label: '제작', desc: `${RECIPES.length}종 · 재료와 해금` },
@@ -58,6 +59,7 @@ export function Wiki({ hash }: { hash: string }) {
       {section === 'guide' && <Guide />}
       {section === 'items' && (id ? <ItemPage id={id} /> : <ItemList />)}
       {section === 'mobs' && (id ? <MobPage id={id} /> : <MobList />)}
+      {section === 'raids' && (id ? <RaidPage id={id} /> : <RaidList />)}
       {section === 'skills' && <SkillList focus={id} />}
       {section === 'dungeons' && (id ? <DungeonPage id={id} /> : <DungeonList />)}
       {section === 'recipes' && <RecipeList />}
@@ -92,7 +94,7 @@ function Home() {
   );
 }
 
-const KIND_PATH: Record<WikiEntry['kind'], string> = { item: 'items', mob: 'mobs', skill: 'skills', dungeon: 'dungeons', recipe: 'recipes' };
+const KIND_PATH: Record<WikiEntry['kind'], string> = { item: 'items', mob: 'mobs', skill: 'skills', dungeon: 'dungeons', recipe: 'recipes', raid: 'raids' };
 function Results({ q }: { q: string }) {
   const results = useMemo(() => searchWiki(q), [q]);
   return (
@@ -225,8 +227,14 @@ function MobPage({ id }: { id: string }) {
         <div className="card-title">드롭</div>
         {mob.drops.length === 0 ? <div className="muted">없음</div> : mob.drops.map((d) => <div key={d.itemId} className="wiki-line">{itemLink(d.itemId)} {pct(d.chance)}</div>)}
       </div>
-      {view && (
-        <>
+      {view && <BossBlocks view={view} />}
+    </>
+  );
+}
+
+function BossBlocks({ view }: { view: NonNullable<ReturnType<typeof bossView>> }) {
+  return (
+    <>
           {view.phases.map((p) => (
             <div key={p.phase} className="card">
               <div className="card-title">{p.phase}페이즈 <span className="muted">HP {p.fromHpPct}% 이하부터 · 공격력 ×{p.atkMult}</span></div>
@@ -244,17 +252,16 @@ function MobPage({ id }: { id: string }) {
               </div>
             ))}
           </div>
-          {(view.vessel || view.minion || view.stance || view.hunger) && (
+          {(view.vessel || view.minion || view.stance || view.hunger || view.enrage) && (
             <div className="card">
               <div className="card-title">특수 규칙</div>
               {view.vessel && <div className="wiki-line">{view.vessel}</div>}
               {view.minion && <div className="wiki-line">{view.minion}</div>}
               {view.hunger && <div className="wiki-line">{view.hunger}</div>}
+              {view.enrage && <div className="wiki-line">{view.enrage}</div>}
               {view.stance?.map((t) => <div key={t} className="wiki-line">{t}</div>)}
             </div>
           )}
-        </>
-      )}
     </>
   );
 }
@@ -337,3 +344,56 @@ function Tiers() {
 
 // 사용하지 않는 import 방지용 (스킬 참조 링크 확장 대비)
 void skillById;
+
+const wait = (min: number) => (min >= 60 ? `${min / 60}시간` : `${min}분`);
+
+function RaidList() {
+  return (
+    <>
+      <div className="card">
+        {Object.values(RAID_BOSSES).sort((a, b) => a.star - b.star).map((b) => (
+          <a key={b.id} className="wiki-row" href={`#/wiki/raids/${b.id}`}>
+            <span><span className="stars">{'★'.repeat(b.star)}</span> {b.name}</span>
+            <span className="muted wiki-hint">적정 {b.recParty}명 · 최대 {b.maxParty}명</span>
+          </a>
+        ))}
+      </div>
+      <div className="card">
+        <div className="card-title">역할</div>
+        {raidRoleViews().map((r) => (
+          <div key={r.id} className="wiki-def">
+            <div className="wiki-k">{r.label}</div>
+            <div>{r.desc}</div>
+            {r.skills.map((s) => <div key={s.id} className="muted gdesc">{s.name}{s.ultimate ? ' (궁극기)' : ''} · AP {s.apCost}{s.cooldown ? ` · 쿨 ${s.cooldown}` : ''} — {s.description}</div>)}
+          </div>
+        ))}
+        <div className="note">4인 레이드는 역할당 1명, 8인 레이드는 2명까지 고를 수 있어요. 레이드 스탯은 장비 상한(HP 900·ATK 150·DEF 60)을 둔 뒤 역할 배율을 곱해요.</div>
+      </div>
+    </>
+  );
+}
+
+function RaidPage({ id }: { id: string }) {
+  const b = RAID_BOSSES[id];
+  const view = raidBossView(id);
+  if (!b || !view) return <div className="empty">없는 레이드예요.</div>;
+  return (
+    <>
+      <div className="card">
+        <div className="card-title"><span className="stars">{'★'.repeat(b.star)}{'☆'.repeat(5 - b.star)}</span> {b.name}</div>
+        <div className="note">{b.note}</div>
+        <div className="stat-row"><span className="stat-label">파티</span><span>2~{b.maxParty}명 (적정 {b.recParty}명) · 역할당 {raidRoleCap(id)}명</span></div>
+        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{b.minProficiency}+ ({getProfTier(b.minProficiency).name})</span></div>
+        <div className="stat-row"><span className="stat-label">보스 HP</span><span>{b.hp.toLocaleString()} (적정 인원 기준, 인원에 비례)</span></div>
+        <div className="stat-row"><span className="stat-label">공격력 · 방어력</span><span>{b.atk} · {b.def}</span></div>
+        <div className="stat-row"><span className="stat-label">재입장 대기</span><span>{wait(b.cooldownMinutes)} (패배 시 절반)</span></div>
+        <div className="stat-row"><span className="stat-label">보상</span><span>{b.gold[0].toLocaleString()}~{b.gold[1].toLocaleString()}D · 숙련도 +{b.profWin}</span></div>
+      </div>
+      <div className="card">
+        <div className="card-title">드롭</div>
+        {b.drops.map((d) => <div key={d.itemId} className="wiki-line">{itemLink(d.itemId)} {pct(d.chance)}</div>)}
+      </div>
+      <BossBlocks view={view} />
+    </>
+  );
+}

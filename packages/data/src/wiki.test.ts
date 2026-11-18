@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOSS_SCRIPTS, ITEMS, MOBS } from './index';
-import { bossView, describePattern, hasSource, itemSources, itemUses, mobSummary, searchWiki, skillsByRole, wikiEntries } from './wiki';
+import { raidBossView, raidRoleViews, bossView, describePattern, hasSource, itemSources, itemUses, mobSummary, searchWiki, skillsByRole, wikiEntries } from './wiki';
 
 describe('wiki', () => {
   it('모든 아이템은 얻는 방법이 하나 이상 있다', () => {
@@ -19,6 +19,20 @@ describe('wiki', () => {
   it('오포코는 자세 설명이 있고 리치는 영혼함 설명이 있다', () => {
     expect(bossView('oppoko')!.stance!.length).toBeGreaterThan(3);
     expect(bossView('rich')!.vessel).toContain('영혼함');
+  });
+  it('레이드 보스 보기와 역할 설명', () => {
+    for (const id of ['dragon', 'baekkario', 'ankio']) {
+      const v = raidBossView(id)!;
+      expect(v.phases.length).toBe(3);
+      expect(v.enrage).toContain('격노');
+      for (const p of v.patterns) { expect(p.text).not.toContain('undefined'); expect(p.text).not.toContain('NaN'); }
+      expect(v.patterns.some((p) => p.text.includes('파티 전체'))).toBe(true);
+    }
+    expect(raidBossView('nope')).toBeUndefined();
+    const roles = raidRoleViews();
+    expect(roles).toHaveLength(4);
+    for (const r of roles) expect(r.skills).toHaveLength(5);
+    expect(searchWiki('백카리오', wikiEntries()).some((e) => e.kind === 'raid' && e.id === 'baekkario')).toBe(true);
   });
   it('검색: 앞글자 일치가 먼저, 공백 무시', () => {
     const e = wikiEntries();
