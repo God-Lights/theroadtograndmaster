@@ -21,7 +21,9 @@ export function parseRows(q: string | null | undefined): Row[] | null {
   });
 }
 
-export const rowsToQuery = (rows: Row[]): string => rows.map((r) => (r.t === 'gap' ? '_' : r.t === 'pips' ? `p${r.n}` : r.t === 'gauge' ? `u${Math.round(r.pct)}` : `${r.t}${Math.round(r.pct)}`)).join(',');
+/** 막대 길이를 5% 단위로 맞춘다 — 주소 종류가 줄어 캐시 적중이 크게 늘고, 눈금(25·50·75%)과도 맞는다. 살아 있으면 최소 5% */
+export const snapPct = (n: number): number => (n <= 0 ? 0 : Math.min(100, Math.max(5, Math.round(n / 5) * 5)));
+export const rowsToQuery = (rows: Row[]): string => rows.map((r) => (r.t === 'gap' ? '_' : r.t === 'pips' ? `p${r.n}` : r.t === 'gauge' ? `u${snapPct(r.pct)}` : `${r.t}${snapPct(r.pct)}`)).join(',');
 
 // ─── 그리기 ──────────────────────────────────────────────────────────────────
 
