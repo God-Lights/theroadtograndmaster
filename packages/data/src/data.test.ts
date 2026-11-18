@@ -177,9 +177,25 @@ describe('던전·몹 무결성', () => {
   it('입장 비용: 일반 몹은 골드만, 보스는 열쇠+골드 (기본 던전은 무료)', () => {
     const lappus = MOBS.find((m) => m.id === 'lappus')!;
     const oppoko = MOBS.find((m) => m.id === 'oppoko')!;
-    expect(entryCost(lappus)).toEqual({ gold: 100, key: null });
+    expect(entryCost(lappus)).toEqual({ gold: 30, key: null });
     expect(entryCost(oppoko)).toEqual({ gold: 400, key: 'midrealm_key' });
     expect(entryCost(MOBS.find((m) => m.id === 'rich')!)).toEqual({ gold: 0, key: null });
+  });
+
+  it('금액 균형: 입장료는 보상보다 훨씬 싸고(평균 보상의 1/3 이하), 상위 지역일수록 보상이 커진다', () => {
+    const avg = (m: { gold: [number, number] }) => (m.gold[0] + m.gold[1]) / 2;
+    const order = ['plains', 'graveyard', 'forest', 'midrealm_1', 'midrealm_2'];
+    const means: number[] = [];
+    for (const id of order) {
+      const d = dungeonById(id)!;
+      const normals = d.spawns.map((s) => ({ mob: MOBS.find((m) => m.id === s.mobId)!, w: s.weight }));
+      const mean = normals.reduce((a, x) => a + avg(x.mob) * x.w, 0) / normals.reduce((a, x) => a + x.w, 0);
+      expect(d.entry.normalGold, `${id} 입장료`).toBeLessThanOrEqual(mean / 3);
+      means.push(mean);
+      const boss = d.mobs.map((m) => MOBS.find((x) => x.id === m)!).find((m) => m.kind === 'boss');
+      if (boss) expect(d.entry.bossGold, `${id} 보스 입장료`).toBeLessThanOrEqual(avg(boss) / 2);
+    }
+    expect([...means].sort((a, b) => a - b)).toEqual(means); // 평원 < 묘지 < 숲 < 중간계 I < 중간계 II
   });
 
   it('중간계 열쇠는 리치 보상(황금 리치)으로 만들 수 있고 던전 진입에 쓰인다', () => {

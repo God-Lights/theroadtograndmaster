@@ -87,7 +87,7 @@
     "description": "일반 세계와 신의 영역 사이. 변이한 몬스터들이 지키는 이 던전의 끝에는 거울 기사 코에도스가 있습니다. 보스에 도전하려면 중간계의 열쇠가 필요해요.",
     "minProficiency": 800,
     "entry": {
-      "normalGold": 100,
+      "normalGold": 30,
       "bossGold": 400,
       "bossKey": "midrealm_key"
     },
@@ -125,7 +125,7 @@
     "description": "허기진 자들이 모이는 깊은 층. 던전의 주인 포더모어는 먹을수록 강해지는 식객의 왕입니다. 보스에 도전하려면 포더모어의 식권이 필요해요.",
     "minProficiency": 1300,
     "entry": {
-      "normalGold": 200,
+      "normalGold": 60,
       "bossGold": 800,
       "bossKey": "fodermore_key"
     },
