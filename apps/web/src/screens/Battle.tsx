@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { itemById, skillById } from '@rtgm/data';
+import { itemById, skillById, type MobData } from '@rtgm/data';
 import { canUseSkill, skillCost, type BattleState, type Combatant, type LogEntry, type SkillDef } from '@rtgm/engine';
 import { api, type Rewards } from '../api';
 import { Resources, StatusBadges } from '../components/status';
@@ -29,8 +29,8 @@ function HpBar({ hp, max }: { hp: number; max: number }) {
   );
 }
 
-function EnemyCard({ enemy, label, selectable, selected, phase, round, onSelect }: {
-  enemy: Combatant; label: string; selectable: boolean; selected: boolean; phase?: number; round: number; onSelect: () => void;
+function EnemyCard({ enemy, label, selectable, selected, phase, round, isBoss, onSelect }: {
+  enemy: Combatant; label: string; selectable: boolean; selected: boolean; phase?: number; round: number; isBoss?: boolean; onSelect: () => void;
 }) {
   return (
     <div
@@ -41,7 +41,7 @@ function EnemyCard({ enemy, label, selectable, selected, phase, round, onSelect 
     >
       <div className="fighter-name">
         {label}
-        {enemy.role && enemy.role !== 'normal' && <span className="badge role">{ROLE_LABEL[enemy.role]}</span>}
+        {enemy.role && enemy.role !== 'normal' && (enemy.role !== 'boss' || isBoss) && <span className="badge role">{ROLE_LABEL[enemy.role]}</span>}
         {phase && <span className="badge">{phase}페이즈</span>}
         {selected && <span className="badge target">대상</span>}
         <StatusBadges who={enemy} round={round} />
@@ -51,7 +51,44 @@ function EnemyCard({ enemy, label, selectable, selected, phase, round, onSelect 
   );
 }
 
-export function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initial: BattleState; mobName: string; onEnd: () => void }) {
+/** 자세 규칙이 있는 보스(코에도스)의 이번 라운드 자세 안내 */
+function StanceBanner({ state }: { state: BattleState }) {
+  const cfg = state.boss?.script.stance;
+  const rt = state.boss?.runtime;
+  if (!cfg || !rt) return null;
+  const boost = rt.stanceBoost;
+  const pct = (n: number) => Math.round(n * 100);
+  const title = rt.stance === 'counter' ? '반격의 자세' : rt.stance === 'offense' ? '공세의 자세' : '중립 자세';
+  const detail =
+    rt.stance === 'counter'
+      ? `기본 공격은 피해가 ${pct(Math.min(0.95, cfg.counter.reduction * boost))}% 줄고 ${pct(cfg.counter.reflect * boost)}%가 되돌아와요. 스킬은 영향을 받지 않아요.`
+      : rt.stance === 'offense'
+        ? `보스 공격력 +${pct((cfg.offense.atkMult - 1) * boost)}%, 방어 효과를 ${pct(Math.min(1, cfg.offense.guardPierce * boost))}% 무시해요.`
+        : '특별한 효과가 없어요.';
+  // 지금 한 행동이 다음 라운드 자세를 정한다 (반전 라운드는 규칙이 뒤집힌다)
+  const nextRound = state.round + 1;
+  const flip = rt.phase >= cfg.reversalFromPhase && nextRound % cfg.reversalEvery === 0;
+  const afterAttack = flip ? '공세' : '반격';
+  const afterGuard = flip ? '반격' : '공세';
+  return (
+    <div className={`stance stance-${rt.stance}`}>
+      <div className="stance-head">
+        <Icon name={rt.stance === 'offense' ? 'sword' : rt.stance === 'counter' ? 'shield' : 'info'} /> <b>{title}</b>
+        {boost > 1 && <span className="badge bad">강화 ×{boost}</span>}
+        {rt.reversed && <span className="badge bad">⟲ 반전 라운드</span>}
+      </div>
+      <div>{detail}</div>
+      <div className="stance-hint">
+        이번에 <b>공격</b>하면 다음 라운드는 {afterAttack}, <b>방어</b>하면 {afterGuard}, <b>스킬·아이템</b>은 중립이에요.
+        {flip && ' (다음 라운드는 규칙이 뒤집혀요)'}
+      </div>
+    </div>
+  );
+}
+
+export function Battle({ battleId, initial, mob, onEnd }: { battleId: string; initial: BattleState; mob: MobData; onEnd: () => void }) {
+  const mobName = mob.name;
+  const isBossMob = mob.kind === 'boss';
   const { inv, refresh, modal, fail } = useGame();
   const [state, setState] = useState(initial);
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -68,9 +105,13 @@ export function Battle({ battleId, initial, mobName, onEnd }: { battleId: string
   // 선택한 대상이 쓰러졌으면(영혼함 파괴 등) 주 적으로 돌아간다
   const targetId = enemies.some((e) => e.id === target) ? target : (enemies.find((e) => e.id === 'enemy') ?? enemies[0])?.id ?? 'enemy';
   const intent = state.intents?.enemy;
-  const phase = state.boss?.runtime.phase;
+  const multiPhase = (state.boss?.script.phases.length ?? 0) > 1;
+  const phase = multiPhase ? state.boss?.runtime.phase : undefined;
+  const bossPhase = state.boss?.runtime.phase;
   const charge = intent && (intent.kind === 'charge' || intent.kind === 'release') ? state.boss?.script.patterns[intent.patternId] : undefined;
-  const interruptNeed = charge?.kind === 'charge_attack' && phase ? Math.ceil(charge.interruptPct[phase - 1]! * mainEnemy.stats.maxHp) : undefined;
+  const interruptNeed = charge?.kind === 'charge_attack' && bossPhase ? Math.ceil(charge.interruptPct[bossPhase - 1]! * mainEnemy.stats.maxHp) : undefined;
+  // 중간계 몹처럼 끊을 수 없는 충전기는 힌트를 숨긴다 (필요 피해가 보스 최대 HP를 넘는 경우)
+  const interruptible = interruptNeed !== undefined && interruptNeed <= mainEnemy.stats.maxHp;
   const potions = (inv?.items ?? [])
     .map((r) => ({ row: r, item: itemById(r.itemId) }))
     .filter((x) => x.item?.type === 'consumable' && x.item.heal > 0);
@@ -182,13 +223,14 @@ export function Battle({ battleId, initial, mobName, onEnd }: { battleId: string
         <div className={`intent${intent.kind === 'charge' || intent.kind === 'release' ? ' danger' : ''}`}>
           <div className="intent-head"><Icon name="info" /> 다음 행동: <b>{intent.name}</b></div>
           <div>{intent.telegraph}</div>
-          {interruptNeed !== undefined && (
+          {interruptible && (
             <div className="intent-hint">
               {intent.kind === 'charge' ? '충전 중 ' : '발동 전 '}한 라운드에 {interruptNeed} 이상 피해를 주면 끊을 수 있어요.
             </div>
           )}
         </div>
       )}
+      {bossMode && state.status === 'ongoing' && <StanceBanner state={state} />}
       {charging && state.status === 'ongoing' && (
         <div className="charge-note"><Icon name="bolt" /> 힘을 모으는 중: 이번 라운드에 <b>{charging.name}</b>이(가) 발동해요. 다른 행동은 할 수 없어요.</div>
       )}
@@ -210,6 +252,7 @@ export function Battle({ battleId, initial, mobName, onEnd }: { battleId: string
             selectable={bossMode && enemies.length > 1}
             selected={bossMode && enemies.length > 1 && e.id === targetId}
             phase={e.role === 'boss' ? phase : undefined}
+            isBoss={isBossMob}
             round={state.round}
             onSelect={() => setTarget(e.id)}
           />

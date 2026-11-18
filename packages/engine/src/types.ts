@@ -136,10 +136,14 @@ export interface SkillDef {
 // ─── 보스 스크립트 (데이터로 정의하고 엔진이 실행한다) ─────────────────────────
 
 export type PatternDef =
-  | { kind: 'attack'; name: string; mult: number; telegraph: string }
+  | { kind: 'attack'; name: string; mult: number; telegraph: string; /** 연속 타격 수 (기본 1) */ hits?: number }
   | { kind: 'debuff'; name: string; atkMult: number; turns: number; telegraph: string }
   | { kind: 'drain'; name: string; pct: number; telegraph: string }
   | { kind: 'summon'; name: string; count: number; minPhase: number; telegraph: string }
+  /** 이번 라운드 웅크린다: 선행으로 받는 피해를 줄이고 일부를 반사 (공격한 쪽이 손해) */
+  | { kind: 'stance'; name: string; takenMult: number; reflectPct: number; telegraph: string }
+  /** 거울 복제: 플레이어가 직전 라운드에 입힌 피해의 일부를 되돌려 준다 */
+  | { kind: 'mirror'; name: string; pct: number; telegraph: string }
   | {
       kind: 'charge_attack';
       name: string;
@@ -165,6 +169,20 @@ export interface BossPhase {
   enterText?: string;
 }
 
+/** 직전 플레이어 행동의 '반대' 자세를 취하는 보스 규칙 (코에도스) */
+export interface StanceConfig {
+  /** 반격의 자세 (플레이어가 기본 공격을 했을 때): 기본 공격 피해 감소 + 반사. 스킬은 영향을 받지 않는다 */
+  counter: { reduction: number; reflect: number };
+  /** 공세의 자세 (플레이어가 방어했을 때): 보스 공격력 배율 + 방어 효과 관통 */
+  offense: { atkMult: number; guardPierce: number };
+  /** 이 페이즈부터, 같은 행동(공격/방어)을 연속하면 자세 효과가 이 배율로 강해진다 */
+  enhancedFromPhase: number;
+  enhancedMult: number;
+  /** 이 페이즈부터 N라운드마다 자세 규칙이 뒤집힌다 (공격→공세, 방어→반격) */
+  reversalFromPhase: number;
+  reversalEvery: number;
+}
+
 export interface BossScript {
   bossId: string;
   patterns: Record<string, PatternDef>;
@@ -181,11 +199,12 @@ export interface BossScript {
     appearsAtPhase: number;
   };
   minion?: { name: string; stats: Stats; max: number; healBossPct: number };
+  stance?: StanceConfig;
 }
 
 export type IntentKind =
   | 'attack' | 'debuff' | 'drain' | 'summon' | 'charge' | 'release'
-  | 'stunned' | 'phase_shift' | 'minion_attack';
+  | 'stunned' | 'phase_shift' | 'minion_attack' | 'stance' | 'mirror';
 
 /** 다음 라운드 적의 행동 예고. 선택 단계에서 플레이어에게 보여 준다. */
 export interface Intent {
@@ -209,6 +228,17 @@ export interface BossRuntime {
   /** 이번 라운드에 보스가 실제로 잃은 HP (끊기 판정용) */
   damageThisRound: number;
   minionSeq: number;
+  /** 이번 라운드의 자세 (stance 규칙이 있는 보스만) */
+  stance: 'neutral' | 'counter' | 'offense';
+  /** 같은 행동을 연속했을 때의 강화 배율 (1 = 강화 없음) */
+  stanceBoost: number;
+  /** 이번 라운드에 자세 규칙이 뒤집혔는가 */
+  reversed: boolean;
+  /** 플레이어의 최근 행동 종류 (최대 2개) */
+  lastActions: string[];
+  /** 플레이어가 직전 라운드에 입힌 총 피해 / 이번 라운드 누적 */
+  lastPlayerDamage: number;
+  playerDamageThisRound: number;
 }
 
 export interface BattleState {

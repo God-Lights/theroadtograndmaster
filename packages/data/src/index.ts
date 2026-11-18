@@ -5,6 +5,7 @@ import mobsJson from '../data/mobs.json';
 import tiersJson from '../data/proficiency-tiers.json';
 import recipesJson from '../data/recipes.json';
 import bossesJson from '../data/bosses.json';
+import dungeonsJson from '../data/dungeons.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -39,6 +40,10 @@ export interface MobData {
   /** 전투 승리/패배 시 얻는 숙련도 (EDRPG PROFICIENCY_GAINS 기준) */
   profWin: number;
   profLose: number;
+  /** 이 몹이 나오는 던전 ID */
+  dungeon: string;
+  /** 화면에 보여 줄 공략 힌트 */
+  note?: string;
   drops: { itemId: string; chance: number }[];
 }
 
@@ -146,3 +151,26 @@ export const ULTIMATE_SLOTS = 1;
 export const DEFAULT_LOADOUT = ['strike', 'bash', 'heal', 'shield'] as const;
 /** 전투 시작 AP */
 export const START_AP = 4;
+
+export interface DungeonData {
+  id: string;
+  name: string;
+  description: string;
+  /** 이 숙련도 이상이어야 입장할 수 있다 (하드 제한) */
+  minProficiency: number;
+  /** 전투 1회 입장 비용. 보스는 열쇠를 1개 소모하고 보스 비용을 낸다 */
+  entry: { normalGold: number; bossGold: number; bossKey: string | null };
+  mobs: string[];
+}
+
+export const DUNGEONS = dungeonsJson as DungeonData[];
+export const dungeonById = (id: string): DungeonData | undefined => DUNGEONS.find((d) => d.id === id);
+
+/** 이 몹과 싸우려면 내야 하는 입장 비용 */
+export function entryCost(mob: MobData): { gold: number; key: string | null } {
+  const d = dungeonById(mob.dungeon);
+  if (!d) return { gold: 0, key: null };
+  return mob.kind === 'boss'
+    ? { gold: d.entry.bossGold, key: d.entry.bossKey }
+    : { gold: d.entry.normalGold, key: null };
+}

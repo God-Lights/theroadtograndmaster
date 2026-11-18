@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_STATS, DEFAULT_LOADOUT, ITEMS, MOBS, SKILLS, SKILL_SLOTS, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
+import { BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -116,5 +116,56 @@ describe('스킬 데이터 무결성', () => {
   it('지력 장비가 있어 회복 스킬 빌드가 가능하다', () => {
     expect(ITEMS.some((i) => (i.int ?? 0) > 0)).toBe(true);
     expect(computeStats([itemById('sage_staff')!]).int).toBe(BASE_STATS.int + 18);
+  });
+});
+
+describe('던전·몹 무결성', () => {
+  it('모든 몹은 존재하는 던전에 속하고, 던전의 몹 목록과 일치한다', () => {
+    for (const m of MOBS) expect(dungeonById(m.dungeon), m.id).toBeDefined();
+    for (const d of DUNGEONS) {
+      expect(d.mobs.length, d.id).toBeGreaterThan(0);
+      for (const id of d.mobs) expect(MOBS.find((m) => m.id === id)?.dungeon, `${d.id}:${id}`).toBe(d.id);
+    }
+    expect(DUNGEONS.flatMap((d) => d.mobs).sort()).toEqual(MOBS.map((m) => m.id).sort());
+  });
+
+  it('던전마다 보스가 마지막에 있고, 열쇠를 요구하면 그 열쇠 아이템이 존재한다', () => {
+    for (const d of DUNGEONS) {
+      const last = MOBS.find((m) => m.id === d.mobs[d.mobs.length - 1])!;
+      expect(last.kind, d.id).toBe('boss');
+      if (d.entry.bossKey) expect(itemById(d.entry.bossKey), d.id).toBeDefined();
+    }
+  });
+
+  it('입장 비용: 일반 몹은 골드만, 보스는 열쇠+골드 (기본 던전은 무료)', () => {
+    const lappus = MOBS.find((m) => m.id === 'lappus')!;
+    const oppoko = MOBS.find((m) => m.id === 'oppoko')!;
+    expect(entryCost(lappus)).toEqual({ gold: 100, key: null });
+    expect(entryCost(oppoko)).toEqual({ gold: 400, key: 'midrealm_key' });
+    expect(entryCost(MOBS.find((m) => m.id === 'rich')!)).toEqual({ gold: 0, key: null });
+  });
+
+  it('중간계 열쇠는 리치 보상(황금 리치)으로 만들 수 있고 던전 진입에 쓰인다', () => {
+    const recipe = RECIPES.find((r) => r.resultId === 'midrealm_key')!;
+    expect(recipe.materials.map((m) => m.itemId)).toContain('golden_lich');
+    expect(MOBS.find((m) => m.id === 'rich')!.drops.some((d) => d.itemId === 'golden_lich' && d.chance === 1)).toBe(true);
+    expect(itemById('midrealm_key')!.sell).toBe(0); // 팔 수 없다
+  });
+
+  it('보스 스크립트가 있는 몹은 패턴 풀의 모든 ID가 정의돼 있다', () => {
+    for (const [mobId, sc] of Object.entries(BOSS_SCRIPTS)) {
+      expect(MOBS.find((m) => m.id === mobId), mobId).toBeDefined();
+      const patterns = sc.patterns as Record<string, unknown>;
+      for (const ph of sc.phases as { pool: { id: string }[] }[]) {
+        for (const p of ph.pool) expect(patterns[p.id], `${mobId}:${p.id}`).toBeDefined();
+      }
+    }
+  });
+
+  it('중간계 몹 4종과 코에도스는 모두 공략 힌트(note)를 가진다', () => {
+    for (const id of ['lappus', 'raufaino', 'toka_loga', 'xenosaurs', 'oppoko']) {
+      expect(MOBS.find((m) => m.id === id)!.note, id).toBeTruthy();
+      expect(BOSS_SCRIPTS[id], id).toBeDefined();
+    }
   });
 });

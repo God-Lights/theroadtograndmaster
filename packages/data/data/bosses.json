@@ -1,27 +1,401 @@
 {
   "rich": {
     "patterns": {
-      "dark_arrow":    { "kind": "attack", "name": "암흑 화살", "mult": 1.1, "telegraph": "마력이 모인다." },
-      "weaken_curse":  { "kind": "debuff", "name": "약화의 저주", "atkMult": 0.8, "turns": 2, "telegraph": "저주를 읊는다." },
-      "life_drain":    { "kind": "drain", "name": "생명 흡수", "pct": 0.15, "telegraph": "생기를 빨아들이려 한다." },
-      "undead_summon": { "kind": "summon", "name": "언데드 소집", "count": 2, "minPhase": 2, "telegraph": "뼈가 일어난다." },
-      "death_touch":   {
-        "kind": "charge_attack", "name": "죽음의 손길", "mult": 3.0,
-        "chargeRounds": [2, 2, 1], "interruptPct": [0.08, 0.08, 0.05], "minGap": 3, "minPhase": 2,
-        "telegraphCharge": "어둠이 손을 뻗는다.", "telegraphRelease": "죽음의 손이 닿으려 한다!"
+      "dark_arrow": {
+        "kind": "attack",
+        "name": "암흑 화살",
+        "mult": 1.1,
+        "telegraph": "마력이 모인다."
+      },
+      "weaken_curse": {
+        "kind": "debuff",
+        "name": "약화의 저주",
+        "atkMult": 0.8,
+        "turns": 2,
+        "telegraph": "저주를 읊는다."
+      },
+      "life_drain": {
+        "kind": "drain",
+        "name": "생명 흡수",
+        "pct": 0.15,
+        "telegraph": "생기를 빨아들이려 한다."
+      },
+      "undead_summon": {
+        "kind": "summon",
+        "name": "언데드 소집",
+        "count": 2,
+        "minPhase": 2,
+        "telegraph": "뼈가 일어난다."
+      },
+      "death_touch": {
+        "kind": "charge_attack",
+        "name": "죽음의 손길",
+        "mult": 3.0,
+        "chargeRounds": [
+          2,
+          2,
+          1
+        ],
+        "interruptPct": [
+          0.08,
+          0.08,
+          0.05
+        ],
+        "minGap": 3,
+        "minPhase": 2,
+        "telegraphCharge": "어둠이 손을 뻗는다.",
+        "telegraphRelease": "죽음의 손이 닿으려 한다!"
       }
     },
     "phases": [
-      { "fromHpPct": 100, "atkMult": 1.0, "pool": [
-        { "id": "dark_arrow", "weight": 5 }, { "id": "weaken_curse", "weight": 2 }, { "id": "life_drain", "weight": 2 } ] },
-      { "fromHpPct": 60, "atkMult": 1.0, "enterText": "리치가 영혼 의식을 시작한다!", "pool": [
-        { "id": "dark_arrow", "weight": 4 }, { "id": "weaken_curse", "weight": 2 }, { "id": "life_drain", "weight": 2 },
-        { "id": "undead_summon", "weight": 3 }, { "id": "death_touch", "weight": 3 } ] },
-      { "fromHpPct": 25, "atkMult": 1.25, "enterText": "리치가 분노한다!", "pool": [
-        { "id": "dark_arrow", "weight": 4 }, { "id": "weaken_curse", "weight": 1 }, { "id": "life_drain", "weight": 2 },
-        { "id": "undead_summon", "weight": 1 }, { "id": "death_touch", "weight": 3 } ] }
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "dark_arrow",
+            "weight": 5
+          },
+          {
+            "id": "weaken_curse",
+            "weight": 2
+          },
+          {
+            "id": "life_drain",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "fromHpPct": 60,
+        "atkMult": 1.0,
+        "enterText": "리치가 영혼 의식을 시작한다!",
+        "pool": [
+          {
+            "id": "dark_arrow",
+            "weight": 4
+          },
+          {
+            "id": "weaken_curse",
+            "weight": 2
+          },
+          {
+            "id": "life_drain",
+            "weight": 2
+          },
+          {
+            "id": "undead_summon",
+            "weight": 3
+          },
+          {
+            "id": "death_touch",
+            "weight": 3
+          }
+        ]
+      },
+      {
+        "fromHpPct": 25,
+        "atkMult": 1.25,
+        "enterText": "리치가 분노한다!",
+        "pool": [
+          {
+            "id": "dark_arrow",
+            "weight": 4
+          },
+          {
+            "id": "weaken_curse",
+            "weight": 1
+          },
+          {
+            "id": "life_drain",
+            "weight": 2
+          },
+          {
+            "id": "undead_summon",
+            "weight": 1
+          },
+          {
+            "id": "death_touch",
+            "weight": 3
+          }
+        ]
+      }
     ],
-    "vessel": { "name": "영혼함", "hp": 60, "def": 0, "damageReduction": 0.6, "reviveHpPct": 0.3, "appearsAtPhase": 2 },
-    "minion": { "name": "리치몬드", "stats": { "maxHp": 45, "atk": 11, "def": 4, "spd": 7 }, "max": 2, "healBossPct": 0.02 }
+    "vessel": {
+      "name": "영혼함",
+      "hp": 60,
+      "def": 0,
+      "damageReduction": 0.6,
+      "reviveHpPct": 0.3,
+      "appearsAtPhase": 2
+    },
+    "minion": {
+      "name": "리치몬드",
+      "stats": {
+        "maxHp": 45,
+        "atk": 11,
+        "def": 4,
+        "spd": 7
+      },
+      "max": 2,
+      "healBossPct": 0.02
+    }
+  },
+  "lappus": {
+    "patterns": {
+      "nibble": {
+        "kind": "attack",
+        "name": "물어뜯기",
+        "mult": 1.0,
+        "telegraph": "이빨을 드러낸다."
+      },
+      "flurry": {
+        "kind": "attack",
+        "name": "연속 물어뜯기",
+        "mult": 0.6,
+        "hits": 2,
+        "telegraph": "빠르게 뛰어든다."
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "flurry",
+            "weight": 3
+          },
+          {
+            "id": "nibble",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "raufaino": {
+    "patterns": {
+      "slash": {
+        "kind": "attack",
+        "name": "베기",
+        "mult": 1.0,
+        "telegraph": "칼날이 스친다."
+      },
+      "ambush": {
+        "kind": "charge_attack",
+        "name": "안개 습격",
+        "mult": 2.2,
+        "chargeRounds": [
+          2,
+          2,
+          2
+        ],
+        "interruptPct": [
+          9,
+          9,
+          9
+        ],
+        "minGap": 4,
+        "minPhase": 1,
+        "telegraphCharge": "안개 속으로 모습을 감춘다.",
+        "telegraphRelease": "안개 속에서 칼날이 번뜩인다!"
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "slash",
+            "weight": 4
+          },
+          {
+            "id": "ambush",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "toka_loga": {
+    "patterns": {
+      "bite": {
+        "kind": "attack",
+        "name": "깨물기",
+        "mult": 1.0,
+        "telegraph": "느릿하게 입을 벌린다."
+      },
+      "shell": {
+        "kind": "stance",
+        "name": "등껍질 웅크리기",
+        "takenMult": 0.6,
+        "reflectPct": 0.5,
+        "telegraph": "등껍질 속으로 움츠린다. 공격하면 피해가 줄고 되돌아온다!"
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "bite",
+            "weight": 3
+          },
+          {
+            "id": "shell",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "xenosaurs": {
+    "patterns": {
+      "bite": {
+        "kind": "attack",
+        "name": "물기",
+        "mult": 1.2,
+        "telegraph": "크게 입을 벌린다."
+      },
+      "tail": {
+        "kind": "attack",
+        "name": "꼬리 후려치기",
+        "mult": 1.0,
+        "telegraph": "꼬리가 휘어진다."
+      },
+      "roar": {
+        "kind": "debuff",
+        "name": "포효",
+        "atkMult": 0.85,
+        "turns": 2,
+        "telegraph": "포효가 울려 퍼진다."
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "bite",
+            "weight": 3
+          },
+          {
+            "id": "tail",
+            "weight": 2
+          },
+          {
+            "id": "roar",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "oppoko": {
+    "patterns": {
+      "strike": {
+        "kind": "attack",
+        "name": "내리치기",
+        "mult": 1.0,
+        "telegraph": "검을 치켜든다."
+      },
+      "mirror": {
+        "kind": "mirror",
+        "name": "거울 복제",
+        "pct": 1.0,
+        "telegraph": "거울이 일렁인다."
+      },
+      "standoff": {
+        "kind": "charge_attack",
+        "name": "고요한 강타",
+        "mult": 2.5,
+        "chargeRounds": [
+          2,
+          2,
+          2
+        ],
+        "interruptPct": [
+          9,
+          9,
+          9
+        ],
+        "minGap": 5,
+        "minPhase": 1,
+        "telegraphCharge": "코에도스가 움직이지 않는다. 고요가 흐른다...",
+        "telegraphRelease": "고요를 깨고 강타가 내리친다!"
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "strike",
+            "weight": 5
+          },
+          {
+            "id": "standoff",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "fromHpPct": 60,
+        "atkMult": 1.0,
+        "enterText": "거울에 금이 간다! 같은 행동을 반복하면 자세가 강해진다.",
+        "pool": [
+          {
+            "id": "strike",
+            "weight": 4
+          },
+          {
+            "id": "mirror",
+            "weight": 3
+          },
+          {
+            "id": "standoff",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "fromHpPct": 25,
+        "atkMult": 1.15,
+        "enterText": "거울이 반전된다! 3라운드마다 자세 규칙이 뒤집힌다.",
+        "pool": [
+          {
+            "id": "strike",
+            "weight": 3
+          },
+          {
+            "id": "mirror",
+            "weight": 3
+          },
+          {
+            "id": "standoff",
+            "weight": 2
+          }
+        ]
+      }
+    ],
+    "stance": {
+      "counter": {
+        "reduction": 0.5,
+        "reflect": 0.6
+      },
+      "offense": {
+        "atkMult": 1.6,
+        "guardPierce": 0.4
+      },
+      "enhancedFromPhase": 2,
+      "enhancedMult": 1.5,
+      "reversalFromPhase": 3,
+      "reversalEvery": 3
+    }
   }
 }

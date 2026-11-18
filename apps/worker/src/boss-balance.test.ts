@@ -106,3 +106,109 @@ describe('리치 밸런스 (시뮬레이션)', () => {
     expect(result.attackerMid.avgWinRounds).toBeLessThan(25);
   });
 });
+
+
+// ─── 중간계 던전 I (숙련 800 전후) ─────────────────────────────────────────────
+
+const MID_SETS = {
+  low: ['spirit_sword', 'king_shield', 'plate_armor'],
+  mid: ['god_sword', 'dragon_shield', 'dragon_armor'],       // 권장 (숙련 700~800)
+  high: ['ancient_sword', 'god_shield', 'god_armor'],
+} as const;
+const MID_BUILD = ['strike', 'multi', 'heal', 'ironwall', 'execute'];
+
+function simulateMid(mobId: string, setIds: readonly string[], smart: boolean, seed: number) {
+  const mob = mobById(mobId)!;
+  const stats = computeStats(setIds.map((id) => itemById(id)!));
+  const script = { ...bossScriptFor(mobId), bossId: 'enemy' } as unknown as BossScript;
+  const skills = smart ? Object.fromEntries(MID_BUILD.map((id) => [id, defOf(id)])) : {};
+  let s: BattleState = createBattle(
+    [
+      { id: 'player', name: '모험가', side: 'player', hp: stats.maxHp, guardedLastRound: false, stats, ap: START_AP, gauge: 0, cooldowns: {} },
+      { id: 'enemy', name: mob.name, side: 'enemy', hp: mob.hp, guardedLastRound: false, stats: { maxHp: mob.hp, atk: mob.atk, def: mob.def, spd: mob.spd } },
+    ],
+    seed, script, skills,
+  );
+  const potions = [100, 100, 100, 100, 300].map((heal) => ({ heal, left: 1 }));
+  let rounds = 0;
+  while (s.status === 'ongoing' && rounds < 80) {
+    const me = s.combatants.find((c) => c.id === 'player')!;
+    const boss = s.combatants.find((c) => c.id === 'enemy')!;
+    const intent = s.intents?.enemy;
+    const ratio = me.hp / me.stats.maxHp;
+    const heavy = intent?.kind === 'release';
+    const shell = intent?.kind === 'stance'; // 토카로가가 웅크린다: 이번 라운드는 공격하지 않는다
+    const stance = s.boss?.runtime.stance ?? 'neutral';
+    const ok = (id: string) => smart && canUseSkill(s, me, id).ok;
+    const potion = potions.find((p) => p.left > 0 && me.stats.maxHp - me.hp >= p.heal * 0.7);
+
+    let act: Action = { kind: 'attack', targetId: 'enemy' };
+    if (smart) {
+      if (ok('execute') && boss.hp <= boss.stats.maxHp * 0.35) act = { kind: 'skill', skillId: 'execute', targetId: 'enemy' };
+      else if (ratio < 0.4 && potion) { potion.left -= 1; act = { kind: 'item', itemId: 'p', healHp: potion.heal }; }
+      else if (ratio < 0.4 && ok('heal')) act = { kind: 'skill', skillId: 'heal' };
+      else if (heavy && ok('ironwall')) act = { kind: 'skill', skillId: 'ironwall' };
+      else if (shell) act = ok('ironwall') ? { kind: 'skill', skillId: 'ironwall' } : { kind: 'guard' };
+      else if (ok('multi')) act = { kind: 'skill', skillId: 'multi', targetId: 'enemy' };
+      else if (ok('strike')) act = { kind: 'skill', skillId: 'strike', targetId: 'enemy' };
+      else act = stance === 'counter' ? { kind: 'guard' } : { kind: 'attack', targetId: 'enemy' };
+    } else if (ratio < 0.4 && potion) {
+      potion.left -= 1; act = { kind: 'item', itemId: 'p', healHp: potion.heal };
+    } else if (heavy && ratio > 0.5) {
+      act = { kind: 'guard' };
+    }
+    s = resolveRound(s, { player: act }).state;
+    rounds++;
+  }
+  return { won: s.status === 'victory', rounds };
+}
+
+function batchMid(mobId: string, setIds: readonly string[], smart: boolean, n = 120) {
+  let wins = 0, winRounds = 0;
+  for (let i = 1; i <= n; i++) {
+    const r = simulateMid(mobId, setIds, smart, i * 7919);
+    if (r.won) { wins++; winRounds += r.rounds; }
+  }
+  return { clear: wins / n, avgWinRounds: wins ? winRounds / wins : 0 };
+}
+
+describe('중간계 던전 I 밸런스 (시뮬레이션)', () => {
+  const normals = ['lappus', 'raufaino', 'toka_loga', 'xenosaurs'];
+  const normal = Object.fromEntries(normals.map((id) => [id, batchMid(id, MID_SETS.mid, true)]));
+  const oppoko = {
+    smartLow: batchMid('oppoko', MID_SETS.low, true),
+    smartMid: batchMid('oppoko', MID_SETS.mid, true),
+    smartHigh: batchMid('oppoko', MID_SETS.high, true),
+    naiveMid: batchMid('oppoko', MID_SETS.mid, false),
+    naiveHigh: batchMid('oppoko', MID_SETS.high, false),
+  };
+  console.log('midrealm balance', JSON.stringify({ normal, oppoko }, (_, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)));
+
+  it('권장 장비 + 스킬이면 중간계 일반 몹은 안정적으로 잡고 오래 끌지 않는다', () => {
+    for (const id of normals) {
+      expect(normal[id]!.clear, id).toBeGreaterThan(0.9);
+      expect(normal[id]!.avgWinRounds, id).toBeLessThan(20);
+    }
+  });
+
+  it('코에도스: 권장 장비로 자세를 읽고 스킬을 섞으면 45~75%로 넘을 수 있다', () => {
+    expect(oppoko.smartMid.clear).toBeGreaterThan(0.45);
+    expect(oppoko.smartMid.clear).toBeLessThan(0.75);
+  });
+
+  it('코에도스: 무작정 기본 공격만 하면 권장 장비로도 거의 못 깬다 (자세 퍼즐이 의미 있다)', () => {
+    expect(oppoko.naiveMid.clear).toBeLessThan(0.1);
+    expect(oppoko.smartMid.clear).toBeGreaterThan(oppoko.naiveMid.clear + 0.4);
+  });
+
+  it('코에도스: 장비가 부족하면 막히고(15% 미만), 좋은 장비면 거의 깬다(90% 초과)', () => {
+    expect(oppoko.smartLow.clear).toBeLessThan(0.15);
+    expect(oppoko.smartHigh.clear).toBeGreaterThan(0.9);
+    expect(oppoko.smartHigh.clear).toBeGreaterThan(oppoko.naiveHigh.clear);
+  });
+
+  it('코에도스 승리까지 12~30라운드가 걸린다', () => {
+    expect(oppoko.smartMid.avgWinRounds).toBeGreaterThan(12);
+    expect(oppoko.smartMid.avgWinRounds).toBeLessThan(30);
+  });
+});

@@ -57,6 +57,9 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_equippable: () => '장착할 수 없는 아이템입니다.',
   no_item: () => '아이템이 없습니다.',
   invalid_target: () => '공격할 수 없는 대상입니다.',
+  dungeon_locked: (d) => `숙련도 ${d.required ?? ''} 이상이어야 입장할 수 있어요.`,
+  key_missing: () => '이 보스에 도전하려면 열쇠가 필요해요.',
+  entry_failed: () => '입장에 실패했어요. 다시 시도해 주세요.',
   skill_locked: (d) => `숙련도 ${d.required ?? ''} 이상이 되면 장착할 수 있어요.`,
   slots_full: (d) => `일반 스킬 슬롯(${d.slots ?? 4}개)이 가득 찼어요. 하나를 해제해 주세요.`,
   unknown_skill: () => '알 수 없는 스킬입니다.',
@@ -115,7 +118,8 @@ export const api = {
   sell: (itemId: string, quantity: number) => post<InventorySnapshot>('/api/inventory/sell', { itemId, quantity }),
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
   craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
-  startBattle: (mobId: string) => post<{ id: string; state: BattleState }>('/api/battle', { mobId }),
+  startBattle: (mobId: string) =>
+    post<{ id: string; state: BattleState; paid: { gold: number; key: string | null } }>('/api/battle', { mobId }),
   round: (id: string, body: { action: 'attack' | 'guard' | 'item' | 'skill'; itemId?: string; targetId?: string; skillId?: string }) =>
     post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, body),
   skills: () => request<SkillsPayload>('/api/skills'),

@@ -79,5 +79,85 @@
     ],
     "gold": 0,
     "unlockProficiency": 300
+  },
+  {
+    "id": "midrealm_key",
+    "resultId": "midrealm_key",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "golden_lich",
+        "quantity": 1
+      },
+      {
+        "itemId": "rotten_lich_piece",
+        "quantity": 5
+      }
+    ],
+    "gold": 500,
+    "unlockProficiency": 450
+  },
+  {
+    "id": "titan_armor",
+    "resultId": "titan_armor",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "plate_armor",
+        "quantity": 1
+      },
+      {
+        "itemId": "titan_metal",
+        "quantity": 3
+      },
+      {
+        "itemId": "xeno_scale",
+        "quantity": 3
+      }
+    ],
+    "gold": 4000,
+    "unlockProficiency": 740
+  },
+  {
+    "id": "titan_shield",
+    "resultId": "titan_shield",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "king_shield",
+        "quantity": 1
+      },
+      {
+        "itemId": "titan_metal",
+        "quantity": 2
+      },
+      {
+        "itemId": "toka_shell",
+        "quantity": 3
+      }
+    ],
+    "gold": 3000,
+    "unlockProficiency": 840
+  },
+  {
+    "id": "titan_sword",
+    "resultId": "titan_sword",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "spirit_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "titan_metal",
+        "quantity": 3
+      },
+      {
+        "itemId": "chaos_crystal",
+        "quantity": 1
+      }
+    ],
+    "gold": 5000,
+    "unlockProficiency": 950
   }
 ]

@@ -18,7 +18,8 @@
       }
     ],
     "profWin": 6,
-    "profLose": 2
+    "profLose": 2,
+    "dungeon": "basic"
   },
   {
     "id": "skeleton",
@@ -39,7 +40,8 @@
       }
     ],
     "profWin": 6,
-    "profLose": 2
+    "profLose": 2,
+    "dungeon": "basic"
   },
   {
     "id": "goblin",
@@ -64,7 +66,8 @@
       }
     ],
     "profWin": 6,
-    "profLose": 2
+    "profLose": 2,
+    "dungeon": "basic"
   },
   {
     "id": "orc",
@@ -89,7 +92,8 @@
       }
     ],
     "profWin": 6,
-    "profLose": 2
+    "profLose": 2,
+    "dungeon": "basic"
   },
   {
     "id": "richmond",
@@ -110,7 +114,8 @@
       }
     ],
     "profWin": 6,
-    "profLose": 2
+    "profLose": 2,
+    "dungeon": "basic"
   },
   {
     "id": "werewolf",
@@ -135,7 +140,8 @@
       }
     ],
     "profWin": 15,
-    "profLose": 6
+    "profLose": 6,
+    "dungeon": "basic"
   },
   {
     "id": "rich",
@@ -160,6 +166,135 @@
       }
     ],
     "profWin": 30,
-    "profLose": 12
+    "profLose": 12,
+    "dungeon": "basic",
+    "note": "영혼함과 하수인을 상대하며, 죽음의 손길은 강한 일격으로 끊을 수 있어요."
+  },
+  {
+    "id": "lappus",
+    "name": "라푸스 (Lappus)",
+    "kind": "normal",
+    "hp": 360,
+    "atk": 45,
+    "def": 12,
+    "spd": 14,
+    "gold": [
+      25,
+      70
+    ],
+    "drops": [
+      {
+        "itemId": "lappus_fur",
+        "chance": 0.7
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "아주 빨라서 먼저 움직이고, 두 번 연달아 물어뜯어요."
+  },
+  {
+    "id": "raufaino",
+    "name": "라우페이노 (Raufaino)",
+    "kind": "normal",
+    "hp": 320,
+    "atk": 50,
+    "def": 12,
+    "spd": 13,
+    "gold": [
+      35,
+      90
+    ],
+    "drops": [
+      {
+        "itemId": "mist_shard",
+        "chance": 0.6
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "안개 속으로 모습을 감췄다가 강한 일격을 날려요. 감춘 동안 방어를 준비하세요."
+  },
+  {
+    "id": "toka_loga",
+    "name": "토카로가 (Toka Loga)",
+    "kind": "normal",
+    "hp": 360,
+    "atk": 40,
+    "def": 18,
+    "spd": 4,
+    "gold": [
+      50,
+      120
+    ],
+    "drops": [
+      {
+        "itemId": "toka_shell",
+        "chance": 0.55
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "등껍질 속으로 움츠리면 공격이 줄고 되돌아와요. 그 라운드는 공격하지 마세요."
+  },
+  {
+    "id": "xenosaurs",
+    "name": "제노사우로스 (Xenosaurs)",
+    "kind": "normal",
+    "hp": 480,
+    "atk": 52,
+    "def": 18,
+    "spd": 8,
+    "gold": [
+      70,
+      170
+    ],
+    "drops": [
+      {
+        "itemId": "xeno_scale",
+        "chance": 0.55
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "포효로 공격력을 떨어뜨려요. 정화나 철벽으로 대비하세요."
+  },
+  {
+    "id": "oppoko",
+    "name": "코에도스 (OppoKo)",
+    "kind": "boss",
+    "hp": 640,
+    "atk": 60,
+    "def": 20,
+    "spd": 10,
+    "gold": [
+      400,
+      800
+    ],
+    "drops": [
+      {
+        "itemId": "chaos_crystal",
+        "chance": 1
+      },
+      {
+        "itemId": "oppoko_mask",
+        "chance": 0.4
+      },
+      {
+        "itemId": "titan_metal",
+        "chance": 0.2
+      },
+      {
+        "itemId": "mirror_shield",
+        "chance": 0.05
+      }
+    ],
+    "profWin": 50,
+    "profLose": 20,
+    "dungeon": "midrealm_1",
+    "note": "직전에 한 행동의 반대 자세를 취해요. 공격하면 반격, 방어하면 공세. 스킬을 섞어 풀어 보세요."
   }
 ]

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { START_AP, bossScriptFor, computeStats, itemById, mobById, type MobData } from '@rtgm/data';
+import { START_AP, bossScriptFor, computeStats, dungeonById, entryCost, itemById, mobById, type MobData } from '@rtgm/data';
 import {
   chooseEnemyAction,
   createBattle,
@@ -12,6 +12,7 @@ import {
 } from '@rtgm/engine';
 import type { AppEnv } from './auth';
 import { equippedItems, getCharacter, getInventory } from './character';
+import { guard } from './guard';
 import { battleSkills } from './skills';
 
 export const battle = new Hono<AppEnv>();
@@ -48,9 +49,22 @@ battle.post('/battle', async (c) => {
   const mob = mobId ? mobById(mobId) : undefined;
   if (!mob) return c.json({ error: 'unknown mob' }, 404);
 
+  // 던전 입장 조건: 숙련도(하드 제한), 입장 골드, 보스는 열쇠 1개
+  const dungeon = dungeonById(mob.dungeon);
+  const character = await getCharacter(c.env.DB, userId);
+  if (dungeon && character.proficiency < dungeon.minProficiency) {
+    return c.json({ error: 'dungeon_locked', required: dungeon.minProficiency }, 403);
+  }
+  const cost = entryCost(mob);
+  if (character.gold < cost.gold) return c.json({ error: 'not_enough_gold', required: cost.gold }, 400);
+  if (cost.key) {
+    const key = (await getInventory(c.env.DB, userId)).find((r) => r.item_id === cost.key);
+    if (!key || key.quantity < 1) return c.json({ error: 'key_missing', itemId: cost.key }, 400);
+  }
+
   // 장착한 장비가 전투 스탯에 반영된다
   const stats = computeStats(equippedItems(await getInventory(c.env.DB, userId)));
-  const { proficiency } = await getCharacter(c.env.DB, userId);
+  const { proficiency } = character;
   // 장착한 스킬(숙련도가 충분한 것)을 전투 상태에 담아 간다
   const skillDefs = await battleSkills(c.env.DB, userId, proficiency);
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
@@ -75,11 +89,33 @@ battle.post('/battle', async (c) => {
     skillDefs,
   );
 
+  // 입장 비용 차감과 전투 생성을 한 트랜잭션으로 묶는다 (위 사전 검사는 안내용, 실제 보장은 가드)
   const id = crypto.randomUUID();
-  await c.env.DB.prepare('INSERT INTO battles (id, user_id, mob_id, state, created_at) VALUES (?, ?, ?, ?, ?)')
-    .bind(id, userId, mob.id, JSON.stringify(state), Date.now())
-    .run();
-  return c.json({ id, state });
+  const db = c.env.DB;
+  const stmts = [];
+  if (cost.gold > 0) {
+    stmts.push(
+      db.prepare('UPDATE characters SET gold = gold - ? WHERE user_id = ? AND gold >= ?').bind(cost.gold, userId, cost.gold),
+      guard(db),
+    );
+  }
+  if (cost.key) {
+    stmts.push(
+      db.prepare('UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ? AND quantity >= 1').bind(userId, cost.key),
+      guard(db),
+      db.prepare('DELETE FROM inventory WHERE user_id = ? AND quantity <= 0').bind(userId),
+    );
+  }
+  stmts.push(
+    db.prepare('INSERT INTO battles (id, user_id, mob_id, state, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, userId, mob.id, JSON.stringify(state), Date.now()),
+  );
+  try {
+    await db.batch(stmts);
+  } catch {
+    return c.json({ error: 'entry_failed' }, 409);
+  }
+  return c.json({ id, state, paid: { gold: cost.gold, key: cost.key } });
 });
 
 battle.post('/battle/:id/round', async (c) => {

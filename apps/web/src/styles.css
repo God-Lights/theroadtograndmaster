@@ -207,3 +207,13 @@ a.btn{text-decoration:none}
 .skill-desc{font-size:.75rem;color:var(--dim);line-height:1.35;margin-top:3px}
 /* 아주 좁은 화면(320~360px): 버튼 아이콘을 숨겨 글자가 한 줄에 들어오게 한다 */
 @media(max-width:360px){.bactions .btn .ico{display:none}}
+.stance{border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:.84rem;line-height:1.5;background:#ffffff0c;border:1px solid var(--border)}
+.stance-counter{background:#42a5f518;border-color:#42a5f566}
+.stance-offense{background:#ef535018;border-color:#ef535066}
+.stance-head{margin-bottom:2px}
+.stance-counter .stance-head{color:var(--info)}
+.stance-offense .stance-head{color:var(--danger)}
+.stance-hint{margin-top:4px;font-size:.78rem;color:var(--dim)}
+.stance-hint b{color:var(--text)}
+.dungeon-lock{opacity:.55}
+.cost-line{font-size:.78rem;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}

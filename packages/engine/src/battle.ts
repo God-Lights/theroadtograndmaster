@@ -2,7 +2,7 @@ import { livingMinions, phaseFor, planIntents } from './boss-plan';
 import { josa } from './josa';
 import { mulberry32 } from './rng';
 import type {
-  Action, BattleState, BossScript, Combatant, Intent, LogEntry, LogType, RoundResult, SkillDef, SkillEffect,
+  Action, BattleState, BossRuntime, BossScript, Combatant, Intent, LogEntry, LogType, RoundResult, SkillDef, SkillEffect,
   StatusEffect, StatusSpec,
 } from './types';
 
@@ -18,6 +18,10 @@ export const GAUGE_ON_TAKE = 10;
 export const GAUGE_ON_HEAL = 8;
 /** 방어력 기반 스킬(방패 강타 등)의 공격값 = 방어력 × 이 값 × 계수 */
 export const DEF_SCALE = 3;
+
+const RUNTIME_DEFAULTS: Pick<BossRuntime, 'stance' | 'stanceBoost' | 'reversed' | 'lastPlayerDamage'> = {
+  stance: 'neutral', stanceBoost: 1, reversed: false, lastPlayerDamage: 0,
+};
 
 const clone = (c: Combatant): Combatant => ({
   ...c,
@@ -51,6 +55,7 @@ export function createBattle(
         phase: 1, revived: false, stunned: false, phaseShift: false, recent: [],
         sinceUsed: Object.fromEntries(Object.keys(script.patterns).map((id) => [id, 99])),
         damageThisRound: 0, minionSeq: 0,
+        stance: 'neutral', stanceBoost: 1, reversed: false, lastActions: [], lastPlayerDamage: 0, playerDamageThisRound: 0,
       },
     };
     state.intents = planIntents(state, mulberry32((seed ^ 0xa5a5a5a5) >>> 0));
@@ -64,9 +69,10 @@ export function calcDamage(atk: number, def: number, guardFactor: number): numbe
   return Math.max(1, Math.round(raw * guardFactor));
 }
 
-function guardFactorOf(c: Combatant, guarding: boolean): number {
+/** pierce: 공격 쪽이 방어 효과를 이 비율만큼 무시한다 (공세의 자세) */
+function guardFactorOf(c: Combatant, guarding: boolean, pierce = 0): number {
   if (!guarding) return 1;
-  const reduction = c.guardedLastRound ? GUARD_REDUCTION * REPEAT_GUARD_FACTOR : GUARD_REDUCTION;
+  const reduction = (c.guardedLastRound ? GUARD_REDUCTION * REPEAT_GUARD_FACTOR : GUARD_REDUCTION) * (1 - pierce);
   return 1 - reduction;
 }
 
@@ -157,6 +163,10 @@ interface HitOpts {
   ignoreDefPct?: number;
   /** 반사 피해처럼 다시 반사되지 않게 한다 */
   noReflect?: boolean;
+  /** basic: 기본 공격 / skill: 스킬. 반격의 자세는 기본 공격만 막고 되돌린다 */
+  source?: 'basic' | 'skill' | 'other';
+  /** 공세의 자세: 상대의 방어 효과를 이 비율만큼 무시 */
+  guardPierce?: number;
 }
 
 /** 보호막이 먼저 피해를 흡수하고, 남은 피해만 HP를 깎는다. 최후의 방패 상태면 HP 1 아래로 내려가지 않는다. */
@@ -183,16 +193,24 @@ function takeDamage(ctx: Ctx, target: Combatant, dmg: number): { hpLost: number;
 /** 한 번의 타격. 방어·취약·영혼함·보호막·반사를 반영하고 게이지를 채운다. */
 function hit(ctx: Ctx, actor: Combatant, target: Combatant, atkValue: number, opts: HitOpts = {}): number {
   const def = effectiveDef(target, ctx.round) * (1 - (opts.ignoreDefPct ?? 0) / 100);
-  let dmg = calcDamage(atkValue, def, guardFactorOf(target, ctx.guarding.has(target.id)));
+  let dmg = calcDamage(atkValue, def, guardFactorOf(target, ctx.guarding.has(target.id), opts.guardPierce ?? 0));
   const taken = factor(target, 'takenMult', ctx.round);
   if (taken !== 1) dmg = Math.max(1, Math.round(dmg * taken));
   let reduced = false;
   const boss = ctx.state.boss;
+  // 반격의 자세: 기본 공격 피해가 줄고 일부가 되돌아온다 (스킬은 영향을 받지 않는다)
+  let stanceReflect = 0;
+  if (boss?.script.stance && target.role === 'boss' && boss.runtime.stance === 'counter' && opts.source === 'basic') {
+    const cfg = boss.script.stance.counter;
+    dmg = Math.max(1, Math.round(dmg * (1 - Math.min(0.95, cfg.reduction * boss.runtime.stanceBoost))));
+    stanceReflect = Math.min(1.5, cfg.reflect * boss.runtime.stanceBoost);
+  }
   if (boss && target.role === 'boss' && boss.script.vessel && vesselAlive(ctx)) {
     dmg = Math.max(1, Math.round(dmg * (1 - boss.script.vessel.damageReduction)));
     reduced = true;
   }
   const { absorbed } = takeDamage(ctx, target, dmg);
+  if (boss && actor.side === 'player') boss.runtime.playerDamageThisRound += dmg;
   addGauge(actor, GAUGE_ON_DEAL);
   addGauge(target, GAUGE_ON_TAKE);
   const notes = `${reduced ? ' (영혼함이 피해를 줄였다)' : ''}${absorbed > 0 ? ` (보호막 ${absorbed} 흡수)` : ''}`;
@@ -202,10 +220,11 @@ function hit(ctx: Ctx, actor: Combatant, target: Combatant, atkValue: number, op
 
   // 반격 태세: 받은 피해의 일부를 공격자에게 되돌린다
   if (!opts.noReflect && actor.hp > 0) {
-    const reflect = activeOf(target, ctx.round).reduce((m, s) => Math.max(m, s.reflectPct ?? 0), 0);
+    const reflect = Math.max(stanceReflect, activeOf(target, ctx.round).reduce((m, s) => Math.max(m, s.reflectPct ?? 0), 0));
     if (reflect > 0 && dmg > 0) {
       const back = Math.max(1, Math.round(dmg * reflect));
       takeDamage(ctx, actor, back);
+      addGauge(actor, GAUGE_ON_TAKE);
       say(ctx, 'attack', target.id, `${target.name}의 반격! ${actor.name}에게 ${back} 피해를 되돌렸다.`, { targetId: actor.id, amount: back });
       if (actor.hp === 0) onDown(ctx, actor);
     }
@@ -268,7 +287,12 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   const boss = ctx.state.boss!;
   const rt = boss.runtime;
   const target = find(ctx, intent.targetId);
-  const phaseMult = actor.role === 'boss' ? (boss.script.phases[rt.phase - 1]?.atkMult ?? 1) : 1;
+  // 공세의 자세: 보스 공격력이 오르고 상대의 방어 효과 일부를 무시한다
+  const stanceCfg = boss.script.stance;
+  const offense = !!stanceCfg && actor.role === 'boss' && rt.stance === 'offense';
+  const phaseMult = (actor.role === 'boss' ? (boss.script.phases[rt.phase - 1]?.atkMult ?? 1) : 1)
+    * (offense ? 1 + (stanceCfg!.offense.atkMult - 1) * rt.stanceBoost : 1);
+  const pierce = offense ? Math.min(1, stanceCfg!.offense.guardPierce * rt.stanceBoost) : 0;
 
   switch (intent.kind) {
     case 'stunned':
@@ -293,7 +317,23 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   if (!def) return;
 
   if (def.kind === 'attack' && target && target.hp > 0) {
-    hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name });
+    for (let i = 0; i < (def.hits ?? 1) && target.hp > 0; i++) {
+      hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+    }
+  } else if (def.kind === 'stance') {
+    addStatus(actor, { id: 'shell', until: ctx.round, takenMult: def.takenMult, reflectPct: def.reflectPct });
+    say(ctx, 'status', actor.id, `${josa(actor.name, '이', '가')} ${def.name}! ${def.telegraph}`);
+  } else if (def.kind === 'mirror' && target && target.hp > 0) {
+    const raw = Math.round(rt.lastPlayerDamage * def.pct);
+    if (raw <= 0) {
+      say(ctx, 'skip', actor.id, '거울에 아무것도 비치지 않았다.');
+    } else {
+      const dmg = Math.max(1, Math.round(raw * guardFactorOf(target, ctx.guarding.has(target.id), pierce)));
+      const { absorbed } = takeDamage(ctx, target, dmg);
+      addGauge(target, GAUGE_ON_TAKE);
+      say(ctx, 'attack', actor.id, `${actor.name}의 ${def.name}! 당신의 일격이 되돌아와 ${target.name}에게 ${dmg} 피해.${absorbed > 0 ? ` (보호막 ${absorbed} 흡수)` : ''}`, { targetId: target.id, amount: dmg });
+      if (target.hp === 0) onDown(ctx, target);
+    }
   } else if (def.kind === 'charge_attack' && intent.kind === 'release') {
     const need = Math.ceil(def.interruptPct[rt.phase - 1]! * actor.stats.maxHp);
     rt.charging = undefined;
@@ -301,7 +341,7 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
       rt.stunned = true;
       say(ctx, 'interrupt', actor.id, `강한 일격이 ${def.name}을(를) 끊었다! ${josa(actor.name, '은', '는')} 경직된다.`);
     } else if (target && target.hp > 0) {
-      hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name });
+      hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
     }
   } else if (def.kind === 'debuff' && target && target.hp > 0) {
     applyWeaken(ctx, target, def.atkMult, def.turns);
@@ -338,7 +378,7 @@ function execEffect(ctx: Ctx, actor: Combatant, skill: SkillDef, effect: SkillEf
             effect.scale === 'def' ? effectiveDef(actor, ctx.round) * DEF_SCALE
               : effect.scale === 'int' ? (actor.stats.int ?? 0)
                 : effectiveAtk(actor, ctx.round);
-          hit(ctx, actor, target, (base * coef) / 100, { label: skill.name, ignoreDefPct: effect.ignoreDefPct });
+          hit(ctx, actor, target, (base * coef) / 100, { label: skill.name, ignoreDefPct: effect.ignoreDefPct, source: 'skill' });
         }
       }
       return;
@@ -470,6 +510,27 @@ function endOfRound(ctx: Ctx): void {
   for (const k of Object.keys(rt.sinceUsed)) rt.sinceUsed[k] = (rt.sinceUsed[k] ?? 0) + 1;
 }
 
+/**
+ * 다음 라운드의 자세를 정한다: 플레이어의 직전 행동의 '반대'.
+ * 공격 → 반격의 자세, 방어 → 공세의 자세, 스킬·아이템 → 중립 (스킬로 풀어 갈 수 있다).
+ */
+function updateStance(ctx: Ctx): void {
+  const boss = ctx.state.boss;
+  const cfg = boss?.script.stance;
+  if (!boss || !cfg) return;
+  const rt = boss.runtime;
+  const last = rt.lastActions[rt.lastActions.length - 1];
+  const nextRound = ctx.round + 1;
+
+  rt.reversed = rt.phase >= cfg.reversalFromPhase && nextRound % cfg.reversalEvery === 0;
+  let stance: 'neutral' | 'counter' | 'offense' = last === 'attack' ? 'counter' : last === 'guard' ? 'offense' : 'neutral';
+  if (rt.reversed) stance = stance === 'counter' ? 'offense' : stance === 'offense' ? 'counter' : 'neutral';
+  rt.stance = stance;
+
+  const repeated = rt.lastActions.length >= 2 && rt.lastActions[0] === rt.lastActions[1] && (last === 'attack' || last === 'guard');
+  rt.stanceBoost = rt.phase >= cfg.enhancedFromPhase && repeated ? cfg.enhancedMult : 1;
+}
+
 // ─── 한 라운드 ────────────────────────────────────────────────────────────────
 
 /** 실행 순서: 0 = 선행(방어·버프) → 1 = 속도순(공격·적 행동) → 2 = 후행(회복) */
@@ -494,10 +555,14 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
     boss: state.boss && {
       script: state.boss.script,
       runtime: {
+        // 새 필드가 없는 예전 저장 상태(배포 중 진행 중이던 전투)도 이어서 처리할 수 있게 기본값을 깐다
+        ...RUNTIME_DEFAULTS,
         ...state.boss.runtime,
         recent: [...state.boss.runtime.recent],
         sinceUsed: { ...state.boss.runtime.sinceUsed },
+        lastActions: [...(state.boss.runtime.lastActions ?? [])],
         damageThisRound: 0,
+        playerDamageThisRound: 0,
       },
     },
     intents: state.intents && { ...state.intents },
@@ -513,12 +578,14 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
   const driven = (c: Combatant) => !!intentOf(c) || (bossMode && c.side === 'enemy');
 
   const plans: Plan[] = [];
+  // 코에도스 같은 '반대 자세' 보스를 위해 플레이어가 이번 라운드에 실제로 한 행동 종류를 기록한다
+  let playerKind: string | undefined;
   const firstFoe = (c: Combatant) => enemiesOf(ctx, c).find((x) => x.role !== 'vessel' && x.role !== 'minion') ?? enemiesOf(ctx, c)[0];
 
   for (const c of living) {
     const intent = intentOf(c);
     if (intent) {
-      plans.push({ c, prio: 1, speed: c.stats.spd, run: () => execIntent(ctx, c, intent) });
+      plans.push({ c, prio: intent.kind === 'stance' ? 0 : 1, speed: c.stats.spd, run: () => execIntent(ctx, c, intent) });
       continue;
     }
     if (driven(c)) continue;
@@ -528,6 +595,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
     if (c.pending && c.pending.fireRound === round) {
       const pend = c.pending;
       c.pending = undefined;
+      if (c.side === 'player') playerKind = 'skill';
       const skill = next.skills?.[pend.skillId];
       if (skill) plans.push({ c, prio: 1, speed: -1, run: () => execSkill(ctx, c, skill, pend.targetId) });
       continue;
@@ -541,6 +609,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
         act = foe ? { kind: 'attack', targetId: act.targetId ?? foe.id } : { kind: 'guard' };
       } else {
         const { skill } = check;
+        if (c.side === 'player') playerKind = 'skill';
         // 비용은 선택한 순간 낸다 (이후 쓰러져도 돌려받지 않는다)
         if (skill.ultimate) c.gauge = 0;
         else c.ap = Math.max(0, (c.ap ?? 0) - skillCost(c, skill, round));
@@ -561,6 +630,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
       }
     }
 
+    if (c.side === 'player') playerKind = act.kind;
     if (act.kind === 'guard') {
       ctx.guarding.add(c.id);
       say(ctx, 'guard', c.id, `${josa(c.name, '이', '가')} 방어 자세를 취했다.`);
@@ -574,7 +644,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
             say(ctx, 'skip', c.id, `${c.name}의 공격 대상은 이미 쓰러졌다.`);
             return;
           }
-          hit(ctx, c, target, effectiveAtk(c, round));
+          hit(ctx, c, target, effectiveAtk(c, round), { source: 'basic' });
           addAp(c, AP_ON_ATTACK);
         },
       });
@@ -608,6 +678,13 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
   for (const c of next.combatants) c.guardedLastRound = ctx.guarding.has(c.id);
 
   endOfRound(ctx);
+  if (next.boss) {
+    const rt = next.boss.runtime;
+    if (playerKind) rt.lastActions = [...rt.lastActions, playerKind].slice(-2);
+    rt.lastPlayerDamage = rt.playerDamageThisRound;
+    rt.playerDamageThisRound = 0;
+    updateStance(ctx);
+  }
 
   const playersAlive = next.combatants.some((c) => c.side === 'player' && c.hp > 0);
   // 보스전: 보스가 완전히 쓰러지면 승리 (하수인이 남아 있어도). 일반 전투: 적이 모두 쓰러지면 승리.

@@ -516,3 +516,119 @@ describe('스킬 전투', () => {
     expect(ok.json.state.combatants.find((c: any) => c.id === 'player').gauge).toBeLessThan(100);
   });
 });
+
+describe('던전 입장', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+  const start = (mobId: string) => call('tokA', 'POST', '/api/battle', { mobId });
+  const battles = () => (sqlite.prepare('SELECT COUNT(*) AS n FROM battles').get() as any).n as number;
+  const gold = async () => (await call('tokA', 'GET', '/api/inventory')).json.gold as number;
+  const keys = async () => (((await call('tokA', 'GET', '/api/inventory')).json.items as any[]).find((i) => i.itemId === 'midrealm_key')?.quantity ?? 0) as number;
+
+  it('기본 던전은 무료로 입장한다', async () => {
+    const r = await start('zombie');
+    expect(r.status).toBe(200);
+    expect(r.json.paid).toEqual({ gold: 0, key: null });
+    expect(await gold()).toBe(500);
+  });
+
+  it('중간계 던전은 숙련도 800 미만이면 입장할 수 없다 (아무것도 차감되지 않음)', async () => {
+    const r = await start('lappus');
+    expect(r.status).toBe(403);
+    expect(r.json).toMatchObject({ error: 'dungeon_locked', required: 800 });
+    expect(await gold()).toBe(500);
+    expect(battles()).toBe(0);
+  });
+
+  it('일반 몹은 입장 골드만 내고, 부족하면 전투가 생성되지 않는다', async () => {
+    setProf(A.id, 800);
+    setGold(A.id, 50);
+    const no = await start('lappus');
+    expect(no.status).toBe(400);
+    expect(no.json).toMatchObject({ error: 'not_enough_gold', required: 100 });
+    expect(await gold()).toBe(50);
+    expect(battles()).toBe(0);
+    setGold(A.id, 500);
+    const ok = await start('lappus');
+    expect(ok.status).toBe(200);
+    expect(ok.json.paid).toEqual({ gold: 100, key: null });
+    expect(await gold()).toBe(400);
+    expect(battles()).toBe(1);
+  });
+
+  it('코에도스는 중간계의 열쇠 1개와 골드 400이 필요하다', async () => {
+    setProf(A.id, 800);
+    setGold(A.id, 1000);
+    const noKey = await start('oppoko');
+    expect(noKey.status).toBe(400);
+    expect(noKey.json).toMatchObject({ error: 'key_missing', itemId: 'midrealm_key' });
+    expect(await gold()).toBe(1000);
+
+    give(A.id, 'midrealm_key', 2);
+    setGold(A.id, 100); // 열쇠는 있지만 골드가 부족
+    expect((await start('oppoko')).json.error).toBe('not_enough_gold');
+    expect(await keys()).toBe(2);
+
+    setGold(A.id, 1000);
+    const ok = await start('oppoko');
+    expect(ok.status).toBe(200);
+    expect(ok.json.paid).toEqual({ gold: 400, key: 'midrealm_key' });
+    expect(await gold()).toBe(600);
+    expect(await keys()).toBe(1);
+  });
+
+  it('입장 비용 차감과 전투 생성은 함께 롤백된다 (사전 검사 이후 열쇠가 사라진 경우)', async () => {
+    setProf(A.id, 800);
+    setGold(A.id, 1000);
+    give(A.id, 'midrealm_key', 1);
+    // 사전 검사 직후 다른 요청이 열쇠를 가져간 상황을 흉내 낸다: 같은 가드 문장을 직접 실행
+    const db = env.DB;
+    const guardStmt = db.prepare("SELECT CASE WHEN changes() = 0 THEN json('guard_failed') ELSE 1 END");
+    sqlite.prepare("DELETE FROM inventory WHERE item_id = 'midrealm_key'").run();
+    await expect(
+      db.batch([
+        db.prepare('UPDATE characters SET gold = gold - 400 WHERE user_id = ?').bind(A.id),
+        db.prepare("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = 'midrealm_key' AND quantity >= 1").bind(A.id),
+        guardStmt,
+        db.prepare("INSERT INTO battles (id, user_id, mob_id, state, created_at) VALUES ('x', ?, 'oppoko', '{}', 0)").bind(A.id),
+      ]),
+    ).rejects.toThrow();
+    expect(await gold()).toBe(1000);
+    expect(battles()).toBe(0);
+  });
+
+  it('중간계 몹 4종과 코에도스는 모두 보스 스크립트로 시작하고 행동이 예고된다', async () => {
+    setProf(A.id, 800);
+    setGold(A.id, 100000);
+    give(A.id, 'midrealm_key', 10);
+    for (const id of ['lappus', 'raufaino', 'toka_loga', 'xenosaurs', 'oppoko']) {
+      const r = await start(id);
+      expect(r.status, id).toBe(200);
+      expect(r.json.state.boss, id).toBeDefined();
+      expect(r.json.state.intents.enemy.telegraph, id).toBeTruthy();
+    }
+  });
+
+  it('코에도스: 기본 공격하면 다음 라운드가 반격의 자세가 된다', async () => {
+    setProf(A.id, 800);
+    setGold(A.id, 5000);
+    give(A.id, 'midrealm_key', 1);
+    const b = (await start('oppoko')).json;
+    expect(b.state.boss.runtime.stance).toBe('neutral');
+    expect(b.state.boss.script.stance).toBeDefined();
+    const r1 = await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' });
+    expect(r1.json.state.boss.runtime.stance).toBe('counter');
+    const r2 = await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'skill', skillId: 'strike' });
+    expect(r2.json.state.boss.runtime.stance).toBe('neutral');
+  });
+
+  it('중간계 열쇠는 황금 리치로 만든다 (제작 후 던전 입장에 쓸 수 있고 팔 수는 없다)', async () => {
+    setProf(A.id, 450);
+    give(A.id, 'golden_lich', 1);
+    give(A.id, 'rotten_lich_piece', 5);
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'midrealm_key' });
+    expect(r.status).toBe(200);
+    expect(r.json.crafted.itemId).toBe('midrealm_key');
+    expect(await keys()).toBe(1);
+    expect((await call('tokA', 'POST', '/api/inventory/sell', { itemId: 'midrealm_key' })).status).toBe(400);
+  });
+});
