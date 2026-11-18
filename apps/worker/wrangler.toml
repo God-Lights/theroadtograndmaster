@@ -1,0 +1,19 @@
+name = "rtgm"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# 빌드된 React 클라이언트를 정적 에셋으로 서빙 (/api/* 만 Worker가 처리)
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rtgm"
+# 배포 전 `wrangler d1 create rtgm` 으로 만든 ID로 교체
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# 이후 단계에서 추가: 레이드/매치/채팅용 Durable Objects, 캐시용 KV
