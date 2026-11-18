@@ -282,7 +282,8 @@ describe('명령어 정의·화면 유틸', () => {
     expect(hpText(-5, 110)).toBe('HP 0/110');
     expect(pct(1, 100)).toBe(1); // 살아 있으면 최소 1%
     expect(pct(0, 100)).toBe(0);
-    expect(barsUrl([{ t: 'f', pct: 40 }, { t: 'gap' }, { t: 'a', pct: 62 }, { t: 'pips', n: 4 }, { t: 'gauge', pct: 30 }])).toBe('https://rtgm.officialgl.com/bot/bars.png?r=f40,_,a62,p4,u30');
+    expect(barsUrl([{ t: 'f', pct: 40 }, { t: 'gap' }, { t: 'a', pct: 62 }, { t: 'pips', n: 4 }, { t: 'gauge', pct: 30 }])).toBe('https://rtgm.officialgl.com/bot/bars.png?r=f40,_,a60,p4,u30');
+    expect(barsUrl([{ t: 'a', pct: 1 }, { t: 'f', pct: 98 }, { t: 'x', pct: 0 }])).toBe('https://rtgm.officialgl.com/bot/bars.png?r=a5,f100,x0'); // 5% 단위로 맞춰 캐시 적중을 높인다
     expect(clip('abcdef', 4)).toBe('abc…');
   });
 });

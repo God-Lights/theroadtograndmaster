@@ -95,7 +95,13 @@ app.post('/discord/interactions', async (c) => {
 app.get('/bot/bars.png', async (c) => {
   const rows = parseRows(c.req.query('r'));
   if (!rows) return c.text('bad request', 400);
-  return new Response(await renderBarsPng(rows), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  // 같은 막대는 엣지 캐시에서 바로 내준다 (디스코드가 처음 가져갈 때 그리는 시간을 없앤다)
+  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+  const key = new Request(new URL(c.req.url).toString());
+  try { const hit = await cache?.match(key); if (hit) return hit; } catch { /* 캐시 없음 */ }
+  const res = new Response(await renderBarsPng(rows), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  try { const put = cache?.put(key, res.clone()); if (put) { try { c.executionCtx.waitUntil(put); } catch { await put; } } } catch { /* 무시 */ }
+  return res;
 });
 
 app.get('/api/health', (c) => c.json({ ok: true, game: 'RTGM' }));
