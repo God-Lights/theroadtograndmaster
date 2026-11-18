@@ -1,0 +1,316 @@
+{
+  "eventWeights": {
+    "monster": 45,
+    "treasure": 22,
+    "trap": 15,
+    "nothing": 18
+  },
+  "dungeons": [
+    {
+      "id": "catacomb",
+      "name": "지하 묘지",
+      "description": "시든 묘지 아래로 이어진 어두운 지하 통로. 한 층씩 내려가며 몬스터, 보물, 함정을 만나요. 마지막 층에는 묘지의 수호자가 기다려요.",
+      "minProficiency": 0,
+      "recommendedProficiency": 50,
+      "entryGold": 0,
+      "floors": 6,
+      "cooldownMinutes": 5,
+      "monsters": [
+        "zombie",
+        "skeleton",
+        "goblin",
+        "richmond"
+      ],
+      "finalBoss": {
+        "mobId": "werewolf",
+        "mult": 1.4,
+        "title": "묘지 지기"
+      },
+      "treasure": {
+        "gold": [
+          20,
+          60
+        ],
+        "items": [
+          {
+            "itemId": "bread",
+            "weight": 4,
+            "qty": [
+              1,
+              3
+            ]
+          },
+          {
+            "itemId": "hp_potion",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "old_bone",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "rotten_lich_piece",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "goblin_ear",
+            "weight": 1,
+            "qty": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "trapDamagePct": [
+        10,
+        25
+      ],
+      "clearBonus": {
+        "gold": [
+          150,
+          300
+        ],
+        "proficiency": 25,
+        "items": [
+          {
+            "itemId": "hp_potion_l",
+            "chance": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "mist_depths",
+      "name": "안개 심층",
+      "description": "중간계의 안개가 짙게 깔린 지하 심층. 변이한 몬스터가 우글거리고 보물도 값져요. 마지막 층의 수호자는 제노사우로스의 우두머리예요.",
+      "minProficiency": 800,
+      "recommendedProficiency": 900,
+      "entryGold": 200,
+      "floors": 8,
+      "cooldownMinutes": 15,
+      "monsters": [
+        "lappus",
+        "raufaino",
+        "toka_loga",
+        "xenosaurs"
+      ],
+      "finalBoss": {
+        "mobId": "xenosaurs",
+        "mult": 1.5,
+        "title": "심층의 수호자"
+      },
+      "treasure": {
+        "gold": [
+          80,
+          200
+        ],
+        "items": [
+          {
+            "itemId": "hp_potion_l",
+            "weight": 4,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "grilled_meat",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "lappus_fur",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "mist_shard",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "xeno_scale",
+            "weight": 2,
+            "qty": [
+              1,
+              1
+            ]
+          },
+          {
+            "itemId": "toka_shell",
+            "weight": 2,
+            "qty": [
+              1,
+              1
+            ]
+          },
+          {
+            "itemId": "titan_metal",
+            "weight": 1,
+            "qty": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "trapDamagePct": [
+        12,
+        28
+      ],
+      "clearBonus": {
+        "gold": [
+          600,
+          1000
+        ],
+        "proficiency": 60,
+        "items": [
+          {
+            "itemId": "titan_metal",
+            "chance": 0.4
+          },
+          {
+            "itemId": "chaos_crystal",
+            "chance": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "id": "hunger_den",
+      "name": "허기의 소굴",
+      "description": "포더모어의 식객들이 모여 사는 깊은 소굴. 곳곳에 먹다 만 음식과 함정이 널려 있어요. 마지막 층에는 코어로드가 버티고 있어요.",
+      "minProficiency": 1300,
+      "recommendedProficiency": 1400,
+      "entryGold": 400,
+      "floors": 8,
+      "cooldownMinutes": 30,
+      "monsters": [
+        "raidos",
+        "core_lord",
+        "ancient_lord",
+        "paka"
+      ],
+      "finalBoss": {
+        "mobId": "core_lord",
+        "mult": 1.4,
+        "title": "소굴의 파수꾼"
+      },
+      "treasure": {
+        "gold": [
+          150,
+          400
+        ],
+        "items": [
+          {
+            "itemId": "hp_potion_l",
+            "weight": 3,
+            "qty": [
+              1,
+              3
+            ]
+          },
+          {
+            "itemId": "battle_potion",
+            "weight": 2,
+            "qty": [
+              1,
+              1
+            ]
+          },
+          {
+            "itemId": "kings_feast",
+            "weight": 1,
+            "qty": [
+              1,
+              1
+            ]
+          },
+          {
+            "itemId": "raidos_fang",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "core_fragment",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "ancient_relic",
+            "weight": 2,
+            "qty": [
+              1,
+              1
+            ]
+          },
+          {
+            "itemId": "paka_tail",
+            "weight": 3,
+            "qty": [
+              1,
+              2
+            ]
+          },
+          {
+            "itemId": "titan_metal",
+            "weight": 1,
+            "qty": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "trapDamagePct": [
+        15,
+        30
+      ],
+      "clearBonus": {
+        "gold": [
+          1200,
+          2000
+        ],
+        "proficiency": 100,
+        "items": [
+          {
+            "itemId": "abyss_crystal",
+            "chance": 0.3
+          },
+          {
+            "itemId": "titan_metal",
+            "chance": 0.5
+          }
+        ]
+      }
+    }
+  ]
+}

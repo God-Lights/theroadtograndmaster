@@ -286,6 +286,10 @@ describe('결과와 보상', () => {
       expect(after.proficiency).toBe(before[w]!.proficiency + RAID_BOSSES.dragon!.profWin);
       expect((await view(w)).members.find((m: any) => m.userId === U[w].id).rewards.items.map((i: any) => i.itemId)).toContain('dragon_scale'); // 비늘은 100%
     }
+    const news = sqlite.prepare('SELECT kind, text FROM announcements').all() as { kind: string; text: string }[];
+    expect(news).toHaveLength(1);
+    expect(news[0]).toMatchObject({ kind: 'raid' });
+    for (const n of ['에이', '비이', '씨이', '디이', '드래곤']) expect(news[0]!.text).toContain(n);
     await view('A'); await view('B');
     expect(row('A').proficiency).toBe(before.A!.proficiency + RAID_BOSSES.dragon!.profWin); // 중복 지급 없음
     expect((sqlite.prepare("SELECT quantity FROM inventory WHERE user_id = ? AND item_id = 'dragon_scale'").get(U.A.id) as any).quantity).toBe(1);

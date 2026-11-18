@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickSpawn, spawnRates, RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
+import { ROGUE_DUNGEONS, ROGUE_EVENT_WEIGHTS, rogueRoom, pickSpawn, spawnRates, RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -200,5 +200,34 @@ describe('던전·몹 무결성', () => {
       expect(MOBS.find((m) => m.id === id)!.note, id).toBeTruthy();
       expect(BOSS_SCRIPTS[id], id).toBeDefined();
     }
+  });
+});
+
+describe('로그라이크 던전 데이터', () => {
+  it('몬스터·최종 보스·보물·보너스 아이템이 모두 존재한다', () => {
+    expect(ROGUE_DUNGEONS.length).toBeGreaterThanOrEqual(3);
+    for (const d of ROGUE_DUNGEONS) {
+      expect(d.floors, d.id).toBeGreaterThanOrEqual(3);
+      for (const m of [...d.monsters, d.finalBoss.mobId]) expect(MOBS.find((x) => x.id === m), `${d.id}:${m}`).toBeDefined();
+      expect(d.finalBoss.mult).toBeGreaterThanOrEqual(1);
+      for (const it of d.treasure.items) { expect(itemById(it.itemId), `${d.id}:${it.itemId}`).toBeDefined(); expect(it.weight).toBeGreaterThan(0); expect(it.qty[0]).toBeLessThanOrEqual(it.qty[1]); }
+      for (const it of d.clearBonus.items) expect(itemById(it.itemId), `${d.id}:${it.itemId}`).toBeDefined();
+      expect(d.treasure.gold[0]).toBeLessThanOrEqual(d.treasure.gold[1]);
+      expect(d.trapDamagePct[1]).toBeLessThan(50);
+      expect(d.recommendedProficiency).toBeGreaterThanOrEqual(d.minProficiency);
+    }
+  });
+  it('방 종류: 마지막 층은 항상 보스 방, 나머지는 가중치대로 네 종류가 모두 나온다', () => {
+    const d = ROGUE_DUNGEONS[0]!;
+    expect(rogueRoom(d, d.floors, 0.99)).toBe('monster');
+    const count: Record<string, number> = {};
+    for (let i = 0; i < 4000; i++) { const k = rogueRoom(d, 1, i / 4000); count[k] = (count[k] ?? 0) + 1; }
+    const total = Object.values(ROGUE_EVENT_WEIGHTS).reduce((a, b) => a + b, 0);
+    for (const [k, w] of Object.entries(ROGUE_EVENT_WEIGHTS)) expect(Math.abs((count[k] ?? 0) / 4000 - w / total), k).toBeLessThan(0.01);
+    expect(Object.keys(count).sort()).toEqual(['monster', 'nothing', 'trap', 'treasure']);
+  });
+  it('큰 몹(보스 포함)은 전체 알림 대상이다', () => {
+    for (const m of MOBS.filter((x) => x.kind === 'boss')) expect(m.announce, m.id).toBe(true);
+    expect(MOBS.filter((x) => x.announce).length).toBeGreaterThan(MOBS.filter((x) => x.kind === 'boss').length);
   });
 });

@@ -84,6 +84,37 @@ social.get('/players/search', async (c) => {
   return c.json({ players });
 });
 
+/** 유저 목록: 접속 중인 사람이 먼저, 그다음 최근 접속 순. 닉네임 검색·더 보기(offset) */
+export const USERS_PAGE = 20;
+social.get('/users', async (c) => {
+  const me = c.get('user').id;
+  const q = (c.req.query('q') ?? '').trim();
+  const offset = Math.max(0, Number.parseInt(c.req.query('offset') ?? '0', 10) || 0);
+  const like = q ? `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%` : null;
+  const now = Date.now();
+  const where = `p.user_id != ?${like ? " AND p.nickname LIKE ? ESCAPE '\\'" : ''}`;
+  const args: (string | number)[] = like ? [me, like] : [me];
+  const { results } = await c.env.DB
+    .prepare(
+      `SELECT p.user_id, p.nickname, p.last_seen, ch.proficiency, f.requester, f.status FROM profiles p
+       LEFT JOIN characters ch ON ch.user_id = p.user_id
+       LEFT JOIN friendships f ON ((f.requester = ? AND f.addressee = p.user_id) OR (f.addressee = ? AND f.requester = p.user_id))
+       WHERE ${where} ORDER BY (p.last_seen > ?) DESC, p.last_seen DESC, p.nickname LIMIT ? OFFSET ?`,
+    )
+    .bind(me, me, ...args, now - ONLINE_MS, USERS_PAGE + 1, offset)
+    .all<PersonRow & { requester: string | null; status: string | null }>();
+  const rows = results ?? [];
+  const total = (await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM profiles p WHERE ${where}`).bind(...args).first<{ n: number }>())?.n ?? 0;
+  const online = (await c.env.DB.prepare('SELECT COUNT(*) AS n FROM profiles WHERE last_seen > ?').bind(now - ONLINE_MS).first<{ n: number }>())?.n ?? 0;
+  return c.json({
+    total, online, hasMore: rows.length > USERS_PAGE,
+    users: rows.slice(0, USERS_PAGE).map((r) => ({
+      ...person(r), lastSeen: r.last_seen,
+      relation: (!r.status ? 'none' : r.status === 'accepted' ? 'friend' : r.requester === me ? 'sent' : 'received') as Relation,
+    })),
+  });
+});
+
 social.post('/friends/request', async (c) => {
   const me = c.get('user').id;
   const { userId } = await c.req.json<{ userId?: string }>();

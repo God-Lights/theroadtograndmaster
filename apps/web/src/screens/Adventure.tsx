@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DUNGEONS, bossScriptFor, entryCost, spawnRates, getProfTier, itemById, mobById, type DungeonData, type MobData } from '@rtgm/data';
 import type { BattleState } from '@rtgm/engine';
-import { api } from '../api';
+import { ApiError, api, fmtWait } from '../api';
 import { useGame } from '../game';
 import { Icon } from '../Icon';
 import { Battle } from './Battle';
@@ -40,8 +40,8 @@ function MobRow({ mob, locked, gold, keys, onStart }: { mob: MobData; locked: bo
   );
 }
 
-function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart, onExplore }: {
-  dungeon: DungeonData; proficiency: number; gold: number; keysOf: (id: string) => number; onStart: (mob: MobData) => void; onExplore: (d: DungeonData) => void;
+function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart, onExplore, wait }: {
+  dungeon: DungeonData; proficiency: number; gold: number; keysOf: (id: string) => number; onStart: (mob: MobData) => void; onExplore: (d: DungeonData) => void; wait: number;
 }) {
   const locked = proficiency < dungeon.minProficiency;
   const boss = dungeon.mobs.map((id) => mobById(id)).find((m): m is MobData => !!m && m.kind === 'boss');
@@ -74,8 +74,8 @@ function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart, onExplore }:
           );
         })}
       </div>
-      <button className="btn btn-primary" style={{ width: '100%', marginTop: 10 }} disabled={locked || poor} onClick={() => onExplore(dungeon)}>
-        <Icon name="map" /> 탐험하기{dungeon.entry.normalGold > 0 ? ` (${dungeon.entry.normalGold}D)` : ''}
+      <button className="btn btn-primary" style={{ width: '100%', marginTop: 10 }} disabled={locked || poor || wait > 0} onClick={() => onExplore(dungeon)}>
+        <Icon name="map" /> {wait > 0 ? `대기 중 (${fmtWait(wait)})` : `탐험하기${dungeon.entry.normalGold > 0 ? ` (${dungeon.entry.normalGold}D)` : ''}`}
       </button>
       {boss && (
         <div style={{ marginTop: 10 }}>
@@ -99,15 +99,24 @@ export function Adventure() {
     } catch (e) { fail(e); }
   };
 
+  const [until, setUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { api.cooldowns().then((r) => setUntil(r.cooldowns.explore ?? 0)).catch(() => {}); }, []);
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+
   const explore = async (d: DungeonData) => {
     try {
       const res = await api.explore(d.id);
+      setUntil(Date.now() + d.exploreCooldownSec * 1000);
       const mob = mobById(res.mobId);
       if (!mob) return;
       setBattle({ id: res.id, state: res.state, mob });
       toast(`야생의 ${mob.name}이(가) 나타났다!`, 'warn');
       if (res.paid.gold > 0) await refresh();
-    } catch (e) { fail(e); }
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'explore_cooldown') setUntil(Number(e.data.until));
+      fail(e);
+    }
   };
 
   if (battle) {
@@ -123,7 +132,7 @@ export function Adventure() {
         <span style={{ color: 'var(--gold2)' }}><Icon name="coin" /> {(inv?.gold ?? 0).toLocaleString()} D</span>
       </div>
       {DUNGEONS.map((d) => (
-        <DungeonCard key={d.id} dungeon={d} proficiency={me?.proficiency ?? 0} gold={inv?.gold ?? 0} keysOf={keysOf} onStart={start} onExplore={explore} />
+        <DungeonCard key={d.id} dungeon={d} proficiency={me?.proficiency ?? 0} gold={inv?.gold ?? 0} keysOf={keysOf} onStart={start} onExplore={explore} wait={Math.max(0, until - now)} />
       ))}
     </>
   );

@@ -12,14 +12,15 @@ import {
 } from '@rtgm/engine';
 import type { AppEnv } from './auth';
 import { activeBonus } from './events';
+import { announce } from './announce';
+import { activeCooldowns, cooldownUntil, setCooldownStmt } from './cooldowns';
+import { onRunBattleEnd } from './run';
 import { equippedItems, getCharacter, getInventory } from './character';
 import { guard } from './guard';
-import { battleSkills } from './skills';
+import { PLAYER_ID, ENEMY_ID, createBattleState } from './combat';
 
 export const battle = new Hono<AppEnv>();
 
-const PLAYER_ID = 'player';
-const ENEMY_ID = 'enemy';
 
 /** 이벤트 보너스 배율 (1 = 없음) */
 export interface BonusMults { gold: number; proficiency: number; drop: number }
@@ -65,32 +66,8 @@ async function begin(c: Context<AppEnv>, mob: MobData, givenSeed?: number) {
     if (!key || key.quantity < 1) return c.json({ error: 'key_missing', itemId: cost.key }, 400);
   }
 
-  // 장착한 장비가 전투 스탯에 반영된다
-  const stats = computeStats(equippedItems(await getInventory(c.env.DB, userId)));
-  const { proficiency } = character;
-  // 장착한 스킬(숙련도가 충분한 것)을 전투 상태에 담아 간다
-  const skillDefs = await battleSkills(c.env.DB, userId, proficiency);
   const seed = givenSeed ?? crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
-
-  // 보스는 패턴 스크립트(영혼함·충전기·하수인 소환 등)를 적용하고, 일반 몹은 기본 AI를 쓴다
-  const raw = bossScriptFor(mob.id);
-  const script = raw ? ({ ...raw, bossId: ENEMY_ID } as unknown as BossScript) : undefined;
-
-  const state = createBattle(
-    [
-      {
-        id: PLAYER_ID, name: '모험가', side: 'player', hp: stats.maxHp, guardedLastRound: false, stats,
-        ap: START_AP, gauge: 0, cooldowns: {},
-      },
-      {
-        id: ENEMY_ID, name: mob.name, side: 'enemy', hp: mob.hp, guardedLastRound: false,
-        stats: { maxHp: mob.hp, atk: mob.atk, def: mob.def, spd: mob.spd },
-      },
-    ],
-    seed,
-    script,
-    skillDefs,
-  );
+  const state = await createBattleState(c.env.DB, userId, mob, { seed });
 
   // 입장 비용 차감과 전투 생성을 한 트랜잭션으로 묶는다 (위 사전 검사는 안내용, 실제 보장은 가드)
   const id = crypto.randomUUID();
@@ -135,11 +112,20 @@ battle.post('/explore', async (c) => {
   const { biomeId } = await c.req.json<{ biomeId?: string }>();
   const biome = biomeId ? dungeonById(biomeId) : undefined;
   if (!biome || biome.spawns.length === 0) return c.json({ error: 'unknown_biome' }, 404);
+  const me = c.get('user').id;
+  const wait = await cooldownUntil(c.env.DB, me, 'explore');
+  if (wait) return c.json({ error: 'explore_cooldown', until: wait }, 429);
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
   const mob = mobById(pickSpawn(biome, seed));
   if (!mob) return c.json({ error: 'unknown_biome' }, 404);
-  return begin(c, mob, seed);
+  const res = await begin(c, mob, seed);
+  // 시작에 성공했을 때만 다음 탐험까지의 대기시간이 걸린다
+  if (res.status === 200) await setCooldownStmt(c.env.DB, me, 'explore', Date.now() + biome.exploreCooldownSec * 1000).run();
+  return res;
 });
+
+/** 지금 걸려 있는 대기시간 (탐험·로그라이크 던전) */
+battle.get('/cooldowns', async (c) => c.json({ cooldowns: await activeCooldowns(c.env.DB, c.get('user').id) }));
 
 battle.post('/battle/:id/round', async (c) => {
   const userId = c.get('user').id;
@@ -147,9 +133,9 @@ battle.post('/battle/:id/round', async (c) => {
   const body = await c.req.json<{ action?: 'attack' | 'guard' | 'item' | 'skill'; itemId?: string; skillId?: string; targetId?: string }>();
 
   const row = await c.env.DB
-    .prepare('SELECT state, mob_id, rewarded FROM battles WHERE id = ? AND user_id = ?')
+    .prepare('SELECT state, mob_id, rewarded, run_id FROM battles WHERE id = ? AND user_id = ?')
     .bind(id, userId)
-    .first<{ state: string; mob_id: string; rewarded: number }>();
+    .first<{ state: string; mob_id: string; rewarded: number; run_id: string | null }>();
   // 남의 전투는 존재 여부도 알려주지 않는다
   if (!row) return c.json({ error: 'battle not found' }, 404);
   const state = JSON.parse(row.state) as BattleState;
@@ -209,6 +195,14 @@ battle.post('/battle/:id/round', async (c) => {
     if (claim.meta.changes === 1) {
       const bonus = await activeBonus(c.env.DB);
       rewards = outcome === 'victory' ? rollRewards(mob, state.rngSeed, bonus) : defeatRewards(mob, bonus);
+      if (row.run_id) {
+        // 로그라이크 던전의 전투: 보상은 전리품으로 쌓이고 탈출해야 받는다
+        await onRunBattleEnd(c.env.DB, row.run_id, id, outcome, result.state, rewards, c.get('user').nickname);
+        return c.json({ ...result, rewards, deferred: true });
+      }
+      if (outcome === 'victory' && mob.announce) {
+        await announce(c.env.DB, 'boss', `${mob.kind === 'boss' ? '👑' : '⚔️'} ${c.get('user').nickname}님이 ${mob.name}을(를) 쓰러뜨렸다!`);
+      }
       await c.env.DB.batch([
         c.env.DB
           .prepare('UPDATE characters SET gold = gold + ?, proficiency = proficiency + ? WHERE user_id = ?')

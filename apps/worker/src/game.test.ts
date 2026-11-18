@@ -40,6 +40,7 @@ async function fight(mobId: string, token = 'tokA') {
   const mob = mobById(mobId)!;
   if (mob.kind === 'boss') return call(token, 'POST', '/api/battle', { mobId });
   const biome = dungeonById(mob.dungeon)!;
+  sqlite.prepare('DELETE FROM action_cooldowns').run(); // 탐험 대기시간은 따로 시험한다
   let seed = 1;
   while (pickSpawn(biome, seed) !== mobId) seed++;
   const spy = vi.spyOn(crypto, 'getRandomValues').mockImplementationOnce(((arr: Uint32Array) => { arr[0] = seed; return arr; }) as never);
@@ -536,11 +537,13 @@ describe('스킬 전투', () => {
 
 describe('탐험 (지역별 몬스터)', () => {
   beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+  /** 대기시간 없이 탐험한다 */
+  const go = (biomeId: string) => { sqlite.prepare('DELETE FROM action_cooldowns').run(); return call('tokA', 'POST', '/api/explore', { biomeId }); };
   const biomeMobs = (id: string) => dungeonById(id)!.spawns.map((s) => s.mobId);
   it('탐험하면 그 지역의 출현표에 있는 몹만 만나고, 지역마다 다르다', async () => {
     const seen: Record<string, Set<string>> = { plains: new Set(), forest: new Set(), graveyard: new Set() };
     for (let i = 0; i < 40; i++) for (const biome of Object.keys(seen)) {
-      const r = await call('tokA', 'POST', '/api/explore', { biomeId: biome });
+      const r = await go(biome);
       expect(r.status).toBe(200);
       seen[biome]!.add(r.json.mobId);
       expect(r.json.state.combatants.find((c: any) => c.id === 'enemy').name).toBe(mobById(r.json.mobId)!.name);
@@ -556,15 +559,39 @@ describe('탐험 (지역별 몬스터)', () => {
     expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'nowhere' })).status).toBe(404);
   });
   it('중간계 지역은 숙련도 제한과 입장 골드가 적용된다 (탐험도 동일)', async () => {
-    const low = await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' });
+    const low = await go('midrealm_1');
     expect(low.status).toBe(403);
     expect(low.json).toMatchObject({ error: 'dungeon_locked', required: 800 });
     setProf(A.id, 900); setGold(A.id, 150);
-    const ok = await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' });
+    const ok = await go('midrealm_1');
     expect(ok.status).toBe(200);
     expect(biomeMobs('midrealm_1')).toContain(ok.json.mobId);
     expect((await call('tokA', 'GET', '/api/inventory')).json.gold).toBe(50); // 입장 100D
-    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' })).json.error).toBe('not_enough_gold');
+    expect((await go('midrealm_1')).json.error).toBe('not_enough_gold');
+  });
+});
+
+describe('탐험 대기시간', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); sqlite.prepare('DELETE FROM action_cooldowns').run(); });
+  it('탐험하면 지역별 대기시간이 걸리고, 기다리는 동안 다시 탐험할 수 없다', async () => {
+    const t0 = Date.now();
+    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'forest' })).status).toBe(200);
+    const until = (sqlite.prepare("SELECT until FROM action_cooldowns WHERE key = 'explore'").get() as any).until as number;
+    expect(until).toBeGreaterThanOrEqual(t0 + dungeonById('forest')!.exploreCooldownSec * 1000);
+    const again = await call('tokA', 'POST', '/api/explore', { biomeId: 'plains' }); // 다른 지역도 같은 대기시간
+    expect(again.status).toBe(429);
+    expect(again.json).toMatchObject({ error: 'explore_cooldown', until });
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM battles').get()).toEqual({ n: 1 });
+    expect((await call('tokA', 'GET', '/api/cooldowns')).json.cooldowns).toEqual({ explore: until });
+    sqlite.prepare('UPDATE action_cooldowns SET until = ?').run(Date.now() - 1);
+    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'plains' })).status).toBe(200);
+    expect((await call('tokA', 'GET', '/api/cooldowns')).json.cooldowns.explore).toBeGreaterThan(Date.now());
+  });
+  it('입장에 실패하면(골드 부족) 대기시간이 걸리지 않고, 보스 도전에는 탐험 대기시간이 없다', async () => {
+    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' })).status).toBe(403);
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM action_cooldowns').get()).toEqual({ n: 0 });
+    expect((await call('tokA', 'POST', '/api/battle', { mobId: 'rich' })).status).toBe(200);
+    expect((await call('tokA', 'POST', '/api/battle', { mobId: 'rich' })).status).toBe(200);
   });
 });
 

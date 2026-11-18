@@ -9,6 +9,7 @@ import {
 } from '@rtgm/engine';
 import type { AppEnv } from './auth';
 import { equippedItems, getCharacter, getInventory } from './character';
+import { announceStmts } from './announce';
 import { activeBonus, type BonusConfig } from './events';
 import { guard } from './guard';
 
@@ -164,6 +165,7 @@ export async function advance(db: D1Database, room: RoomRow): Promise<RoomRow> {
           .bind(JSON.stringify(next), victory ? 'victory' : 'defeat', logJson, now, room.id, room.round_no),
         guard(db),
         ...stmts,
+        ...(victory ? announceStmts(db, 'raid', `🛡️ ${members.map((m) => m.nickname ?? '모험가').join(', ')} 파티가 ${'★'.repeat(boss.star)} ${boss.name} 레이드를 클리어했다!`) : []),
       ]);
     }
   } catch {
