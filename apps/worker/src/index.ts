@@ -11,6 +11,7 @@ import { guilds } from './guild';
 import { inventory } from './inventory';
 import { pvp } from './pvp';
 import { raid } from './raid';
+import { team } from './team';
 import { skills } from './skills';
 import { social, touchProfile } from './social';
 
@@ -70,6 +71,7 @@ app.route('/api', guilds);
 app.route('/api', exchange);
 app.route('/api', pvp);
 app.route('/api', raid);
+app.route('/api', team);
 app.route('/api', events);
 app.route('/api', adminEvents);
 

@@ -7,8 +7,8 @@ import { useGame } from '../game';
 import { Icon } from '../Icon';
 
 type Role = NonNullable<RaidMemberView['role']>;
-const ROLE_ICON: Record<Role, string> = { tank: '🛡', dealer: '⚔', healer: '✚', support: '★' };
-const ROLE_LABEL: Record<Role, string> = { tank: '탱커', dealer: '딜러', healer: '힐러', support: '서포터' };
+export const ROLE_ICON: Record<Role, string> = { tank: '🛡', dealer: '⚔', healer: '✚', support: '★' };
+export const ROLE_LABEL: Record<Role, string> = { tank: '탱커', dealer: '딜러', healer: '힐러', support: '서포터' };
 
 function Rewards({ r }: { r: NonNullable<RaidMemberView['rewards']> }) {
   return (
@@ -19,7 +19,7 @@ function Rewards({ r }: { r: NonNullable<RaidMemberView['rewards']> }) {
   );
 }
 
-function PartyCard({ c, m, round, mine, pickable, onPick, picked }: {
+export function PartyCard({ c, m, round, mine, pickable, onPick, picked }: {
   c: Combatant; m?: RaidMemberView; round: number; mine: boolean; pickable?: boolean; onPick?: () => void; picked?: boolean;
 }) {
   const pct = Math.max(0, Math.round((c.hp / c.stats.maxHp) * 100));
