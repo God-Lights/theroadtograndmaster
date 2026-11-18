@@ -5,7 +5,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, 'Noto Sans KR', sans-serif; }
 .app { display: grid; grid-template: 'top top' auto 'side main' 1fr / 160px 1fr; min-height: 100vh; }
-.topbar { grid-area: top; padding: 12px 20px; border-bottom: 1px solid var(--line); font-weight: 700; color: var(--accent); }
+.topbar { display: flex; justify-content: space-between; align-items: center; grid-area: top; padding: 12px 20px; border-bottom: 1px solid var(--line); font-weight: 700; color: var(--accent); }
 .topbar span { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 13px; }
 .sidebar { grid-area: side; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-right: 1px solid var(--line); }
 .sidebar button { text-align: left; padding: 8px 12px; background: none; color: var(--fg); border: 0; border-radius: 6px; cursor: pointer; font: inherit; }
@@ -26,3 +26,6 @@ table { width: 100%; border-collapse: collapse; } th, td { padding: 6px 8px; bor
   .sidebar { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .hp { grid-template-columns: 80px 1fr 70px; }
 }
+
+.account { color: var(--fg); font-weight: 400; font-size: 14px; text-decoration: none; border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; }
+.account:hover { border-color: var(--accent); color: var(--accent); }

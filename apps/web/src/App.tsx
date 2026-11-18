@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api, ACCOUNT_ORIGIN, type Me } from './api';
 import { Town } from './screens/Town';
 import { Dungeon } from './screens/Dungeon';
 import { Shop } from './screens/Shop';
@@ -15,10 +16,19 @@ type ScreenId = keyof typeof SCREENS;
 
 export function App() {
   const [screen, setScreen] = useState<ScreenId>('town');
+  const [me, setMe] = useState<Me>();
+  useEffect(() => { api.me().then(setMe).catch(() => {}); }, []);
   const View = SCREENS[screen].view;
   return (
     <div className="app">
-      <header className="topbar">RTGM <span>The Road to Grand Master</span></header>
+      <header className="topbar">
+        <div>RTGM <span>The Road to Grand Master</span></div>
+        {me && (
+          <a className="account" href={ACCOUNT_ORIGIN} target="_blank" rel="noreferrer" title="계정 관리·로그아웃">
+            {me.nickname}
+          </a>
+        )}
+      </header>
       <nav className="sidebar">
         {(Object.keys(SCREENS) as ScreenId[]).map((id) => (
           <button key={id} className={id === screen ? 'active' : ''} onClick={() => setScreen(id)}>
