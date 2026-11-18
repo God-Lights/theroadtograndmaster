@@ -797,5 +797,83 @@
     "buy": null,
     "sell": 90000,
     "minProficiency": 1900
+  },
+  {
+    "id": "dragon_scale",
+    "name": "드래곤의 비늘",
+    "type": "material",
+    "rarity": "rare",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 1200,
+    "minProficiency": 0
+  },
+  {
+    "id": "dragon_heart",
+    "name": "드래곤의 심장",
+    "type": "material",
+    "rarity": "epic",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 2500,
+    "minProficiency": 0
+  },
+  {
+    "id": "baek_mane",
+    "name": "백카리오의 갈기",
+    "type": "material",
+    "rarity": "rare",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 1800,
+    "minProficiency": 0
+  },
+  {
+    "id": "baek_fang",
+    "name": "백카리오의 송곳니",
+    "type": "material",
+    "rarity": "epic",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 3200,
+    "minProficiency": 0
+  },
+  {
+    "id": "dragon_blade",
+    "name": "용살검",
+    "type": "sword",
+    "rarity": "epic",
+    "atk": 80,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 25000,
+    "minProficiency": 1000
+  },
+  {
+    "id": "baek_blade",
+    "name": "백카리오의 검",
+    "type": "sword",
+    "rarity": "epic",
+    "atk": 115,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 60000,
+    "minProficiency": 1500
   }
 ]

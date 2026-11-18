@@ -4,12 +4,6 @@
     "atk": 150,
     "def": 60
   },
-  "partyHpScale": {
-    "1": 0.35,
-    "2": 0.55,
-    "3": 0.8,
-    "4": 1.0
-  },
   "roles": {
     "tank": {
       "label": "탱커",
@@ -493,11 +487,371 @@
     }
   ],
   "bosses": {
+    "dragon": {
+      "id": "dragon",
+      "name": "드래곤 (Dragon)",
+      "star": 1,
+      "maxParty": 4,
+      "recParty": 2,
+      "hp": 2100,
+      "atk": 98,
+      "spd": 8,
+      "minProficiency": 1000,
+      "gold": [
+        600,
+        1000
+      ],
+      "profWin": 60,
+      "profLose": 15,
+      "drops": [
+        {
+          "itemId": "dragon_scale",
+          "chance": 1
+        },
+        {
+          "itemId": "dragon_heart",
+          "chance": 0.3
+        }
+      ],
+      "note": "불을 뿜는 거대한 용. 업화는 파티가 함께 끊고, 포효로 약해지면 정화하세요. 22라운드가 넘으면 격노해요.",
+      "script": {
+        "patterns": {
+          "claw": {
+            "kind": "attack",
+            "name": "발톱 할퀴기",
+            "mult": 1.2,
+            "telegraph": "발톱이 {target}을(를) 노린다!",
+            "target": "random"
+          },
+          "tail": {
+            "kind": "attack",
+            "name": "꼬리 휘두르기",
+            "mult": 0.6,
+            "telegraph": "꼬리가 휘어진다.",
+            "hits": 2,
+            "target": "random"
+          },
+          "breath": {
+            "kind": "attack",
+            "name": "화염 숨결",
+            "mult": 0.5,
+            "telegraph": "화염이 퍼진다.",
+            "target": "all"
+          },
+          "roar": {
+            "kind": "debuff",
+            "name": "위협의 포효",
+            "atkMult": 0.85,
+            "turns": 2,
+            "target": "all",
+            "telegraph": "포효가 울려 퍼진다."
+          },
+          "inferno": {
+            "kind": "charge_attack",
+            "name": "업화",
+            "mult": 1.4,
+            "chargeRounds": [
+              2,
+              2,
+              2
+            ],
+            "interruptPct": [
+              0.08,
+              0.08,
+              0.08
+            ],
+            "minGap": 6,
+            "minPhase": 2,
+            "target": "all",
+            "telegraphCharge": "드래곤이 숨을 깊이 들이마신다... 파티가 힘을 모아 끊어야 한다!",
+            "telegraphRelease": "업화가 쏟아진다!"
+          }
+        },
+        "phases": [
+          {
+            "fromHpPct": 100,
+            "atkMult": 1.0,
+            "pool": [
+              {
+                "id": "claw",
+                "weight": 3
+              },
+              {
+                "id": "tail",
+                "weight": 2
+              },
+              {
+                "id": "breath",
+                "weight": 2
+              }
+            ]
+          },
+          {
+            "fromHpPct": 60,
+            "atkMult": 1.1,
+            "pool": [
+              {
+                "id": "claw",
+                "weight": 3
+              },
+              {
+                "id": "tail",
+                "weight": 2
+              },
+              {
+                "id": "breath",
+                "weight": 2
+              },
+              {
+                "id": "roar",
+                "weight": 1
+              },
+              {
+                "id": "inferno",
+                "weight": 1
+              }
+            ],
+            "enterText": "“감히!” 드래곤이 날개를 펼친다."
+          },
+          {
+            "fromHpPct": 25,
+            "atkMult": 1.25,
+            "pool": [
+              {
+                "id": "claw",
+                "weight": 2
+              },
+              {
+                "id": "tail",
+                "weight": 2
+              },
+              {
+                "id": "breath",
+                "weight": 2
+              },
+              {
+                "id": "roar",
+                "weight": 2
+              },
+              {
+                "id": "inferno",
+                "weight": 2
+              }
+            ],
+            "enterText": "드래곤의 눈이 붉게 타오른다."
+          }
+        ],
+        "enrage": {
+          "fromRound": 22,
+          "perRound": 0.3
+        }
+      },
+      "def": 18,
+      "cooldownMinutes": 30
+    },
+    "baekkario": {
+      "id": "baekkario",
+      "name": "백카리오 (Baekkario)",
+      "star": 3,
+      "maxParty": 4,
+      "recParty": 3,
+      "hp": 8000,
+      "atk": 165,
+      "spd": 9,
+      "minProficiency": 1500,
+      "gold": [
+        1200,
+        2000
+      ],
+      "profWin": 90,
+      "profLose": 22,
+      "drops": [
+        {
+          "itemId": "baek_mane",
+          "chance": 1
+        },
+        {
+          "itemId": "baek_fang",
+          "chance": 0.35
+        }
+      ],
+      "note": "서리를 두른 하얀 짐승. 얼음 갑옷 때는 공격하면 반사되니 스킬로 풀어 보세요. 극한의 겨울은 파티가 끊어야 해요.",
+      "script": {
+        "patterns": {
+          "frostclaw": {
+            "kind": "attack",
+            "name": "서리 발톱",
+            "mult": 1.5,
+            "telegraph": "서리 발톱이 {target}을(를) 겨눈다!",
+            "target": "random"
+          },
+          "blizzard": {
+            "kind": "attack",
+            "name": "눈보라",
+            "mult": 0.55,
+            "telegraph": "눈보라가 몰아친다.",
+            "target": "all"
+          },
+          "freeze": {
+            "kind": "debuff",
+            "name": "빙결의 숨",
+            "atkMult": 0.8,
+            "turns": 2,
+            "target": "all",
+            "telegraph": "차가운 숨결이 모두를 얼린다."
+          },
+          "icearmor": {
+            "kind": "stance",
+            "name": "얼음 갑옷",
+            "takenMult": 0.6,
+            "reflectPct": 0.25,
+            "telegraph": "얼음 갑옷을 두른다. 공격하면 피해가 줄고 일부가 되돌아온다!"
+          },
+          "siphon": {
+            "kind": "drain",
+            "name": "한기 흡수",
+            "pct": 0.07,
+            "target": "random",
+            "telegraph": "한기가 {target}의 생기를 빨아들이려 한다."
+          },
+          "spirits": {
+            "kind": "summon",
+            "name": "얼음 정령",
+            "count": 1,
+            "minPhase": 2,
+            "telegraph": "서리 속에서 정령이 깨어난다."
+          },
+          "winter": {
+            "kind": "charge_attack",
+            "name": "극한의 겨울",
+            "mult": 1.6,
+            "chargeRounds": [
+              2,
+              2,
+              2
+            ],
+            "interruptPct": [
+              0.07,
+              0.07,
+              0.07
+            ],
+            "minGap": 6,
+            "minPhase": 3,
+            "target": "all",
+            "telegraphCharge": "하늘이 하얗게 얼어붙는다... 파티가 힘을 모아 끊어야 한다!",
+            "telegraphRelease": "극한의 겨울이 덮친다!"
+          }
+        },
+        "phases": [
+          {
+            "fromHpPct": 100,
+            "atkMult": 1.0,
+            "pool": [
+              {
+                "id": "frostclaw",
+                "weight": 3
+              },
+              {
+                "id": "blizzard",
+                "weight": 2
+              },
+              {
+                "id": "freeze",
+                "weight": 1
+              },
+              {
+                "id": "icearmor",
+                "weight": 1
+              }
+            ]
+          },
+          {
+            "fromHpPct": 65,
+            "atkMult": 1.1,
+            "pool": [
+              {
+                "id": "frostclaw",
+                "weight": 3
+              },
+              {
+                "id": "blizzard",
+                "weight": 2
+              },
+              {
+                "id": "freeze",
+                "weight": 1
+              },
+              {
+                "id": "icearmor",
+                "weight": 1
+              },
+              {
+                "id": "siphon",
+                "weight": 2
+              },
+              {
+                "id": "spirits",
+                "weight": 1
+              }
+            ],
+            "enterText": "“서리가 깨어난다.” 얼음 정령이 모여든다."
+          },
+          {
+            "fromHpPct": 30,
+            "atkMult": 1.25,
+            "pool": [
+              {
+                "id": "frostclaw",
+                "weight": 2
+              },
+              {
+                "id": "blizzard",
+                "weight": 2
+              },
+              {
+                "id": "freeze",
+                "weight": 2
+              },
+              {
+                "id": "siphon",
+                "weight": 1
+              },
+              {
+                "id": "spirits",
+                "weight": 1
+              },
+              {
+                "id": "winter",
+                "weight": 2
+              }
+            ],
+            "enterText": "“모든 것이 얼어붙는다.” 혹한이 몰려온다."
+          }
+        ],
+        "minion": {
+          "name": "얼음 정령",
+          "stats": {
+            "maxHp": 250,
+            "atk": 55,
+            "def": 10,
+            "spd": 9
+          },
+          "max": 2,
+          "healBossPct": 0.01
+        },
+        "enrage": {
+          "fromRound": 26,
+          "perRound": 0.3
+        }
+      },
+      "def": 24,
+      "cooldownMinutes": 120
+    },
     "ankio": {
       "id": "ankio",
       "name": "안키오 (Ankio)",
-      "hp": 9500,
-      "atk": 195,
+      "hp": 23000,
+      "atk": 232,
       "spd": 9,
       "minProficiency": 1800,
       "gold": [
@@ -674,7 +1028,11 @@
           "perRound": 0.35
         }
       },
-      "def": 20
+      "def": 20,
+      "star": 5,
+      "maxParty": 8,
+      "recParty": 6,
+      "cooldownMinutes": 360
     }
   }
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { itemById } from '@rtgm/data';
 import { canUseSkill, type Combatant } from '@rtgm/engine';
-import { api, type RaidLobbyPayload, type RaidMemberView, type RaidRoomView } from '../api';
+import { api, fmtWait, type RaidLobbyPayload, type RaidMemberView, type RaidRoomView } from '../api';
 import { StatusBadges, Resources } from '../components/status';
 import { useGame } from '../game';
 import { Icon } from '../Icon';
@@ -94,7 +94,7 @@ function RaidBattle({ room, onChange }: { room: RaidRoomView; onChange: (r: Raid
           {need !== undefined && <div className="intent-hint">{intent.kind === 'charge' ? '충전 중 ' : '발동 전 '}파티가 한 라운드에 합계 {need} 이상 피해를 주면 끊을 수 있어요.</div>}
         </div>
       )}
-      <div className="battle-stack">
+      <div className={`battle-stack${party.length > 4 ? ' party-wide' : ''}`}>
         {party.map((c) => (
           <PartyCard key={c.id} c={c} m={room.members.find((m) => m.slot === c.id)} round={state.round} mine={c.id === room.mySlot}
             pickable={!!pending && c.hp > 0} picked={false} onPick={() => void act({ action: 'skill', skillId: pending, targetId: c.id })} />
@@ -144,6 +144,8 @@ export function Raid() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const room = data?.room ?? null;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
 
   const load = useCallback(async () => { try { setData(await api.raid()); } catch { /* 다음 주기 */ } }, []);
   useEffect(() => { void load(); }, [load]);
@@ -179,14 +181,14 @@ export function Raid() {
   if (room) {
     const mine = room.members.find((m) => m.userId === me?.id);
     const isLeader = room.leaderId === me?.id;
-    const taken = new Map(room.members.filter((m) => m.role).map((m) => [m.role!, m.userId]));
+    const roleCount = (r: Role) => room.members.filter((m) => m.role === r).length;
     const allReady = room.members.length >= room.minParty && room.members.every((m) => m.role && (m.ready || m.userId === room.leaderId));
     return (
       <>
         <div className="card">
-          <div className="card-title">{room.bossName} · 대기실</div>
+          <div className="card-title"><span className="stars">{'★'.repeat(room.star)}</span> {room.bossName} · 대기실</div>
           <div className="stat-row"><span className="stat-label">초대 코드</span><b className="code">{room.code}</b></div>
-          <div className="note">친구에게 코드를 알려 주세요. 파티원 {room.members.length}/{room.maxParty}명 · 최소 {room.minParty}명. 역할은 한 명에 하나씩, 겹칠 수 없어요.</div>
+          <div className="note">친구에게 코드를 알려 주세요. 대기실은 {data.lobbyMinutes}분 뒤에 사라져요. 파티원 {room.members.length}/{room.maxParty}명 · 최소 {room.minParty}명 · 적정 {room.recParty}명. 역할은 {room.roleCap === 1 ? '한 명에 하나씩 겹칠 수 없어요' : `역할마다 ${room.roleCap}명까지 고를 수 있어요`}.</div>
           {room.members.map((m) => (
             <div key={m.userId} className="srow">
               <div className="sname">{m.role ? `${ROLE_ICON[m.role]} ${ROLE_LABEL[m.role]}` : '역할 미정'} · {m.nickname}{m.userId === room.leaderId && ' 👑'}</div>
@@ -198,13 +200,13 @@ export function Raid() {
           <div className="card-title">내 역할</div>
           <div className="role-grid">
             {(Object.keys(ROLE_LABEL) as Role[]).map((r) => {
-              const takenBy = taken.get(r);
+              const full = roleCount(r) >= room.roleCap && mine?.role !== r;
               const info = data.roles[r];
               return (
-                <button key={r} className={`role-btn${mine?.role === r ? ' active' : ''}`} disabled={busy || (!!takenBy && takenBy !== me?.id)} onClick={() => run(() => api.raidRole(r))}>
+                <button key={r} className={`role-btn${mine?.role === r ? ' active' : ''}`} disabled={busy || full} onClick={() => run(() => api.raidRole(r))}>
                   <b>{ROLE_ICON[r]} {ROLE_LABEL[r]}</b>
                   <span className="muted gdesc">{info?.desc}</span>
-                  {takenBy && takenBy !== me?.id && <span className="badge">선택됨</span>}
+                  <span className="badge">{roleCount(r)}/{room.roleCap}</span>
                 </button>
               );
             })}
@@ -226,14 +228,17 @@ export function Raid() {
     <>
       {data.bosses.map((b) => {
         const locked = data.proficiency < b.minProficiency;
+        const wait = Math.max(0, (data.cooldowns[b.id] ?? 0) - now);
         return (
           <div key={b.id} className="card">
-            <div className="card-title"><Icon name={locked ? 'lock' : 'skull'} /> {b.name}</div>
+            <div className="card-title"><Icon name={locked ? 'lock' : 'skull'} /> <span className="stars">{'★'.repeat(b.star)}{'☆'.repeat(5 - b.star)}</span> {b.name}</div>
             <div className="note">{b.note}</div>
             <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{b.minProficiency}+ (현재 {data.proficiency})</span></div>
-            <div className="stat-row"><span className="stat-label">파티</span><span>2~4명 · 역할 1인 1개</span></div>
+            <div className="stat-row"><span className="stat-label">파티</span><span>2~{b.maxParty}명 (적정 {b.recParty}명){b.maxParty >= 8 ? ' · 역할당 2명까지' : ' · 역할 1인 1개'}</span></div>
+            <div className="stat-row"><span className="stat-label">재입장 대기</span><span>{b.cooldownMinutes >= 60 ? `${b.cooldownMinutes / 60}시간` : `${b.cooldownMinutes}분`} (패배 시 절반)</span></div>
+            {wait > 0 && <div className="lock-label"><Icon name="lock" /> 대기 중 · {fmtWait(wait)} 남음</div>}
             <div className="stat-row"><span className="stat-label">보상</span><span>{b.gold[0].toLocaleString()}~{b.gold[1].toLocaleString()}D · {b.drops.map((d) => itemById(d.itemId)?.name).join(', ')}</span></div>
-            <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || locked} onClick={() => run(() => api.raidCreate(b.id), '방을 만들었어요!')}>{locked ? `숙련도 ${b.minProficiency} 필요` : '방 만들기'}</button>
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || locked || wait > 0} onClick={() => run(() => api.raidCreate(b.id), '방을 만들었어요!')}>{locked ? `숙련도 ${b.minProficiency} 필요` : wait > 0 ? `대기 중 (${fmtWait(wait)})` : '방 만들기'}</button>
           </div>
         );
       })}
@@ -249,8 +254,8 @@ export function Raid() {
           <div className="card-title">친구가 연 방</div>
           {data.friendRooms.map((r) => (
             <div key={r.code} className="srow">
-              <div className="sname">{r.leader}님의 {r.bossName}<div className="muted gdesc">{r.members}/4명</div></div>
-              <button className="btn btn-primary btn-sm" disabled={busy || r.members >= 4} onClick={() => run(() => api.raidJoin(r.code), '입장했어요!')}>입장</button>
+              <div className="sname">{r.leader}님의 {r.bossName}<div className="muted gdesc">{r.members}/{r.max}명</div></div>
+              <button className="btn btn-primary btn-sm" disabled={busy || r.members >= r.max} onClick={() => run(() => api.raidJoin(r.code), '입장했어요!')}>입장</button>
             </div>
           ))}
         </div>
