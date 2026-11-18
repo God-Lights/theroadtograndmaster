@@ -1,12 +1,12 @@
 import { itemById, mobById } from '@rtgm/data';
 import {
   battleMessage, buyChoices, errorMsg, helpMessage, inventoryMessage, newsMessage, profileMessage, recipeChoices, runMessage, runResultMessage,
-  shopMessage, skillsMessage, withItems, type Msg,
+  publicBattle, publicRun, shopMessage, skillsMessage, withItems, type Msg,
 } from './ui';
 
 import { exchangePress, exchangeShow, eventPress, eventsShow, friendPress, friendRequest, friendsShow, guildPress, guildShow, rankingShow, usersShow } from './social';
 import { pvpPress, pvpShow, raidPress, raidShow, teamPress, teamShow } from './modes';
-import type { CallResult, Caller } from './types';
+import type { CallResult, Caller, Publish } from './types';
 export type { CallResult, Caller } from './types';
 
 const EPHEMERAL = 64;
@@ -19,9 +19,12 @@ const userIdOf = (i: any): string | undefined => i.member?.user?.id ?? i.user?.i
 const fail = (r: CallResult) => reply(errorMsg(r.json?.error ?? 'unknown', r.json ?? {}));
 
 /** 화면 결과 → 새 메시지(명령어) */
-const view = (r: { msg: Msg } | { error: CallResult }) => ('msg' in r ? reply(r.msg) : fail(r.error));
+type Shown = { msg: Msg; publish?: Publish } | { error: CallResult };
+/** 응답에 '전체 공개로 올릴 결과'를 실어 보낸다 (handleInteraction 이 떼어 내서 처리) */
+const withPublish = <T extends object>(resp: T, publish?: Publish): T & { __publish?: Publish } => (publish ? { ...resp, __publish: publish } : resp);
+const view = (r: Shown) => ('msg' in r ? withPublish(reply(r.msg), r.publish) : fail(r.error));
 /** 화면 결과 → 원래 메시지 갱신(버튼·메뉴) */
-const viewUpdate = (r: { msg: Msg } | { error: CallResult }) => ('msg' in r ? update(r.msg) : fail(r.error));
+const viewUpdate = (r: Shown) => ('msg' in r ? withPublish(update(r.msg), r.publish) : fail(r.error));
 
 /** 한 라운드를 진행하고 전투 메시지를 만든다 */
 async function round(call: Caller, battleId: string, body: Record<string, unknown>) {
@@ -29,6 +32,12 @@ async function round(call: Caller, battleId: string, body: Record<string, unknow
   if (r.status !== 200) return { error: r };
   const { state, log, rewards, deferred } = r.json;
   let msg = battleMessage({ battleId, state, log, rewards, deferred });
+  let publish: Publish | undefined;
+  const enemy = state.combatants.find((c: any) => c.id === 'enemy');
+  if (state.status !== 'ongoing' && !deferred && rewards) {
+    // 탐험·보스 전투가 끝났다: 전체 공개로도 알린다
+    publish = { key: `battle:${battleId}`, build: async (c) => publicBattle((await c('GET', '/api/me')).json?.nickname ?? '모험가', enemy?.name ?? '몬스터', state, rewards, !!state.boss) };
+  }
   if (state.status === 'ongoing') {
     const inv = await call('GET', '/api/inventory');
     if (inv.status === 200) msg = withItems(msg, battleId, inv.json);
@@ -37,10 +46,14 @@ async function round(call: Caller, battleId: string, body: Record<string, unknow
     const run = await call('GET', '/api/run');
     if (run.status === 200 && !run.json.run) {
       const last = await call('GET', '/api/run/last');
-      if (last.status === 200 && last.json.run) msg = { embeds: [...(msg.embeds ?? []), ...(runResultMessage(last.json.run).embeds ?? [])], components: [] };
+      if (last.status === 200 && last.json.run) {
+        msg = { embeds: [...(msg.embeds ?? []), ...(runResultMessage(last.json.run).embeds ?? [])], components: [] };
+        const done = last.json.run;
+        publish = { key: `run:${done.id}`, build: async (c) => publicRun((await c('GET', '/api/me')).json?.nickname ?? '모험가', done) };
+      }
     }
   }
-  return { msg };
+  return { msg, publish };
 }
 
 async function startedBattle(call: Caller, r: CallResult, note?: string): Promise<Msg> {
@@ -161,7 +174,7 @@ async function component(i: any, call: Caller): Promise<object> {
       : kind === 'bs' ? { action: 'skill', skillId: value } : { action: 'item', itemId: value };
     // 선택 메뉴의 custom_id 는 'bs:<battleId>' 라서 두 번째 칸이 전투 id
     const r = await round(call, battleId!, body);
-    return 'msg' in r ? update(r.msg!) : fail(r.error!);
+    return 'msg' in r ? withPublish(update(r.msg!), r.publish) : fail(r.error!);
   }
   if (id.startsWith('ra:')) return viewUpdate(await raidPress(call, id, i.data.values));
   if (id.startsWith('pv:')) return viewUpdate(await pvpPress(call, id, i.data.values));
@@ -175,7 +188,9 @@ async function component(i: any, call: Caller): Promise<object> {
     case 'rn': { const r = await advanceRun(call); return 'msg' in r ? update(r.msg!) : fail(r.error!); }
     case 'rr': {
       const r = await call('POST', '/api/run/retreat');
-      return r.status === 200 ? update(runResultMessage(r.json)) : fail(r);
+      if (r.status !== 200) return fail(r);
+      const done = r.json;
+      return withPublish(update(runResultMessage(done)), { key: `run:${done.id}`, build: async (c) => publicRun((await c('GET', '/api/me')).json?.nickname ?? '모험가', done) });
     }
     case 'rv': { const v = await showRun(call); return 'msg' in v ? update(v.msg) : fail(v.error); }
     case 'ie': case 'iu': {
@@ -223,15 +238,25 @@ async function autocomplete(i: any, call: Caller): Promise<object> {
 }
 
 /** 디스코드 상호작용 하나를 처리해 응답(JSON)을 돌려준다. callFor(디스코드 ID) → 그 사용자로 게임 API를 부르는 함수 */
-export async function handleInteraction(i: any, callFor: (discordId: string) => Caller): Promise<object> {
+export async function handleInteraction(i: any, callFor: (discordId: string) => Caller, publish?: (msg: Msg) => void): Promise<object> {
   if (i.type === 1) return { type: 1 };
   const uid = userIdOf(i);
   if (!uid) return reply({ content: '사용자를 확인할 수 없어요.' });
   const call = callFor(uid);
   try {
-    if (i.type === 2) return await command(i, uid, call);
-    if (i.type === 3) return await component(i, call);
-    if (i.type === 4) return await autocomplete(i, call);
+    const out: any = i.type === 2 ? await command(i, uid, call) : i.type === 3 ? await component(i, call) : i.type === 4 ? await autocomplete(i, call) : null;
+    if (out) {
+      const pub: Publish | undefined = out.__publish;
+      delete out.__publish;
+      // 끝난 결과는 한 번만 전체 공개로 올린다 (실패해도 개인 화면은 그대로 나간다)
+      if (pub && publish) {
+        try {
+          const first = await call('POST', '/api/bot/publish', { key: pub.key });
+          if (first.status === 200 && first.json.first) publish(await pub.build(call));
+        } catch { /* 전체 공개는 부가 기능 */ }
+      }
+      return out;
+    }
   } catch {
     return reply({ embeds: [{ color: 0xef5350, description: '⚠️ 처리하지 못했어요. 잠시 후 다시 시도해 주세요.' }] });
   }

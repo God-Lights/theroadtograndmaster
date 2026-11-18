@@ -3,7 +3,9 @@ import { ITEMS, MOBS } from '@rtgm/data';
 import { authenticate, fetchPublicUser, AuthUpstreamError, type AppEnv } from './auth';
 import { isAdmin } from './admin';
 import { battle } from './battle';
+import { parseRows, renderBarsPng } from './bot/barimg';
 import { handleInteraction } from './bot/handler';
+import { setAssetOrigin, type Msg } from './bot/ui';
 import { relayAnnouncements } from './bot/relay';
 import { verifyDiscordSignature } from './bot/verify';
 import { discord } from './discord';
@@ -61,7 +63,31 @@ app.post('/discord/interactions', async (c) => {
     }, c.env);
     return { status: res.status, json: await res.json().catch(() => ({})) };
   };
-  return c.json(await handleInteraction(interaction, callFor));
+  setAssetOrigin(new URL(c.req.url).origin);
+  const posts: Msg[] = [];
+  const out = await handleInteraction(interaction, callFor, (m) => posts.push(m));
+  if (posts.length > 0) {
+    // 전체 공개 결과: 디스코드가 이번 응답을 받은 뒤에 새 메시지(웹훅 후속 메시지, 플래그 없음 = 전체 공개)로 올린다
+    const { application_id: appId, token } = interaction as { application_id?: string; token?: string };
+    const send = async (delay: number) => {
+      if (!appId || !token) return;
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      for (const m of posts) {
+        await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...m, allowed_mentions: { parse: [] } }),
+        }).catch(() => undefined);
+      }
+    };
+    try { c.executionCtx.waitUntil(send(1500)); } catch { await send(0); } // 실행 환경 밖(테스트)에서는 바로 보낸다
+  }
+  return c.json(out);
+});
+
+/** 봇 전투 화면용 HP·AP 막대 이미지 (디스코드가 가져가므로 로그인 없이 열린다. 값은 숫자만 허용) */
+app.get('/bot/bars.png', async (c) => {
+  const rows = parseRows(c.req.query('r'));
+  if (!rows) return c.text('bad request', 400);
+  return new Response(await renderBarsPng(rows), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' } });
 });
 
 app.get('/api/health', (c) => c.json({ ok: true, game: 'RTGM' }));

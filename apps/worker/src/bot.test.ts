@@ -4,7 +4,7 @@ import { clearAuthCache } from './auth';
 import { createTestDb } from './test-db';
 import { verifyDiscordSignature } from './bot/verify';
 import { relayAnnouncements } from './bot/relay';
-import { bar, clip } from './bot/ui';
+import { barsUrl, clip, hpText, pct } from './bot/ui';
 import commands from './bot/commands.json';
 import { DUNGEONS, MOBS } from '@rtgm/data';
 
@@ -15,12 +15,16 @@ const KEY = 'bot-key', DA = '123456789012345678', DB_ID = '223456789012345678';
 let env: Record<string, any>;
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
 let priv: CryptoKey;
+/** 디스코드로 나간 전체 공개 메시지 (웹훅 후속 메시지) */
+let hooks: { url: string; body: any }[] = [];
 let pubHex: string;
 
 const toHex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 beforeEach(async () => {
   clearAuthCache();
-  vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { body: string }) => {
+  hooks = [];
+  vi.stubGlobal('fetch', vi.fn(async (u: string, init: { body: string }) => {
+    if (String(u).includes('discord.com/api')) { hooks.push({ url: String(u), body: JSON.parse(init.body) }); return new Response('{}', { status: 200 }); }
     const user = USERS[JSON.parse(init.body).token as string];
     return user ? new Response(JSON.stringify({ user }), { status: 200 }) : new Response('{}', { status: 401 });
   }));
@@ -37,7 +41,7 @@ async function sign(body: string, ts = String(Math.floor(Date.now() / 1000))) {
   return { 'X-Signature-Ed25519': toHex(sig), 'X-Signature-Timestamp': ts };
 }
 async function interact(payload: object, userId = DA, opts: { badSig?: boolean; ts?: string } = {}) {
-  const body = JSON.stringify(payload);
+  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', ...payload });
   const headers = { 'Content-Type': 'application/json', ...(await sign(body, opts.ts)) };
   if (opts.badSig) headers['X-Signature-Ed25519'] = '00'.repeat(64);
   const res = await app.request('https://rtgm.officialgl.com/discord/interactions', { method: 'POST', headers, body }, env);
@@ -62,6 +66,8 @@ async function linked(token = 'tokA', did = DA) {
 }
 const embedText = (r: any) => JSON.stringify(r.json.data?.embeds ?? []);
 const customIds = (r: any): string[] => (r.json.data.components ?? []).flatMap((row: any) => row.components.map((c: any) => c.custom_id));
+
+async function linkedA() { await linked('tokA', DA); }
 
 describe('서명 검증·기본 응답', () => {
   it('PING 에 응답하고, 서명이 틀리거나 오래된 요청은 거절한다', async () => {
@@ -270,10 +276,113 @@ describe('명령어 정의·화면 유틸', () => {
     for (const id of choices('보스')) expect(MOBS.find((m) => m.id === id)?.kind).toBe('boss');
     expect(names).toEqual(expect.arrayContaining(['연동', '프로필', '탐험', '보스', '던전', '인벤토리', '스킬', '상점', '구매', '판매', '제작', '소식', '도움말']));
   });
-  it('bar·clip', () => {
-    expect(bar(5, 10, 10)).toBe('█████░░░░░ 5/10');
-    expect(bar(1, 100, 10)).toBe('█░░░░░░░░░ 1/100'); // 살아 있으면 최소 한 칸
-    expect(bar(0, 100, 10)).toBe('░░░░░░░░░░ 0/100');
+  it('막대 이미지 주소·hpText·clip', () => {
+    expect(hpText(62, 110)).toBe('HP 62/110');
+    expect(hpText(-5, 110)).toBe('HP 0/110');
+    expect(pct(1, 100)).toBe(1); // 살아 있으면 최소 1%
+    expect(pct(0, 100)).toBe(0);
+    expect(barsUrl([{ t: 'f', pct: 40 }, { t: 'gap' }, { t: 'a', pct: 62 }, { t: 'pips', n: 4 }, { t: 'gauge', pct: 30 }])).toBe('https://rtgm.officialgl.com/bot/bars.png?r=f40,_,a62,p4,u30');
     expect(clip('abcdef', 4)).toBe('abc…');
+  });
+});
+
+
+describe('막대 이미지', () => {
+  const png = async (q: string) => app.request(`https://rtgm.officialgl.com/bot/bars.png?r=${q}`, {}, env); // 쿠키 없이 (디스코드가 가져간다)
+  it('로그인 없이 PNG 를 돌려주고 캐시된다', async () => {
+    const res = await png('f40,_,a62,p4,u30');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('image/png');
+    expect(res.headers.get('Cache-Control')).toContain('immutable');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect([...bytes.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    const dv = new DataView(bytes.buffer);
+    expect(dv.getUint32(16)).toBe(480); // 너비
+    expect(dv.getUint32(20)).toBeGreaterThan(60); // 높이
+    expect(bytes.length).toBeGreaterThan(500);
+    expect(new Uint8Array(await (await png('f40,_,a62,p4,u30')).arrayBuffer())).toEqual(bytes); // 같은 값이면 같은 그림
+  });
+  it('잘못된 값·너무 많은 줄은 400', async () => {
+    for (const q of ['', 'f40,zz', 'a1000', 'p9', '<script>', 'a50,'.repeat(20) + 'a1']) expect((await png(encodeURIComponent(q))).status, q).toBe(400);
+    const none = await app.request('https://rtgm.officialgl.com/bot/bars.png', {}, env);
+    expect(none.status).toBe(400);
+  });
+  it('전투 화면은 유니코드 막대 대신 이미지를 쓴다', async () => {
+    await web('tokA', 'GET', '/api/me');
+    await linkedA();
+    const r = await slash('탐험', { 지역: 'plains' });
+    const e = r.json.data.embeds[0];
+    expect(e.image.url).toMatch(/^https:\/\/rtgm\.officialgl\.com\/bot\/bars\.png\?r=f\d+,_,a\d+,p4,u0$/);
+    expect(JSON.stringify(e)).not.toMatch(/[█░●○]/);
+    expect(JSON.stringify(e.fields)).toContain('HP ');
+    const png2 = await app.request(e.image.url.replace('https://rtgm.officialgl.com', 'https://rtgm.officialgl.com'), {}, env);
+    expect(png2.status).toBe(200);
+  });
+});
+
+describe('전체 공개 결과', () => {
+  const finishBattle = async (mobKind: 'explore' | 'boss') => {
+    const r = mobKind === 'explore' ? await slash('탐험', { 지역: 'plains' }) : await slash('보스', { 보스: 'rich' });
+    const id = r.json.data.components[0].components.find((c: any) => c.custom_id.includes(':atk:')).custom_id.split(':')[1] as string;
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(id) as any).state);
+    st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), id);
+    let last: any;
+    for (let n = 0; n < 8; n++) { last = await press(`bt:${id}:atk:enemy`); if (!last.json.data.components.length) break; }
+    return { id, last };
+  };
+  beforeEach(async () => { await web('tokA', 'GET', '/api/me'); await linkedA(); });
+
+  it('전투에서 이기면 전체 공개 메시지가 나가고, 내 화면(ephemeral)과 별개다', async () => {
+    const { last } = await finishBattle('explore');
+    expect(last.json.type).toBe(7); // 내 화면은 그대로 갱신
+    expect(hooks).toHaveLength(1);
+    expect(hooks[0]!.url).toBe('https://discord.com/api/v10/webhooks/app1/tok-abc');
+    expect(hooks[0]!.body.flags).toBeUndefined(); // 플래그 없음 = 전체 공개
+    expect(hooks[0]!.body.allowed_mentions).toEqual({ parse: [] });
+    const e = hooks[0]!.body.embeds[0];
+    expect(e.title).toContain('에이님이');
+    expect(e.title).toContain('쓰러뜨렸다');
+    expect(e.description).toContain('🎁');
+  });
+  it('같은 결과는 한 번만 올라간다 (다시 눌러도 중복 없음)', async () => {
+    const { id } = await finishBattle('explore');
+    await press(`bt:${id}:atk:enemy`);
+    await press(`bt:${id}:grd`);
+    expect(hooks).toHaveLength(1);
+  });
+  it('진행 중에는 아무것도 올라가지 않는다', async () => {
+    const r = await slash('탐험', { 지역: 'plains' });
+    await press(r.json.data.components[0].components.find((c: any) => c.custom_id.includes(':atk:')).custom_id);
+    expect(hooks).toHaveLength(0);
+  });
+  it('보스 처치는 왕관 문구로 올라간다', async () => {
+    sqlite.prepare("UPDATE characters SET proficiency = 500 WHERE user_id = ?").run(A.id);
+    const r = await slash('보스', { 보스: 'rich' });
+    const id = r.json.data.components[0].components.find((c: any) => c.custom_id.includes(':atk:')).custom_id.split(':')[1] as string;
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(id) as any).state);
+    for (const c of st.combatants) if (c.side === 'enemy') c.hp = 1;
+    st.boss.runtime.revived = true; // 부활 없이 끝나게
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), id);
+    for (let n = 0; n < 10; n++) { const last = await press(`bt:${id}:atk:enemy`); if (!last.json.data.components.length) break; }
+    expect(hooks.length).toBeGreaterThanOrEqual(1);
+    expect(hooks[0]!.body.embeds[0].title).toMatch(/👑|💀/);
+  });
+  it('던전 후퇴는 전체 공개로 알린다', async () => {
+    await press('rs', ['catacomb']);
+    await press('rn');
+    const view = await slash('던전');
+    if (view.json.data.components.some((c: any) => c.components.some((x: any) => x.custom_id === 'rr'))) {
+      await press('rr');
+      expect(hooks).toHaveLength(1);
+      expect(hooks[0]!.body.embeds[0].title).toContain('돌아왔다');
+      expect(hooks[0]!.body.embeds[0].description).toContain('층 도달');
+    } else {
+      expect(hooks).toHaveLength(0); // 몬스터 방: 전투 중에는 올리지 않는다
+    }
+  });
+  it('개인 전용 안내(프로필·상점·오류)는 전체 공개되지 않는다', async () => {
+    await slash('프로필'); await slash('상점'); await slash('구매', { 아이템: 'bread', 수량: 99 });
+    expect(hooks).toHaveLength(0);
   });
 });

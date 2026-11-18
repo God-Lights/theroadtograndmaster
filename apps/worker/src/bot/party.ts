@@ -1,5 +1,5 @@
 import { canUseSkill, type BattleState, type Combatant } from '@rtgm/engine';
-import { bar, button, clip, pips, row, select, statuses, GOLD, GREEN, RED, type Msg } from './ui';
+import { barsUrl, button, clip, hpRow, hpText, row, select, statuses, GOLD, GREEN, RED, type Msg } from './ui';
 
 /**
  * 동시 선택 전투(레이드·1v1·4v4) 공용 화면.
@@ -41,7 +41,7 @@ export function partyBattleMessage(v: PartyView): Msg {
   const intent = state.intents?.['enemy'];
   const left = Math.max(0, Math.ceil((v.deadline + (Date.now() - v.serverNow) - Date.now()) / 1000));
 
-  const fmt = (c: Combatant) => `${c.hp <= 0 ? '💀' : '·'} **${label(c, c.id === v.mySlot)}** ${bar(c.hp, c.stats.maxHp, 8)}${c.ap !== undefined && c.hp > 0 ? ` AP ${pips(c.ap)}` : ''}${statuses(c, state.round) ? ` _${statuses(c, state.round)}_` : ''}`;
+  const fmt = (c: Combatant) => `${c.hp <= 0 ? '💀' : '·'} **${label(c, c.id === v.mySlot)}** ${c.hp <= 0 ? '쓰러짐' : hpText(c.hp, c.stats.maxHp)}${c.ap !== undefined && c.hp > 0 ? ` · AP ${c.ap}` : ''}${statuses(c, state.round) ? ` _${statuses(c, state.round)}_` : ''}`;
   const fields: unknown[] = [
     { name: state.boss ? '🛡 파티' : '🔵 우리 팀', value: clip(allies.map(fmt).join('\n') || '-', 1000) },
     { name: state.boss ? `👹 ${boss?.name ?? '보스'}${phase ? ` (${phase}페이즈)` : ''}` : '🔴 상대 팀', value: clip(foes.map(fmt).join('\n') || '-', 1000) },
@@ -58,6 +58,8 @@ export function partyBattleMessage(v: PartyView): Msg {
     description: clip([status, v.resultText, (v.log ?? []).slice(-6).map((l) => l.text).join('\n')].filter(Boolean).join('\n\n') || '시작!', 3600),
     color: v.done ? (v.resultText?.includes('승리') || v.resultText?.includes('성공') ? GREEN : RED) : GOLD,
     fields,
+    // 막대 그림은 위 목록과 같은 순서 (우리 팀 → 상대 팀). 초록=우리, 빨강=상대, 금색=보스
+    image: { url: barsUrl([...allies.map((c) => hpRow(c, 'a')), { t: 'gap' }, ...foes.map((c) => hpRow(c, c.role === 'boss' || (state.boss && c.id === 'enemy') ? 'b' : 'f'))]) },
   };
 
   const refresh = button('🔄 새로고침', `${v.kind}:f`, 2);

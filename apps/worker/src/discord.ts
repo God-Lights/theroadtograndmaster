@@ -12,7 +12,7 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const DISCORD_ID_RE = /^\d{15,22}$/;
 
 /** 봇이 사용자 없이 호출할 수 있는 경로: 헬스체크, 전체 알림 목록, 연동, 게임 데이터 */
-export const BOT_OPEN_PATHS = /^\/api\/(health|announcements|bot\/link|data\/[a-z]+)$/;
+export const BOT_OPEN_PATHS = /^\/api\/(health|announcements|bot\/(link|publish)|data\/[a-z]+)$/;
 
 /** 길이가 달라도 시간 차이가 새지 않게 비교한다 */
 export function safeEqual(a: string, b: string): boolean {
@@ -87,4 +87,18 @@ discord.post('/bot/link', async (c) => {
   ]);
   const prof = await c.env.DB.prepare('SELECT nickname FROM profiles WHERE user_id = ?').bind(row.user_id).first<{ nickname: string }>();
   return c.json({ ok: true, nickname: prof?.nickname ?? null });
+});
+
+/**
+ * 봇 전용: 게임 결과를 전체 공개로 올릴 때 같은 결과가 두 번 올라가지 않게 한다 (먼저 부른 쪽만 first=true).
+ * 키는 하루 뒤에 정리한다.
+ */
+discord.post('/bot/publish', async (c) => {
+  if (!c.get('viaBot')) return c.json({ error: 'not_found' }, 404);
+  const { key } = await c.req.json<{ key?: unknown }>().catch(() => ({} as { key?: unknown }));
+  if (typeof key !== 'string' || key.length < 3 || key.length > 80) return c.json({ error: 'invalid_request' }, 400);
+  const now = Date.now();
+  const res = await c.env.DB.prepare("INSERT OR IGNORE INTO bot_state (key, value) VALUES (?, ?)").bind(`pub:${key}`, String(now)).run();
+  if (res.meta.changes === 1) await c.env.DB.prepare("DELETE FROM bot_state WHERE key LIKE 'pub:%' AND CAST(value AS INTEGER) < ?").bind(now - 86_400_000).run();
+  return c.json({ first: res.meta.changes === 1 });
 });
