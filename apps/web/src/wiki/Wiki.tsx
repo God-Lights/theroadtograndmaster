@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   DUNGEONS, ITEMS, MOBS, PVP_RULES, ROGUE_DUNGEONS, ROGUE_EVENT_WEIGHTS, rogueById, spawnRates, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
-  dungeonById, getProfTier, itemById, mobById, skillById,
+  dungeonById, getProfTier, itemById, mobById, skillById, starLabel,
 } from '@rtgm/data';
 import {
   RARITY_LABEL, RAID_BOSSES, TYPE_LABEL, WIKI_KIND_LABEL, bossView, raidBossView, raidRoleCap, raidRoleViews, itemSources, itemUses, mobSummary, searchWiki, skillsByRole, wikiEntries,
@@ -364,7 +364,7 @@ function RaidList() {
       <div className="card">
         {Object.values(RAID_BOSSES).sort((a, b) => a.star - b.star).map((b) => (
           <a key={b.id} className="wiki-row" href={`#/wiki/raids/${b.id}`}>
-            <span><span className="stars">{'★'.repeat(b.star)}</span> {b.name}</span>
+            <span><span className="stars">{starLabel(b.star)}</span> {b.name}</span>
             <span className="muted wiki-hint">적정 {b.recParty}명 · 최대 {b.maxParty}명</span>
           </a>
         ))}
@@ -391,7 +391,7 @@ function RaidPage({ id }: { id: string }) {
   return (
     <>
       <div className="card">
-        <div className="card-title"><span className="stars">{'★'.repeat(b.star)}{'☆'.repeat(5 - b.star)}</span> {b.name}</div>
+        <div className="card-title"><span className="stars">{b.star > 0 ? '★'.repeat(b.star) + '☆'.repeat(5 - b.star) : '입문'}</span> {b.name}</div>
         <div className="note">{b.note}</div>
         <div className="stat-row"><span className="stat-label">파티</span><span>2~{b.maxParty}명 (적정 {b.recParty}명) · 역할당 {raidRoleCap(id)}명</span></div>
         <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{b.minProficiency}+ ({getProfTier(b.minProficiency).name})</span></div>

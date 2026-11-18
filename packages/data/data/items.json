@@ -1044,5 +1044,18 @@
     "buy": null,
     "sell": 450,
     "minProficiency": 0
+  },
+  {
+    "id": "slime_king_core",
+    "name": "슬라임 킹의 핵",
+    "type": "material",
+    "rarity": "normal",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 250,
+    "minProficiency": 0
   }
 ]

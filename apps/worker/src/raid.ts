@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import {
   RAID_BOSSES, RAID_MIN_PARTY, RAID_MISS_LIMIT, RAID_ROLES, RAID_ROLE_IDS, START_AP, computeStats, itemById,
-  raidBossHp, raidKit, raidRoleCap, raidSkillById, raidStats, type RaidBossData, type RaidRole,
+  raidBossHp, raidKit, raidRoleCap, raidSkillById, raidStats, starLabel, type RaidBossData, type RaidRole,
 } from '@rtgm/data';
 import {
   canUseSkill, createBattle, mulberry32, resolveRound,
@@ -165,7 +165,7 @@ export async function advance(db: D1Database, room: RoomRow): Promise<RoomRow> {
           .bind(JSON.stringify(next), victory ? 'victory' : 'defeat', logJson, now, room.id, room.round_no),
         guard(db),
         ...stmts,
-        ...(victory ? announceStmts(db, 'raid', `🛡️ ${members.map((m) => m.nickname ?? '모험가').join(', ')} 파티가 ${'★'.repeat(boss.star)} ${boss.name} 레이드를 클리어했다!`) : []),
+        ...(victory ? announceStmts(db, 'raid', `🛡️ ${members.map((m) => m.nickname ?? '모험가').join(', ')} 파티가 ${starLabel(boss.star)} ${boss.name} 레이드를 클리어했다!`) : []),
       ]);
     }
   } catch {

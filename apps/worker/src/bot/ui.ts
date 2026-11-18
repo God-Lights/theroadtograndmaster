@@ -1,4 +1,4 @@
-import { DISCORD_INVITE_URL, ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait } from '@rtgm/data';
+import { DISCORD_INVITE_URL, ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait, starLabel } from '@rtgm/data';
 import { canUseSkill, type BattleState, type Combatant } from '@rtgm/engine';
 import { rowsToQuery, type Row } from './barimg';
 
@@ -276,7 +276,7 @@ export function publicRaid(room: any): Msg {
   const lines = room.members.map((m: any) => `${m.role ? `${roleIcon[m.role]} ` : ''}**${m.nickname}**${m.rewards ? ` — 🎁 ${rewardText(m.rewards)}` : ''}${m.miss >= 3 ? ' (자리 비움)' : ''}`);
   return { embeds: [{
     color: won ? GOLD : RED,
-    title: won ? `🛡️ ${'★'.repeat(room.star ?? 0)} ${room.bossName} 레이드 클리어!` : `🛡️ ${room.bossName} 레이드 실패…`,
+    title: won ? `🛡️ ${starLabel(room.star ?? 0)} ${room.bossName} 레이드 클리어!` : `🛡️ ${room.bossName} 레이드 실패…`,
     description: clip(lines.join('\n'), 3800), footer: pubFooter,
   }] };
 }

@@ -47,6 +47,18 @@ const patchState = (id: string, fn: (s: any) => void) => { const s = JSON.parse(
 const guardAll = async (who: (keyof typeof U)[]) => { let last: any; for (const w of who) last = await call(w, 'POST', '/api/raid/action', { action: 'guard' }); return last; };
 
 describe('방 만들기·입장', () => {
+  it('입문 레이드(슬라임 킹)는 숙련도 0인 신규 모험가 둘이서 만들고 들어가 시작할 수 있다', async () => {
+    await call('A', 'GET', '/api/me'); await call('B', 'GET', '/api/me');
+    expect((await call('A', 'POST', '/api/raid/create', { bossId: 'slime_king' })).status).toBe(200);
+    const code = (await call('A', 'GET', '/api/raid')).json.room.code;
+    expect((await call('B', 'POST', '/api/raid/join', { code })).status).toBe(200);
+    expect((await call('A', 'POST', '/api/raid/role', { role: 'dealer' })).status).toBe(200);
+    expect((await call('B', 'POST', '/api/raid/role', { role: 'healer' })).status).toBe(200);
+    expect((await call('A', 'POST', '/api/raid/ready', { ready: true })).status).toBe(200);
+    expect((await call('B', 'POST', '/api/raid/ready', { ready: true })).status).toBe(200);
+    expect((await call('A', 'POST', '/api/raid/start')).status).toBe(200);
+    expect((await call('A', 'GET', '/api/raid')).json.room.status).toBe('active');
+  });
   it('숙련도가 부족하면 만들거나 들어갈 수 없다', async () => {
     await call('A', 'GET', '/api/me'); await call('B', 'GET', '/api/me');
     expect((await call('A', 'POST', '/api/raid/create', { bossId: 'dragon' })).json).toMatchObject({ error: 'proficiency_too_low', required: 1000 });
@@ -127,7 +139,7 @@ describe('전투 진행', () => {
   });
   it('별 등급: 1★ 드래곤(최대 4·적정 2) / 3★ 백카리오(4·3) / 5★ 안키오(8·6)', () => {
     const r = RAID_BOSSES;
-    expect([r.dragon, r.baekkario, r.ankio].map((b) => [b!.star, b!.maxParty, b!.recParty])).toEqual([[1, 4, 2], [3, 4, 3], [5, 8, 6]]);
+    expect([r.slime_king, r.dragon, r.baekkario, r.ankio].map((b) => [b!.star, b!.maxParty, b!.recParty])).toEqual([[0, 4, 2], [1, 4, 2], [3, 4, 3], [5, 8, 6]]);
     expect(raidBossHp('ankio', 6)).toBe(r.ankio!.hp); // 적정 인원이 기본 HP
     expect(raidBossHp('ankio', 8)).toBeGreaterThan(raidBossHp('ankio', 6));
     expect(raidBossHp('ankio', 2)).toBeLessThan(raidBossHp('ankio', 6));
@@ -204,7 +216,7 @@ describe('8인 레이드 (안키오)', () => {
   it('로비 목록은 별 등급 순으로, 별·인원 정보를 함께 준다', async () => {
     await call('A', 'GET', '/api/me');
     const bosses = (await call('A', 'GET', '/api/raid')).json.bosses;
-    expect(bosses.map((b: any) => [b.id, b.star, b.maxParty, b.recParty])).toEqual([['dragon', 1, 4, 2], ['baekkario', 3, 4, 3], ['ankio', 5, 8, 6]]);
+    expect(bosses.map((b: any) => [b.id, b.star, b.maxParty, b.recParty])).toEqual([['slime_king', 0, 4, 2], ['dragon', 1, 4, 2], ['baekkario', 3, 4, 3], ['ankio', 5, 8, 6]]);
   });
 });
 
