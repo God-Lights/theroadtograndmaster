@@ -7,6 +7,7 @@ import { ensureCharacter, getCharacter } from './character';
 import { exchange } from './exchange';
 import { guilds } from './guild';
 import { inventory } from './inventory';
+import { pvp } from './pvp';
 import { skills } from './skills';
 import { social, touchProfile } from './social';
 
@@ -63,6 +64,7 @@ app.route('/api', battle);
 app.route('/api', social);
 app.route('/api', guilds);
 app.route('/api', exchange);
+app.route('/api', pvp);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));

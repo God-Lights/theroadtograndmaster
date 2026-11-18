@@ -1,4 +1,4 @@
-import type { BattleState, LogEntry } from '@rtgm/engine';
+import type { BattleState, LogEntry, SkillDef } from '@rtgm/engine';
 import type { CombatStats, ItemData, MobData, SkillData } from '@rtgm/data';
 
 /** 로그인·로그아웃·회원가입 화면은 GL Account가 담당한다. 로그인 후 현재 주소로 돌아온다. */
@@ -58,6 +58,19 @@ export interface Listing {
   status: 'active' | 'sold' | 'cancelled'; buyer?: string; proceeds?: number;
 }
 
+export interface PvpStatus {
+  rating: number; wins: number; losses: number; draws: number; matchId: string | null; queued: boolean; queuedAt: number | null;
+  incoming: { id: string; nickname: string }[]; outgoing: { id: string; nickname: string }[];
+  history: { id: string; opponent: string; ranked: boolean; result: 'win' | 'loss' | 'draw'; ratingChange: number }[];
+}
+export interface PvpMatchView {
+  id: string; mine: 'p1' | 'p2'; opponent: { id: string; nickname: string }; ranked: boolean; status: 'active' | 'done';
+  round: number; deadline: number; serverNow: number; needsAction: boolean; submitted: boolean; opponentSubmitted: boolean;
+  state: Omit<BattleState, 'rngSeed'>; skills: Record<string, SkillDef>; log: LogEntry[];
+  result?: { winner: 'me' | 'opponent' | 'draw'; ratingChange: number };
+}
+export interface RankRow { rank: number; id: string; nickname: string; rating: number; wins: number; losses: number; draws: number; me: boolean }
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -107,6 +120,12 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   too_many_listings: () => '동시에 등록할 수 있는 물품은 20개까지예요.',
   listing_unavailable: () => '이미 팔렸거나 없어진 물품이에요.',
   own_listing: () => '내가 올린 물품은 살 수 없어요.',
+  already_in_match: () => '이미 진행 중인 대전이 있어요.',
+  not_friends: () => '친구에게만 도전할 수 있어요.',
+  challenge_not_found: () => '도전장이 없어졌어요.',
+  match_not_found: () => '대전을 찾을 수 없어요.',
+  already_submitted: () => '이번 라운드의 선택은 이미 제출했어요.',
+  invalid_action: () => '낼 수 없는 행동이에요. (PvP에서는 아이템을 쓸 수 없어요)',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -183,5 +202,15 @@ export const api = {
   exchangeList: (itemId: string, quantity: number, price: number, to: string | null) =>
     post<{ id: string }>('/api/exchange/list', { itemId, quantity, price, to }),
   exchangeBuy: (listingId: string) => post<{ ok: true }>('/api/exchange/buy', { listingId }),
+  pvpStatus: () => request<PvpStatus>('/api/pvp/status'),
+  pvpQueue: () => post<{ matchId?: string; queued?: boolean }>('/api/pvp/queue', {}),
+  pvpLeave: () => post<{ ok: true }>('/api/pvp/queue/leave', {}),
+  pvpChallenge: (userId: string) => post<{ ok: true }>('/api/pvp/challenge', { userId }),
+  pvpAccept: (id: string) => post<{ matchId: string }>('/api/pvp/challenge/accept', { id }),
+  pvpDecline: (id: string) => post<{ ok: true }>('/api/pvp/challenge/decline', { id }),
+  pvpMatch: (id: string) => request<PvpMatchView>(`/api/pvp/match/${id}`),
+  pvpAct: (id: string, body: { action: 'attack' | 'guard' | 'skill'; skillId?: string }) => post<PvpMatchView>(`/api/pvp/match/${id}/action`, body),
+  pvpForfeit: (id: string) => post<PvpMatchView>(`/api/pvp/match/${id}/forfeit`, {}),
+  pvpRanking: () => request<{ ranking: RankRow[] }>('/api/pvp/ranking'),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

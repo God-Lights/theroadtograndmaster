@@ -265,3 +265,9 @@ a.btn{text-decoration:none}
 .cmsg.mine .cbody{background:#ffd70014;border-color:#ffd70044}
 .role-leader{color:var(--gold)}.role-officer{color:var(--info)}
 @media(max-width:600px){.pill{min-height:40px}}
+.timer{margin-left:6px;color:var(--info)}
+.timer.hot{color:var(--danger);font-weight:700}
+.pvp-result.me{background:#66bb6a22;color:var(--success);border-color:#66bb6a55}
+.pvp-result.opponent{background:#ef535022;color:var(--danger);border-color:#ef535055}
+.res-win{color:var(--success);font-weight:700}.res-loss{color:var(--danger);font-weight:700}
+.forfeit{width:100%;margin-top:8px;min-height:44px}

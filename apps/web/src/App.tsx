@@ -4,7 +4,7 @@ import { ACCOUNT_ORIGIN } from './api';
 import { GameProvider, useGame } from './game';
 import { Icon } from './Icon';
 import type { IconName } from './icon-paths';
-import { Adventure } from './screens/Adventure';
+import { AdventureHub } from './screens/AdventureHub';
 import { Craft } from './screens/Craft';
 import { Inventory } from './screens/Inventory';
 import { Profile } from './screens/Profile';
@@ -15,7 +15,7 @@ import { Wiki, isWikiHash, openWiki, useWikiPath } from './wiki/Wiki';
 
 const TABS = [
   { id: 'profile', label: '내 정보', icon: 'person', view: Profile },
-  { id: 'adventure', label: '모험', icon: 'map', view: Adventure },
+  { id: 'adventure', label: '모험', icon: 'map', view: AdventureHub },
   { id: 'inventory', label: '인벤토리', icon: 'bag', view: Inventory },
   { id: 'skills', label: '스킬', icon: 'star', view: Skills },
   { id: 'craft', label: '제작', icon: 'hammer', view: Craft },
