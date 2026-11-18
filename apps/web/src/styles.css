@@ -285,3 +285,8 @@ input[type=datetime-local]{display:block;width:100%;margin-top:4px;padding:10px 
 .battle-stack.party-wide .fighter-name{font-size:.78rem}
 .team-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .team-col{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px;min-height:96px}
+.biome-spawns{margin-top:8px;border-top:1px solid var(--border);padding-top:8px}
+.spawn-row{display:flex;flex-direction:column;gap:1px;padding:6px 0;border-bottom:1px solid var(--border)}
+.spawn-row:last-child{border-bottom:none}
+.news-bar{position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:90;margin:0;padding:8px 14px;background:linear-gradient(90deg,#ffd70022,#ffa72622);border-bottom:1px solid #ffd70055;color:var(--gold);font-size:.84rem;font-weight:600;line-height:1.4;cursor:pointer;animation:newsIn .3s ease}
+@keyframes newsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}

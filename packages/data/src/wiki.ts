@@ -1,6 +1,6 @@
 import type { BossScript, PatternDef } from '@rtgm/engine';
 import {
-  BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, RAID_ROLES, RAID_ROLE_IDS, raidKit, raidRoleCap, raidSkillById, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
+  BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, ROGUE_DUNGEONS, RAID_ROLES, RAID_ROLE_IDS, raidKit, raidRoleCap, raidSkillById, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
   entryCost, itemById, mobById,
   type DungeonData, type ItemData, type MobData, type RecipeData, type SkillData,
 } from './index';
@@ -164,7 +164,7 @@ function scriptView(script: Omit<BossScript, 'bossId'>): BossView {
 
 // ─── 검색 ────────────────────────────────────────────────────────────────────
 
-export type WikiKind = 'item' | 'mob' | 'skill' | 'dungeon' | 'recipe' | 'raid';
+export type WikiKind = 'item' | 'mob' | 'skill' | 'dungeon' | 'recipe' | 'raid' | 'rogue';
 export interface WikiEntry {
   kind: WikiKind;
   id: string;
@@ -173,7 +173,7 @@ export interface WikiEntry {
   hint: string;
 }
 
-export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '던전', recipe: '제작', raid: '레이드' };
+export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '지역', recipe: '제작', raid: '레이드', rogue: '던전' };
 
 /** 위키의 모든 항목 (검색 색인) */
 export function wikiEntries(): WikiEntry[] {
@@ -183,7 +183,8 @@ export function wikiEntries(): WikiEntry[] {
   const dungeons = DUNGEONS.map((d): WikiEntry => ({ kind: 'dungeon', id: d.id, name: d.name, hint: `숙련도 ${d.minProficiency}~` }));
   const recipes = RECIPES.map((r): WikiEntry => ({ kind: 'recipe', id: r.id, name: `${itemById(r.resultId)?.name ?? r.resultId} 제작`, hint: `숙련도 ${r.unlockProficiency}에 해금` }));
   const raids = Object.values(RAID_BOSSES).map((b): WikiEntry => ({ kind: 'raid', id: b.id, name: b.name, hint: `${'★'.repeat(b.star)} · ${b.recParty}~${b.maxParty}명` }));
-  return [...items, ...mobs, ...skills, ...dungeons, ...recipes, ...raids];
+  const rogues = ROGUE_DUNGEONS.map((d): WikiEntry => ({ kind: 'rogue', id: d.id, name: d.name, hint: `${d.floors}층 · 숙련도 ${d.minProficiency}~` }));
+  return [...items, ...mobs, ...skills, ...dungeons, ...recipes, ...raids, ...rogues];
 }
 
 const dungeonName = (id: string) => DUNGEONS.find((d: DungeonData) => d.id === id)?.name ?? id;

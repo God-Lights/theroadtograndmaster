@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getProfTier } from '@rtgm/data';
 import { ACCOUNT_ORIGIN } from './api';
 import { GameProvider, useGame } from './game';
+import { Announcer } from './components/Announcer';
 import { Icon } from './Icon';
 import type { IconName } from './icon-paths';
 import { AdventureHub } from './screens/AdventureHub';
@@ -49,6 +50,7 @@ function Shell() {
           계정
         </a>
       </div>
+      <Announcer />
       {isWikiHash(hash) ? <div className="tab-content"><Wiki hash={hash} /></div> : <>
       <nav className="nav-tabs">
         {TABS.map((t) => (

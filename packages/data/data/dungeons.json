@@ -1,8 +1,8 @@
 [
   {
-    "id": "basic",
-    "name": "기본 던전",
-    "description": "몬스터를 쓰러뜨려 달런트와 재료를 얻으세요. 마지막 보스 리치를 넘으면 더 깊은 던전이 열립니다.",
+    "id": "plains",
+    "name": "버려진 평원",
+    "description": "모험의 시작점. 좀비와 고블린이 어슬렁거리는 황량한 들판이에요.",
     "minProficiency": 0,
     "entry": {
       "normalGold": 0,
@@ -11,13 +11,75 @@
     },
     "mobs": [
       "zombie",
-      "skeleton",
-      "goblin",
+      "goblin"
+    ],
+    "spawns": [
+      {
+        "mobId": "zombie",
+        "weight": 5
+      },
+      {
+        "mobId": "goblin",
+        "weight": 4
+      }
+    ],
+    "recommendedProficiency": 0,
+    "exploreCooldownSec": 3
+  },
+  {
+    "id": "forest",
+    "name": "어둠의 숲",
+    "description": "빽빽한 나무 사이로 오크 전사와 늑대인간이 숨어 있어요. 평원보다 훨씬 위험해요.",
+    "minProficiency": 0,
+    "entry": {
+      "normalGold": 0,
+      "bossGold": 0,
+      "bossKey": null
+    },
+    "mobs": [
       "orc",
+      "werewolf"
+    ],
+    "spawns": [
+      {
+        "mobId": "orc",
+        "weight": 5
+      },
+      {
+        "mobId": "werewolf",
+        "weight": 2
+      }
+    ],
+    "recommendedProficiency": 30,
+    "exploreCooldownSec": 5
+  },
+  {
+    "id": "graveyard",
+    "name": "시든 묘지",
+    "description": "스켈레톤과 리치몬드가 배회하는 묘지. 가장 깊은 곳에는 리치가 기다려요. 마지막 관문을 넘으면 더 깊은 던전이 열립니다.",
+    "minProficiency": 0,
+    "entry": {
+      "normalGold": 0,
+      "bossGold": 0,
+      "bossKey": null
+    },
+    "mobs": [
+      "skeleton",
       "richmond",
-      "werewolf",
       "rich"
-    ]
+    ],
+    "spawns": [
+      {
+        "mobId": "skeleton",
+        "weight": 4
+      },
+      {
+        "mobId": "richmond",
+        "weight": 3
+      }
+    ],
+    "recommendedProficiency": 60,
+    "exploreCooldownSec": 8
   },
   {
     "id": "midrealm_1",
@@ -35,7 +97,27 @@
       "toka_loga",
       "xenosaurs",
       "oppoko"
-    ]
+    ],
+    "spawns": [
+      {
+        "mobId": "lappus",
+        "weight": 1
+      },
+      {
+        "mobId": "raufaino",
+        "weight": 1
+      },
+      {
+        "mobId": "toka_loga",
+        "weight": 1
+      },
+      {
+        "mobId": "xenosaurs",
+        "weight": 1
+      }
+    ],
+    "recommendedProficiency": 800,
+    "exploreCooldownSec": 12
   },
   {
     "id": "midrealm_2",
@@ -53,6 +135,26 @@
       "ancient_lord",
       "paka",
       "fodermore"
-    ]
+    ],
+    "spawns": [
+      {
+        "mobId": "raidos",
+        "weight": 1
+      },
+      {
+        "mobId": "core_lord",
+        "weight": 1
+      },
+      {
+        "mobId": "ancient_lord",
+        "weight": 1
+      },
+      {
+        "mobId": "paka",
+        "weight": 1
+      }
+    ],
+    "recommendedProficiency": 1300,
+    "exploreCooldownSec": 20
   }
 ]

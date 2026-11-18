@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  DUNGEONS, ITEMS, MOBS, PVP_RULES, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
+  DUNGEONS, ITEMS, MOBS, PVP_RULES, ROGUE_DUNGEONS, ROGUE_EVENT_WEIGHTS, rogueById, spawnRates, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
   dungeonById, getProfTier, itemById, mobById, skillById,
 } from '@rtgm/data';
 import {
@@ -36,10 +36,11 @@ const SECTIONS = [
   { id: 'guide', label: '게임 가이드', desc: '전투·AP·궁극기 규칙' },
   { id: 'items', label: '아이템', desc: `${ITEMS.length}종 · 얻는 곳과 쓰임` },
   { id: 'mobs', label: '몹·보스', desc: `${MOBS.length}종 · 드롭과 패턴` },
+  { id: 'rogue', label: '던전(로그라이크)', desc: `${ROGUE_DUNGEONS.length}곳 · 층마다 몬스터·보물·함정` },
   { id: 'raids', label: '레이드', desc: `${Object.keys(RAID_BOSSES).length}종 · 별 등급과 역할` },
   { id: 'pvp', label: 'PvP·팀전', desc: '1v1 랭크, 4v4 역할 팀전' },
   { id: 'skills', label: '스킬', desc: `${SKILLS.length}종 · 역할별` },
-  { id: 'dungeons', label: '던전', desc: `${DUNGEONS.length}곳 · 입장 조건` },
+  { id: 'dungeons', label: '지역(바이옴)', desc: `${DUNGEONS.length}곳 · 출현 몬스터와 입장 조건` },
   { id: 'recipes', label: '제작', desc: `${RECIPES.length}종 · 재료와 해금` },
   { id: 'tiers', label: '숙련도', desc: `${PROFICIENCY_TIERS.length}단계 칭호` },
 ];
@@ -60,6 +61,7 @@ export function Wiki({ hash }: { hash: string }) {
       {section === 'guide' && <Guide />}
       {section === 'items' && (id ? <ItemPage id={id} /> : <ItemList />)}
       {section === 'mobs' && (id ? <MobPage id={id} /> : <MobList />)}
+      {section === 'rogue' && (id ? <RoguePage id={id} /> : <RogueList />)}
       {section === 'pvp' && <PvpGuide />}
       {section === 'raids' && (id ? <RaidPage id={id} /> : <RaidList />)}
       {section === 'skills' && <SkillList focus={id} />}
@@ -96,7 +98,7 @@ function Home() {
   );
 }
 
-const KIND_PATH: Record<WikiEntry['kind'], string> = { item: 'items', mob: 'mobs', skill: 'skills', dungeon: 'dungeons', recipe: 'recipes', raid: 'raids' };
+const KIND_PATH: Record<WikiEntry['kind'], string> = { item: 'items', mob: 'mobs', skill: 'skills', dungeon: 'dungeons', recipe: 'recipes', raid: 'raids', rogue: 'rogue' };
 function Results({ q }: { q: string }) {
   const results = useMemo(() => searchWiki(q), [q]);
   return (
@@ -125,7 +127,7 @@ function Guide() {
     ['쿨다운', '강한 스킬은 쓴 뒤 몇 라운드 동안 다시 쓸 수 없어요.'],
     ['방어력', '방어력이 높을수록 받는 피해가 줄어요. 단, 보스의 일부 공격은 방어를 무시해요.'],
     ['보스', '보스는 패턴과 예고가 있어요. 예고 문구를 읽고 가드·끊기·회복 타이밍을 정하세요. HP가 줄면 페이즈가 바뀌어요.'],
-    ['숙련도', `전투 승리·패배와 제작(+${CRAFT_PROFICIENCY_GAIN})으로 올라요. 숙련도에 따라 상점 품목, 제작법, 스킬, 던전 입장이 열려요.`],
+    ['숙련도', `전투 승리·패배와 제작(+${CRAFT_PROFICIENCY_GAIN})으로 올라요. 숙련도에 따라 상점 품목, 제작법, 스킬, 지역(바이옴) 입장이 열려요.`],
   ];
   return <div className="card">{rows.map(([k, v]) => <div key={k} className="wiki-def"><div className="wiki-k">{k}</div><div>{v}</div></div>)}</div>;
 }
@@ -222,7 +224,7 @@ function MobPage({ id }: { id: string }) {
         ))}
         <div className="stat-row"><span className="stat-label">골드</span><span>{mob.gold[0]}~{mob.gold[1]}D</span></div>
         <div className="stat-row"><span className="stat-label">숙련도</span><span>승리 +{mob.profWin} / 패배 +{mob.profLose}</span></div>
-        <div className="stat-row"><span className="stat-label">출현</span><span>{s.dungeon ? <A to={`/dungeons/${s.dungeon.id}`}>{s.dungeon.name}</A> : mob.dungeon}</span></div>
+        <div className="stat-row"><span className="stat-label">출현</span><span>{s.dungeon ? <A to={`/dungeons/${s.dungeon.id}`}>{s.dungeon.name}</A> : mob.dungeon}{(() => { const r = s.dungeon && spawnRates(s.dungeon).find((x) => x.mobId === mob.id); return r ? <span className="muted"> (탐험 시 {pct(r.rate)})</span> : null; })()}</span></div>
         <div className="stat-row"><span className="stat-label">입장 비용</span><span>{s.cost.gold}D{s.cost.key && <> + {itemLink(s.cost.key)} 1개</>}</span></div>
       </div>
       <div className="card">
@@ -299,19 +301,26 @@ function DungeonList() {
 
 function DungeonPage({ id }: { id: string }) {
   const d = dungeonById(id);
-  if (!d) return <div className="empty">없는 던전이에요.</div>;
+  if (!d) return <div className="empty">없는 지역이에요.</div>;
   return (
     <>
       <div className="card">
         <div className="card-title">{d.name}</div>
         <div className="note">{d.description}</div>
-        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{d.minProficiency}+</span></div>
+        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{d.minProficiency > 0 ? `${d.minProficiency}+` : '제한 없음'}</span></div>
+        <div className="stat-row"><span className="stat-label">권장 숙련도</span><span>{d.recommendedProficiency}+ ({getProfTier(d.recommendedProficiency).name})</span></div>
         <div className="stat-row"><span className="stat-label">일반 전투</span><span>{d.entry.normalGold}D</span></div>
         <div className="stat-row"><span className="stat-label">보스 전투</span><span>{d.entry.bossGold}D{d.entry.bossKey && <> + {itemLink(d.entry.bossKey)}</>}</span></div>
       </div>
       <div className="card">
-        <div className="card-title">출현 몹</div>
-        {d.mobs.map((m) => <div key={m} className="wiki-line"><A to={`/mobs/${m}`}>{mobById(m)?.name ?? m}</A></div>)}
+        <div className="card-title">탐험하면 만나는 몬스터</div>
+        {spawnRates(d).map(({ mobId, rate }) => <div key={mobId} className="wiki-line"><A to={`/mobs/${mobId}`}>{mobById(mobId)?.name ?? mobId}</A> <span className="muted">{pct(rate)}</span></div>)}
+        {d.mobs.some((m) => mobById(m)?.kind === 'boss') && (
+          <>
+            <div className="card-title" style={{ marginTop: 10 }}>지역의 보스 (직접 도전)</div>
+            {d.mobs.filter((m) => mobById(m)?.kind === 'boss').map((m) => <div key={m} className="wiki-line"><A to={`/mobs/${m}`}>{mobById(m)?.name ?? m}</A></div>)}
+          </>
+        )}
       </div>
     </>
   );
@@ -429,6 +438,62 @@ function PvpGuide() {
         <div className="wiki-line"><b>친선 방</b>: 코드로 모이고 팀·역할을 정해요. 양 팀에 한 명 이상이면 시작할 수 있어서 1v1~4v4가 모두 가능하고, 레이팅은 변하지 않아요. 방은 30분 뒤 사라져요.</div>
         <div className="wiki-line"><b>도발</b>: 탱커가 도발하면 상대 팀은 단일 대상 공격을 도발한 사람에게만 할 수 있어요.</div>
         <div className="wiki-line">스탯은 PvP 상한을 적용한 뒤 역할 배율(탱커 HP↑·방어↑, 딜러 공격↑, 힐러 지력↑ 등)을 곱해요.</div>
+      </div>
+    </>
+  );
+}
+
+function RogueList() {
+  const total = Object.values(ROGUE_EVENT_WEIGHTS).reduce((a, b) => a + b, 0);
+  const label: Record<string, string> = { monster: '⚔️ 몬스터', treasure: '💰 보물', trap: '🪤 함정', nothing: '🌫️ 빈 방' };
+  return (
+    <>
+      <div className="card">
+        <div className="card-title">로그라이크 던전이란?</div>
+        <div className="wiki-line">층마다 방이 하나씩 열려요. 마지막 층에는 최종 보스가 있고 그 전까지는 무작위예요.</div>
+        {Object.entries(ROGUE_EVENT_WEIGHTS).map(([k, w]) => <div key={k} className="wiki-line">{label[k]} <span className="muted">{pct(w / total)}</span></div>)}
+        <div className="wiki-line">HP는 층을 내려가도 이어지고(전투 중 아이템으로만 회복), 함정은 치명적이지 않아요(HP 1 아래로 안 내려가요).</div>
+        <div className="wiki-line">얻은 보상은 <b>전리품</b>으로 쌓여요. 완주하거나 후퇴하면 받고, 쓰러지면 잃어요(숙련도만 조금).</div>
+        <div className="wiki-line">끝나면 던전마다 대기시간이 걸려요. 완주는 전체, 후퇴·사망은 절반이에요.</div>
+      </div>
+      <div className="card">
+        {ROGUE_DUNGEONS.map((d) => (
+          <a key={d.id} className="wiki-row" href={`#/wiki/rogue/${d.id}`}><span>{d.name}</span><span className="muted wiki-hint">{d.floors}층 · 숙련도 {d.minProficiency}+</span></a>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function RoguePage({ id }: { id: string }) {
+  const d = rogueById(id);
+  if (!d) return <div className="empty">없는 던전이에요.</div>;
+  const boss = MOBS.find((m) => m.id === d.finalBoss.mobId);
+  return (
+    <>
+      <div className="card">
+        <div className="card-title">{d.name}</div>
+        <div className="note">{d.description}</div>
+        <div className="stat-row"><span className="stat-label">층 수</span><span>{d.floors}층</span></div>
+        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{d.minProficiency > 0 ? `${d.minProficiency}+` : '제한 없음'} (권장 {d.recommendedProficiency}+)</span></div>
+        <div className="stat-row"><span className="stat-label">입장 비용</span><span>{d.entryGold > 0 ? `${d.entryGold}D` : '무료'}</span></div>
+        <div className="stat-row"><span className="stat-label">재입장 대기</span><span>{d.cooldownMinutes}분 (후퇴·사망 시 절반)</span></div>
+        <div className="stat-row"><span className="stat-label">함정 피해</span><span>최대 HP의 {d.trapDamagePct[0]}~{d.trapDamagePct[1]}%</span></div>
+      </div>
+      <div className="card">
+        <div className="card-title">몬스터 방</div>
+        {d.monsters.map((m) => <div key={m} className="wiki-line"><A to={`/mobs/${m}`}>{mobById(m)?.name ?? m}</A></div>)}
+        <div className="card-title" style={{ marginTop: 10 }}>최종 보스</div>
+        <div className="wiki-line">{d.finalBoss.title} <A to={`/mobs/${d.finalBoss.mobId}`}>{boss?.name}</A> — HP·공격력 ×{d.finalBoss.mult}</div>
+      </div>
+      <div className="card">
+        <div className="card-title">보물 방 ({d.treasure.gold[0]}~{d.treasure.gold[1]}D, 층이 깊을수록 증가)</div>
+        {(() => { const total = d.treasure.items.reduce((a, b) => a + b.weight, 0); return d.treasure.items.map((i) => <div key={i.itemId} className="wiki-line">{itemLink(i.itemId)} ×{i.qty[0] === i.qty[1] ? i.qty[0] : `${i.qty[0]}~${i.qty[1]}`} <span className="muted">{pct(i.weight / total)}</span></div>); })()}
+      </div>
+      <div className="card">
+        <div className="card-title">완주 보너스</div>
+        <div className="wiki-line">{d.clearBonus.gold[0].toLocaleString()}~{d.clearBonus.gold[1].toLocaleString()}D · 숙련도 +{d.clearBonus.proficiency}</div>
+        {d.clearBonus.items.map((i) => <div key={i.itemId} className="wiki-line">{itemLink(i.itemId)} <span className="muted">{pct(i.chance)}</span></div>)}
       </div>
     </>
   );

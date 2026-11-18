@@ -34,6 +34,10 @@ describe('wiki', () => {
     for (const r of roles) expect(r.skills).toHaveLength(5);
     expect(searchWiki('백카리오', wikiEntries()).some((e) => e.kind === 'raid' && e.id === 'baekkario')).toBe(true);
   });
+  it('로그라이크 던전이 위키 색인에 있다', () => {
+    expect(wikiEntries().filter((e) => e.kind === 'rogue').map((e) => e.id)).toEqual(['catacomb', 'mist_depths', 'hunger_den']);
+    expect(searchWiki('지하 묘지', wikiEntries())[0]).toMatchObject({ kind: 'rogue', id: 'catacomb' });
+  });
   it('검색: 앞글자 일치가 먼저, 공백 무시', () => {
     const e = wikiEntries();
     expect(searchWiki('', e)).toEqual([]);

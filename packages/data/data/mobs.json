@@ -19,7 +19,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "plains"
   },
   {
     "id": "skeleton",
@@ -41,7 +41,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "graveyard"
   },
   {
     "id": "goblin",
@@ -67,7 +67,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "plains"
   },
   {
     "id": "orc",
@@ -93,7 +93,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "forest"
   },
   {
     "id": "richmond",
@@ -115,7 +115,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "graveyard"
   },
   {
     "id": "werewolf",
@@ -141,7 +141,8 @@
     ],
     "profWin": 15,
     "profLose": 6,
-    "dungeon": "basic"
+    "dungeon": "forest",
+    "announce": true
   },
   {
     "id": "rich",
@@ -167,8 +168,9 @@
     ],
     "profWin": 30,
     "profLose": 12,
-    "dungeon": "basic",
-    "note": "영혼함과 하수인을 상대하며, 죽음의 손길은 강한 일격으로 끊을 수 있어요."
+    "dungeon": "graveyard",
+    "note": "영혼함과 하수인을 상대하며, 죽음의 손길은 강한 일격으로 끊을 수 있어요.",
+    "announce": true
   },
   {
     "id": "lappus",
@@ -260,7 +262,8 @@
     "profWin": 20,
     "profLose": 8,
     "dungeon": "midrealm_1",
-    "note": "포효로 공격력을 떨어뜨려요. 정화나 철벽으로 대비하세요."
+    "note": "포효로 공격력을 떨어뜨려요. 정화나 철벽으로 대비하세요.",
+    "announce": true
   },
   {
     "id": "oppoko",
@@ -295,7 +298,8 @@
     "profWin": 50,
     "profLose": 20,
     "dungeon": "midrealm_1",
-    "note": "직전에 한 행동의 반대 자세를 취해요. 공격하면 반격, 방어하면 공세. 스킬을 섞어 풀어 보세요."
+    "note": "직전에 한 행동의 반대 자세를 취해요. 공격하면 반격, 방어하면 공세. 스킬을 섞어 풀어 보세요.",
+    "announce": true
   },
   {
     "id": "raidos",
@@ -341,7 +345,8 @@
     "profWin": 25,
     "profLose": 10,
     "dungeon": "midrealm_2",
-    "note": "핵을 충전한 뒤 크게 폭발해요. 충전 중에 큰 피해를 주면 끊을 수 있어요."
+    "note": "핵을 충전한 뒤 크게 폭발해요. 충전 중에 큰 피해를 주면 끊을 수 있어요.",
+    "announce": true
   },
   {
     "id": "ancient_lord",
@@ -418,6 +423,7 @@
     "profWin": 80,
     "profLose": 30,
     "dungeon": "midrealm_2",
-    "note": "배고픔이 쌓일수록 강해지고, 다 쌓이면 식사로 회복해요. 쓴 아이템을 빼앗고 과식 일격을 준비해요."
+    "note": "배고픔이 쌓일수록 강해지고, 다 쌓이면 식사로 회복해요. 쓴 아이템을 빼앗고 과식 일격을 준비해요.",
+    "announce": true
   }
 ]

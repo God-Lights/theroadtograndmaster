@@ -7,6 +7,7 @@ import recipesJson from '../data/recipes.json';
 import bossesJson from '../data/bosses.json';
 import dungeonsJson from '../data/dungeons.json';
 import raidJson from '../data/raid.json';
+import rogueJson from '../data/rogue.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -43,6 +44,8 @@ export interface MobData {
   profLose: number;
   /** 이 몹이 나오는 던전 ID */
   dungeon: string;
+  /** 쓰러뜨리면 전체 알림을 보낸다 (보스·큰 몹) */
+  announce?: boolean;
   /** 화면에 보여 줄 공략 힌트 */
   note?: string;
   drops: { itemId: string; chance: number }[];
@@ -159,9 +162,16 @@ export interface DungeonData {
   description: string;
   /** 이 숙련도 이상이어야 입장할 수 있다 (하드 제한) */
   minProficiency: number;
+  /** 권장 숙련도 (안내만 하고 막지는 않는다. 하드 제한은 minProficiency) */
+  recommendedProficiency: number;
+  /** 탐험을 시작한 뒤 다음 탐험까지 기다리는 시간(초) */
+  exploreCooldownSec: number;
   /** 전투 1회 입장 비용. 보스는 열쇠를 1개 소모하고 보스 비용을 낸다 */
   entry: { normalGold: number; bossGold: number; bossKey: string | null };
+  /** 이 지역(바이옴)에 속한 몹. 보스가 있으면 마지막이다 */
   mobs: string[];
+  /** 탐험할 때 무작위로 만나는 일반 몹과 출현 가중치 (보스는 포함하지 않는다) */
+  spawns: { mobId: string; weight: number }[];
 }
 
 export const DUNGEONS = dungeonsJson as DungeonData[];
@@ -247,3 +257,56 @@ export const PVP_RULES = {
   teamSize: 4,
   queueSeconds: 180,
 } as const;
+
+/** 탐험 한 번에 만나는 몹을 시드로 고른다 (가중치 비례) */
+export function pickSpawn(dungeon: DungeonData, seed: number): string {
+  const total = dungeon.spawns.reduce((a, b) => a + b.weight, 0);
+  let r = (mulberry32Like(seed) * total);
+  for (const sp of dungeon.spawns) {
+    r -= sp.weight;
+    if (r < 0) return sp.mobId;
+  }
+  return dungeon.spawns[dungeon.spawns.length - 1]!.mobId;
+}
+/** 지역의 몹 출현 확률 (화면·위키 표시용) */
+export const spawnRates = (dungeon: DungeonData): { mobId: string; rate: number }[] => {
+  const total = dungeon.spawns.reduce((a, b) => a + b.weight, 0);
+  return dungeon.spawns.map((s) => ({ mobId: s.mobId, rate: s.weight / total }));
+};
+/** 0~1 균등 난수 한 개 (엔진의 mulberry32 와 같은 식이라 데이터 패키지가 엔진에 의존하지 않는다) */
+function mulberry32Like(seed: number): number {
+  let t = (seed + 0x6d2b79f5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+// ─── 로그라이크 던전 (층마다 몬스터·보물·함정·빈 방) ─────────────────────────────
+
+export type RogueEvent = 'monster' | 'treasure' | 'trap' | 'nothing';
+export interface RogueDungeon {
+  id: string; name: string; description: string;
+  minProficiency: number; recommendedProficiency: number;
+  entryGold: number; floors: number;
+  /** 끝난 뒤 다시 들어가기까지의 대기시간(분). 완주 기준이고 후퇴·사망은 절반 */
+  cooldownMinutes: number;
+  monsters: string[];
+  finalBoss: { mobId: string; mult: number; title: string };
+  treasure: { gold: [number, number]; items: { itemId: string; weight: number; qty: [number, number] }[] };
+  trapDamagePct: [number, number];
+  clearBonus: { gold: [number, number]; proficiency: number; items: { itemId: string; chance: number }[] };
+}
+export const ROGUE_EVENT_WEIGHTS = rogueJson.eventWeights as Record<RogueEvent, number>;
+export const ROGUE_DUNGEONS = rogueJson.dungeons as unknown as RogueDungeon[];
+export const rogueById = (id: string): RogueDungeon | undefined => ROGUE_DUNGEONS.find((d) => d.id === id);
+/** 후퇴·사망 때 대기시간 비율 */
+export const ROGUE_ABORT_COOLDOWN_FACTOR = 0.5;
+
+/** 시드(0~1 난수)로 방의 종류를 정한다. 마지막 층은 항상 보스 방이다 */
+export function rogueRoom(dungeon: RogueDungeon, floor: number, rand: number): RogueEvent {
+  if (floor >= dungeon.floors) return 'monster';
+  const total = Object.values(ROGUE_EVENT_WEIGHTS).reduce((a, b) => a + b, 0);
+  let r = rand * total;
+  for (const [k, w] of Object.entries(ROGUE_EVENT_WEIGHTS)) { r -= w; if (r < 0) return k as RogueEvent; }
+  return 'nothing';
+}

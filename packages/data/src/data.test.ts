@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
+import { ROGUE_DUNGEONS, ROGUE_EVENT_WEIGHTS, rogueRoom, pickSpawn, spawnRates, RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -130,12 +130,44 @@ describe('던전·몹 무결성', () => {
     expect(DUNGEONS.flatMap((d) => d.mobs).sort()).toEqual(MOBS.map((m) => m.id).sort());
   });
 
-  it('던전마다 보스가 마지막에 있고, 열쇠를 요구하면 그 열쇠 아이템이 존재한다', () => {
+  it('지역(바이옴)마다 다른 몬스터가 나온다: 출현표는 그 지역의 일반 몹만, 가중치는 양수, 지역끼리 겹치지 않는다', () => {
+    const seen = new Set<string>();
     for (const d of DUNGEONS) {
-      const last = MOBS.find((m) => m.id === d.mobs[d.mobs.length - 1])!;
-      expect(last.kind, d.id).toBe('boss');
+      expect(d.spawns.length, d.id).toBeGreaterThan(0);
+      for (const sp of d.spawns) {
+        const mob = MOBS.find((m) => m.id === sp.mobId);
+        expect(mob?.kind, `${d.id}:${sp.mobId}`).toBe('normal');
+        expect(mob?.dungeon).toBe(d.id);
+        expect(sp.weight).toBeGreaterThan(0);
+        expect(seen.has(sp.mobId), `중복 출현: ${sp.mobId}`).toBe(false);
+        seen.add(sp.mobId);
+      }
+      expect(spawnRates(d).reduce((a, r) => a + r.rate, 0)).toBeCloseTo(1, 9);
+      expect(d.recommendedProficiency).toBeGreaterThanOrEqual(d.minProficiency);
+    }
+    // 모든 일반 몹은 어딘가에서 만날 수 있다
+    expect([...seen].sort()).toEqual(MOBS.filter((m) => m.kind === 'normal').map((m) => m.id).sort());
+    expect(DUNGEONS.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('탐험 몹 고르기: 시드로 재현되고, 오랜 시간 돌리면 가중치 비율에 가깝다', () => {
+    const d = dungeonById('plains')!;
+    expect(pickSpawn(d, 42)).toBe(pickSpawn(d, 42));
+    const n = 20000;
+    const count: Record<string, number> = {};
+    for (let i = 1; i <= n; i++) { const id = pickSpawn(d, i * 2654435761); count[id] = (count[id] ?? 0) + 1; }
+    for (const { mobId, rate } of spawnRates(d)) expect(Math.abs((count[mobId] ?? 0) / n - rate), mobId).toBeLessThan(0.03);
+    for (const dd of DUNGEONS) for (let i = 0; i < 50; i++) expect(dd.spawns.map((x) => x.mobId)).toContain(pickSpawn(dd, i * 977 + 1));
+  });
+
+  it('보스는 지역에 하나까지, 있으면 마지막이다. 열쇠를 요구하면 그 열쇠 아이템이 존재한다', () => {
+    for (const d of DUNGEONS) {
+      const kinds = d.mobs.map((id) => MOBS.find((m) => m.id === id)!.kind);
+      expect(kinds.filter((k) => k === 'boss').length, d.id).toBeLessThanOrEqual(1);
+      if (kinds.includes('boss')) expect(kinds[kinds.length - 1], d.id).toBe('boss');
       if (d.entry.bossKey) expect(itemById(d.entry.bossKey), d.id).toBeDefined();
     }
+    expect(DUNGEONS.filter((d) => d.mobs.some((id) => MOBS.find((m) => m.id === id)!.kind === 'boss')).map((d) => d.id)).toEqual(['graveyard', 'midrealm_1', 'midrealm_2']);
   });
 
   it('입장 비용: 일반 몹은 골드만, 보스는 열쇠+골드 (기본 던전은 무료)', () => {
@@ -168,5 +200,34 @@ describe('던전·몹 무결성', () => {
       expect(MOBS.find((m) => m.id === id)!.note, id).toBeTruthy();
       expect(BOSS_SCRIPTS[id], id).toBeDefined();
     }
+  });
+});
+
+describe('로그라이크 던전 데이터', () => {
+  it('몬스터·최종 보스·보물·보너스 아이템이 모두 존재한다', () => {
+    expect(ROGUE_DUNGEONS.length).toBeGreaterThanOrEqual(3);
+    for (const d of ROGUE_DUNGEONS) {
+      expect(d.floors, d.id).toBeGreaterThanOrEqual(3);
+      for (const m of [...d.monsters, d.finalBoss.mobId]) expect(MOBS.find((x) => x.id === m), `${d.id}:${m}`).toBeDefined();
+      expect(d.finalBoss.mult).toBeGreaterThanOrEqual(1);
+      for (const it of d.treasure.items) { expect(itemById(it.itemId), `${d.id}:${it.itemId}`).toBeDefined(); expect(it.weight).toBeGreaterThan(0); expect(it.qty[0]).toBeLessThanOrEqual(it.qty[1]); }
+      for (const it of d.clearBonus.items) expect(itemById(it.itemId), `${d.id}:${it.itemId}`).toBeDefined();
+      expect(d.treasure.gold[0]).toBeLessThanOrEqual(d.treasure.gold[1]);
+      expect(d.trapDamagePct[1]).toBeLessThan(50);
+      expect(d.recommendedProficiency).toBeGreaterThanOrEqual(d.minProficiency);
+    }
+  });
+  it('방 종류: 마지막 층은 항상 보스 방, 나머지는 가중치대로 네 종류가 모두 나온다', () => {
+    const d = ROGUE_DUNGEONS[0]!;
+    expect(rogueRoom(d, d.floors, 0.99)).toBe('monster');
+    const count: Record<string, number> = {};
+    for (let i = 0; i < 4000; i++) { const k = rogueRoom(d, 1, i / 4000); count[k] = (count[k] ?? 0) + 1; }
+    const total = Object.values(ROGUE_EVENT_WEIGHTS).reduce((a, b) => a + b, 0);
+    for (const [k, w] of Object.entries(ROGUE_EVENT_WEIGHTS)) expect(Math.abs((count[k] ?? 0) / 4000 - w / total), k).toBeLessThan(0.01);
+    expect(Object.keys(count).sort()).toEqual(['monster', 'nothing', 'trap', 'treasure']);
+  });
+  it('큰 몹(보스 포함)은 전체 알림 대상이다', () => {
+    for (const m of MOBS.filter((x) => x.kind === 'boss')) expect(m.announce, m.id).toBe(true);
+    expect(MOBS.filter((x) => x.announce).length).toBeGreaterThan(MOBS.filter((x) => x.kind === 'boss').length);
   });
 });

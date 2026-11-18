@@ -116,6 +116,22 @@ export interface TeamStatus {
   match: TeamMatchView | null;
 }
 
+export interface Loot { gold: number; proficiency: number; items: { itemId: string; quantity: number }[] }
+export interface RunView {
+  id: string; dungeonId: string; name: string; floor: number; floors: number; hp: number; maxHp: number;
+  status: 'idle' | 'battle' | 'done'; result: 'clear' | 'retreat' | 'dead' | null; loot: Loot;
+  events: { floor: number; kind: 'monster' | 'treasure' | 'trap' | 'nothing' | 'clear'; text: string }[];
+  battle: { id: string; mobId: string; state: BattleState } | null;
+  room?: { kind: string; text: string };
+}
+export interface RogueInfo {
+  id: string; name: string; description: string; minProficiency: number; recommendedProficiency: number; entryGold: number; floors: number;
+  cooldownMinutes: number; monsters: string[]; finalBoss: { mobId: string; mult: number; title: string };
+  clearBonus: { gold: [number, number]; proficiency: number; items: { itemId: string; chance: number }[] }; until: number;
+}
+export interface Announcement { id: number; kind: 'boss' | 'raid' | 'dungeon'; text: string; at: number }
+export interface UserRow { id: string; nickname: string; online: boolean; proficiency: number; lastSeen: number; relation: Relation }
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -202,6 +218,14 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   match_active: () => '진행 중인 대전에서는 나갈 수 없어요.',
   not_in_match: () => '대전에 참가 중이 아니에요.',
   taunted: () => '상대가 도발 중이에요. 도발한 상대만 노릴 수 있어요.',
+  use_explore: () => '일반 몬스터는 지역을 탐험해서 만나요.',
+  unknown_biome: () => '알 수 없는 지역이에요.',
+  explore_cooldown: (d) => `탐험 대기시간이에요. ${fmtWait(Number(d.until) - Date.now())} 뒤에 다시 탐험할 수 있어요.`,
+  run_cooldown: (d) => `이 던전은 대기시간이에요. ${fmtWait(Number(d.until) - Date.now())} 뒤에 다시 들어갈 수 있어요.`,
+  already_in_run: () => '이미 던전에 들어가 있어요.',
+  no_run: () => '진행 중인 던전이 없어요.',
+  run_busy: () => '지금은 할 수 없어요. (전투 중이거나 이미 처리됐어요)',
+  unknown_dungeon: () => '알 수 없는 던전이에요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -249,6 +273,8 @@ export const api = {
   sell: (itemId: string, quantity: number) => post<InventorySnapshot>('/api/inventory/sell', { itemId, quantity }),
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
   craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
+  explore: (biomeId: string) =>
+    post<{ id: string; state: BattleState; mobId: string; paid: { gold: number; key: string | null } }>('/api/explore', { biomeId }),
   startBattle: (mobId: string) =>
     post<{ id: string; state: BattleState; paid: { gold: number; key: string | null } }>('/api/battle', { mobId }),
   round: (id: string, body: { action: 'attack' | 'guard' | 'item' | 'skill'; itemId?: string; targetId?: string; skillId?: string }) =>
@@ -312,5 +338,13 @@ export const api = {
   teamRoomLeave: () => post<{ ok: true }>('/api/team/room/leave', {}),
   teamRoomStart: () => post<{ ok: true }>('/api/team/room/start', {}),
   teamAct: (body: { action: 'attack' | 'guard' | 'skill'; skillId?: string; targetId?: string }) => post<TeamMatchView>('/api/team/action', body),
+  cooldowns: () => request<{ cooldowns: Record<string, number> }>('/api/cooldowns'),
+  runInfo: () => request<{ proficiency: number; gold: number; dungeons: RogueInfo[]; run: RunView | null }>('/api/run'),
+  runStart: (dungeonId: string) => post<RunView>('/api/run/start', { dungeonId }),
+  runAdvance: () => post<RunView>('/api/run/advance', {}),
+  runRetreat: () => post<RunView>('/api/run/retreat', {}),
+  runLast: () => request<{ run: RunView | null }>('/api/run/last'),
+  announcements: (after = 0) => request<{ latest: number; announcements: Announcement[] }>(`/api/announcements?after=${after}`),
+  users: (q = '', offset = 0) => request<{ total: number; online: number; hasMore: boolean; users: UserRow[] }>(`/api/users?q=${encodeURIComponent(q)}&offset=${offset}`),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

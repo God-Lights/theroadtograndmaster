@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { DUNGEONS, bossScriptFor, entryCost, getProfTier, itemById, mobById, type DungeonData, type MobData } from '@rtgm/data';
+import { useEffect, useState } from 'react';
+import { DUNGEONS, bossScriptFor, entryCost, spawnRates, getProfTier, itemById, mobById, type DungeonData, type MobData } from '@rtgm/data';
 import type { BattleState } from '@rtgm/engine';
-import { api } from '../api';
+import { ApiError, api, fmtWait } from '../api';
 import { useGame } from '../game';
 import { Icon } from '../Icon';
 import { Battle } from './Battle';
@@ -40,11 +40,14 @@ function MobRow({ mob, locked, gold, keys, onStart }: { mob: MobData; locked: bo
   );
 }
 
-function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart }: {
-  dungeon: DungeonData; proficiency: number; gold: number; keysOf: (id: string) => number; onStart: (mob: MobData) => void;
+function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart, onExplore, wait }: {
+  dungeon: DungeonData; proficiency: number; gold: number; keysOf: (id: string) => number; onStart: (mob: MobData) => void; onExplore: (d: DungeonData) => void; wait: number;
 }) {
   const locked = proficiency < dungeon.minProficiency;
-  const mobs = dungeon.mobs.map((id) => mobById(id)).filter((m): m is MobData => !!m);
+  const boss = dungeon.mobs.map((id) => mobById(id)).find((m): m is MobData => !!m && m.kind === 'boss');
+  const rates = spawnRates(dungeon);
+  const poor = gold < dungeon.entry.normalGold;
+  const weak = !locked && proficiency < dungeon.recommendedProficiency;
   return (
     <div className="card">
       <div className="card-title">
@@ -55,23 +58,37 @@ function DungeonCard({ dungeon, proficiency, gold, keysOf, onStart }: {
           <Icon name="lock" /> 숙련도 {dungeon.minProficiency} ({getProfTier(dungeon.minProficiency).name}) 필요 · 현재 {proficiency}
         </div>
       )}
+      {weak && <div className="lock-label" style={{ marginBottom: 8 }}><Icon name="lock" /> 권장 숙련도 {dungeon.recommendedProficiency} ({getProfTier(dungeon.recommendedProficiency).name}) · 아직 위험할 수 있어요</div>}
       <div className="note">{dungeon.description}</div>
-      {mobs.map((mob) => (
-        <MobRow
-          key={mob.id}
-          mob={mob}
-          locked={locked}
-          gold={gold}
-          keys={entryCost(mob).key ? keysOf(entryCost(mob).key!) : 0}
-          onStart={() => onStart(mob)}
-        />
-      ))}
+      <div className="biome-spawns">
+        <div className="muted" style={{ fontSize: '.76rem', marginBottom: 4 }}>이 지역에서 만나는 몬스터</div>
+        {rates.map(({ mobId, rate }) => {
+          const mob = mobById(mobId);
+          if (!mob) return null;
+          return (
+            <div key={mobId} className="spawn-row">
+              <span className="item-name rarity-normal">{mob.name}</span>
+              <span className="muted gdesc">{Math.round(rate * 100)}% · HP {mob.hp} · ATK {mob.atk} · {mob.gold[0]}~{mob.gold[1]}D</span>
+              {mob.note && <span className="muted gdesc">{mob.note}</span>}
+            </div>
+          );
+        })}
+      </div>
+      <button className="btn btn-primary" style={{ width: '100%', marginTop: 10 }} disabled={locked || poor || wait > 0} onClick={() => onExplore(dungeon)}>
+        <Icon name="map" /> {wait > 0 ? `대기 중 (${fmtWait(wait)})` : `탐험하기${dungeon.entry.normalGold > 0 ? ` (${dungeon.entry.normalGold}D)` : ''}`}
+      </button>
+      {boss && (
+        <div style={{ marginTop: 10 }}>
+          <div className="muted" style={{ fontSize: '.76rem', marginBottom: 4 }}>지역의 보스</div>
+          <MobRow mob={boss} locked={locked} gold={gold} keys={entryCost(boss).key ? keysOf(entryCost(boss).key!) : 0} onStart={() => onStart(boss)} />
+        </div>
+      )}
     </div>
   );
 }
 
 export function Adventure() {
-  const { me, inv, refresh, fail } = useGame();
+  const { me, inv, refresh, fail, toast } = useGame();
   const [battle, setBattle] = useState<{ id: string; state: BattleState; mob: MobData }>();
 
   const start = async (mob: MobData) => {
@@ -80,6 +97,26 @@ export function Adventure() {
       setBattle({ id: res.id, state: res.state, mob });
       if (res.paid.gold > 0 || res.paid.key) await refresh(); // 입장 비용이 나갔으니 골드·열쇠 표시를 갱신
     } catch (e) { fail(e); }
+  };
+
+  const [until, setUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { api.cooldowns().then((r) => setUntil(r.cooldowns.explore ?? 0)).catch(() => {}); }, []);
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+
+  const explore = async (d: DungeonData) => {
+    try {
+      const res = await api.explore(d.id);
+      setUntil(Date.now() + d.exploreCooldownSec * 1000);
+      const mob = mobById(res.mobId);
+      if (!mob) return;
+      setBattle({ id: res.id, state: res.state, mob });
+      toast(`야생의 ${mob.name}이(가) 나타났다!`, 'warn');
+      if (res.paid.gold > 0) await refresh();
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'explore_cooldown') setUntil(Number(e.data.until));
+      fail(e);
+    }
   };
 
   if (battle) {
@@ -95,7 +132,7 @@ export function Adventure() {
         <span style={{ color: 'var(--gold2)' }}><Icon name="coin" /> {(inv?.gold ?? 0).toLocaleString()} D</span>
       </div>
       {DUNGEONS.map((d) => (
-        <DungeonCard key={d.id} dungeon={d} proficiency={me?.proficiency ?? 0} gold={inv?.gold ?? 0} keysOf={keysOf} onStart={start} />
+        <DungeonCard key={d.id} dungeon={d} proficiency={me?.proficiency ?? 0} gold={inv?.gold ?? 0} keysOf={keysOf} onStart={start} onExplore={explore} wait={Math.max(0, until - now)} />
       ))}
     </>
   );
