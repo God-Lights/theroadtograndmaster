@@ -222,5 +222,26 @@
     ],
     "gold": 12000,
     "unlockProficiency": 1700
+  },
+  {
+    "id": "oracle_blade",
+    "resultId": "oracle_blade",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "devourer_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "ankio_feather",
+        "quantity": 3
+      },
+      {
+        "itemId": "ankio_fragment",
+        "quantity": 3
+      }
+    ],
+    "gold": 20000,
+    "unlockProficiency": 1850
   }
 ]

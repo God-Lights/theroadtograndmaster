@@ -1,5 +1,5 @@
 import { josa } from './josa';
-import type { BattleState, Combatant, Intent, PatternDef } from './types';
+import type { BattleState, Combatant, Intent, PatternDef, TargetRule } from './types';
 
 /** 보스 HP 비율(0~1)에 해당하는 페이즈 번호(1부터) */
 export function phaseFor(state: BattleState, hpRatio: number): number {
@@ -9,6 +9,23 @@ export function phaseFor(state: BattleState, hpRatio: number): number {
     if (hpRatio * 100 <= p.fromHpPct && i + 1 > phase && p.fromHpPct < 100) phase = i + 1;
   });
   return phase;
+}
+
+const livingPlayers = (state: BattleState): Combatant[] => state.combatants.filter((c) => c.side === 'player' && c.hp > 0);
+
+/** 단일 대상 기술의 대상을 고른다. 도발한 플레이어가 있으면 그쪽으로 몰린다. */
+export function pickTarget(state: BattleState, rule: TargetRule, rng: () => number): Combatant | undefined {
+  const alive = livingPlayers(state);
+  if (alive.length === 0) return undefined;
+  const taunter = alive.find((c) => (c.statuses ?? []).some((s) => s.taunt && s.until >= state.round && (s.from ?? 0) <= state.round));
+  if (taunter) return taunter;
+  const ratio = (c: Combatant) => c.hp / c.stats.maxHp;
+  switch (rule) {
+    case 'random': return alive[Math.floor(rng() * alive.length)];
+    case 'lowest_hp': return [...alive].sort((a, b) => ratio(a) - ratio(b))[0];
+    case 'highest_hp': return [...alive].sort((a, b) => ratio(b) - ratio(a))[0];
+    default: return alive[0];
+  }
 }
 
 const firstLivingPlayer = (state: BattleState): Combatant | undefined =>
@@ -54,10 +71,16 @@ function planBoss(state: BattleState, boss: Combatant, targetId: string | undefi
     const text = script.phases[rt.phase - 1]?.enterText ?? `${josa(boss.name, '이', '가')} 힘을 끌어올린다.`;
     return { patternId: 'phase_shift', kind: 'phase_shift', name: '변이', telegraph: text };
   }
+  const aim = (def: PatternDef): Combatant | undefined => {
+    const rule = 'target' in def ? def.target : undefined;
+    return rule === 'all' ? undefined : pickTarget(state, rule ?? 'first', rng);
+  };
+  const say = (text: string, who: Combatant | undefined) => text.replace('{target}', who?.name ?? '모두');
   if (rt.charging) {
     const def = script.patterns[rt.charging];
     if (def?.kind === 'charge_attack') {
-      return { patternId: rt.charging, kind: 'release', name: def.name, telegraph: def.telegraphRelease, targetId };
+      const t = aim(def);
+      return { patternId: rt.charging, kind: 'release', name: def.name, telegraph: say(def.telegraphRelease, t), targetId: t?.id ?? targetId };
     }
   }
 
@@ -84,15 +107,16 @@ function planBoss(state: BattleState, boss: Combatant, targetId: string | undefi
   rt.recent = [...rt.recent, chosen.id].slice(-3);
   rt.sinceUsed[chosen.id] = 0;
 
+  const t = aim(def);
+  const tid = t?.id ?? ('target' in def && def.target === 'all' ? undefined : targetId);
   if (def.kind === 'charge_attack') {
     if (def.chargeRounds[rt.phase - 1]! >= 2) {
       rt.charging = chosen.id;
-      return { patternId: chosen.id, kind: 'charge', name: def.name, telegraph: def.telegraphCharge, targetId };
+      return { patternId: chosen.id, kind: 'charge', name: def.name, telegraph: say(def.telegraphCharge, t), targetId: tid };
     }
-    return { patternId: chosen.id, kind: 'release', name: def.name, telegraph: def.telegraphRelease, targetId };
+    return { patternId: chosen.id, kind: 'release', name: def.name, telegraph: say(def.telegraphRelease, t), targetId: tid };
   }
-  const telegraph = def.kind === 'summon' ? def.telegraph : `${def.telegraph}`;
-  return { patternId: chosen.id, kind: def.kind, name: def.name, telegraph, targetId };
+  return { patternId: chosen.id, kind: def.kind, name: def.name, telegraph: say(def.telegraph, t), targetId: tid };
 }
 
 /** 살아 있는 모든 적의 다음 행동을 정한다 (보스는 스크립트, 하수인은 단순 공격). */
@@ -106,7 +130,7 @@ export function planIntents(state: BattleState, rng: () => number): Record<strin
     } else if (c.role === 'minion') {
       intents[c.id] = {
         patternId: 'minion_attack', kind: 'minion_attack', name: '공격',
-        telegraph: `${josa(c.name, '이', '가')} 달려든다.`, targetId: target?.id,
+        telegraph: `${josa(c.name, '이', '가')} 달려든다.`, targetId: pickTarget(state, 'random', rng)?.id ?? target?.id,
       };
     }
   }

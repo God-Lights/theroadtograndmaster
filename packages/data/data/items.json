@@ -758,5 +758,44 @@
     "buy": null,
     "sell": 55000,
     "minProficiency": 1600
+  },
+  {
+    "id": "ankio_feather",
+    "name": "안키오의 깃털",
+    "type": "material",
+    "rarity": "epic",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 3500,
+    "minProficiency": 0
+  },
+  {
+    "id": "ankio_fragment",
+    "name": "신탁의 조각",
+    "type": "material",
+    "rarity": "epic",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 2500,
+    "minProficiency": 0
+  },
+  {
+    "id": "oracle_blade",
+    "name": "신탁의 검",
+    "type": "sword",
+    "rarity": "epic",
+    "atk": 150,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": null,
+    "sell": 90000,
+    "minProficiency": 1900
   }
 ]

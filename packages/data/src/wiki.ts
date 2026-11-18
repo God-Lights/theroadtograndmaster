@@ -1,6 +1,6 @@
 import type { BossScript, PatternDef } from '@rtgm/engine';
 import {
-  BOSS_SCRIPTS, DUNGEONS, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
+  BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
   entryCost, itemById, mobById,
   type DungeonData, type ItemData, type MobData, type RecipeData, type SkillData,
 } from './index';
@@ -14,6 +14,7 @@ export interface ItemSources {
   starter: boolean;
   shop?: { price: number; minProficiency: number };
   drops: { mob: MobData; chance: number }[];
+  raidDrops: { name: string; chance: number }[];
   crafts: RecipeData[];
 }
 
@@ -23,12 +24,13 @@ export function itemSources(itemId: string): ItemSources {
   return {
     starter: (STARTER_ITEMS as readonly string[]).includes(itemId),
     shop: item && item.buy !== null ? { price: item.buy, minProficiency: item.minProficiency } : undefined,
+    raidDrops: Object.values(RAID_BOSSES).flatMap((b) => b.drops.filter((d) => d.itemId === itemId).map((d) => ({ name: `${b.name} (레이드)`, chance: d.chance }))),
     drops: MOBS.flatMap((mob) => mob.drops.filter((d) => d.itemId === itemId).map((d) => ({ mob, chance: d.chance }))),
     crafts: RECIPES.filter((r) => r.resultId === itemId),
   };
 }
 
-export const hasSource = (s: ItemSources): boolean => s.starter || !!s.shop || s.drops.length > 0 || s.crafts.length > 0;
+export const hasSource = (s: ItemSources): boolean => s.starter || !!s.shop || s.drops.length > 0 || s.raidDrops.length > 0 || s.crafts.length > 0;
 
 /** 이 아이템을 재료로 쓰는 레시피 */
 export const itemUses = (itemId: string): RecipeData[] =>

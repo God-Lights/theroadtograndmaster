@@ -10,6 +10,7 @@ import { exchange } from './exchange';
 import { guilds } from './guild';
 import { inventory } from './inventory';
 import { pvp } from './pvp';
+import { raid } from './raid';
 import { skills } from './skills';
 import { social, touchProfile } from './social';
 
@@ -68,6 +69,7 @@ app.route('/api', social);
 app.route('/api', guilds);
 app.route('/api', exchange);
 app.route('/api', pvp);
+app.route('/api', raid);
 app.route('/api', events);
 app.route('/api', adminEvents);
 

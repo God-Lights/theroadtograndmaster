@@ -7,7 +7,7 @@ import { Icon } from '../Icon';
 
 const SIGN = (n: number) => (n > 0 ? `+${n}` : String(n));
 
-function Fighter({ c, round, you }: { c: PvpMatchView['state']['combatants'][number]; round: number; you?: boolean }) {
+export function Fighter({ c, round, you }: { c: PvpMatchView['state']['combatants'][number]; round: number; you?: boolean }) {
   const pct = Math.max(0, Math.round((c.hp / c.stats.maxHp) * 100));
   return (
     <div className={`fighter${you ? ' you' : ''}`}>

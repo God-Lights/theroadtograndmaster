@@ -171,8 +171,9 @@ function ItemPage({ id }: { id: string }) {
         {src.starter && <div className="wiki-line">시작할 때 지급</div>}
         {src.shop && <div className="wiki-line">상점 구매 {src.shop.price.toLocaleString()}D{src.shop.minProficiency > 0 && ` (숙련도 ${src.shop.minProficiency}+)`}</div>}
         {src.drops.map((d) => <div key={d.mob.id} className="wiki-line"><A to={`/mobs/${d.mob.id}`}>{d.mob.name}</A> 드롭 {pct(d.chance)}</div>)}
+        {src.raidDrops.map((d) => <div key={d.name} className="wiki-line">{d.name} 드롭 {pct(d.chance)}</div>)}
         {src.crafts.map((r) => <div key={r.id} className="wiki-line">제작 (숙련도 {r.unlockProficiency}+): {r.materials.map((m, i) => <span key={m.itemId}>{i > 0 && ', '}{itemLink(m.itemId)} ×{m.quantity}</span>)}{r.gold > 0 && ` + ${r.gold.toLocaleString()}D`}</div>)}
-        {!src.starter && !src.shop && !src.drops.length && !src.crafts.length && <div className="muted">아직 얻을 수 없어요.</div>}
+        {!src.starter && !src.shop && !src.drops.length && !src.raidDrops.length && !src.crafts.length && <div className="muted">아직 얻을 수 없어요.</div>}
       </div>
       {uses.length > 0 && (
         <div className="card">

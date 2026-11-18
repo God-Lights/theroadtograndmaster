@@ -79,6 +79,24 @@ export interface GameEvent {
   config: { gold?: number; proficiency?: number; drop?: number; items?: { itemId: string; quantity: number }[] };
 }
 
+export interface RaidMemberView {
+  userId: string; nickname: string; role: 'tank' | 'dealer' | 'healer' | 'support' | null; ready: boolean; slot: string | null; submitted: boolean; miss: number;
+  rewards?: Rewards;
+}
+export interface RaidRoomView {
+  id: string; code: string; status: 'lobby' | 'active' | 'done'; bossId: string; bossName: string; leaderId: string; maxParty: number; minParty: number; roundSeconds: number;
+  members: RaidMemberView[]; mySlot: string | null; myRole: RaidMemberView['role'];
+  round: number; deadline: number; serverNow: number; needsAction: boolean;
+  state: Omit<BattleState, 'rngSeed'> | null; skills: Record<string, SkillDef>; log: LogEntry[]; result?: 'victory' | 'defeat';
+}
+export interface RaidLobbyPayload {
+  proficiency: number;
+  bosses: { id: string; name: string; minProficiency: number; note: string; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
+  roles: Record<string, { label: string; desc: string; skills: SkillData[] }>;
+  friendRooms: { code: string; leader: string; members: number; bossName: string }[];
+  room: RaidRoomView | null;
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -142,6 +160,17 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   invalid_period: () => '기간이 올바르지 않아요. (끝이 시작보다 뒤, 지금보다 뒤, 최대 60일)',
   invalid_bonus: () => '보너스 배율은 1 초과 5 이하로, 하나 이상 넣어 주세요.',
   invalid_gift: () => '선물 내용이 올바르지 않아요. (달런트 0~100만, 아이템 최대 5종·각 999개)',
+  unknown_boss: () => '알 수 없는 레이드예요.',
+  already_in_raid: () => '이미 레이드 방에 들어가 있어요.',
+  room_not_found: () => '그 코드의 방이 없거나 이미 시작했어요.',
+  room_full: () => '방이 가득 찼어요. (최대 4명)',
+  role_taken: () => '이미 다른 사람이 고른 역할이에요.',
+  role_required: () => '먼저 역할을 골라 주세요.',
+  not_in_lobby: () => '대기실에 있지 않아요.',
+  not_in_raid: () => '레이드에 참가 중이 아니에요.',
+  party_too_small: (d) => `최소 ${d.min ?? 2}명이 모여야 시작할 수 있어요.`,
+  not_ready: () => '모든 파티원이 역할을 고르고 준비해야 해요.',
+  raid_active: () => '진행 중인 레이드에서는 나갈 수 없어요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -233,5 +262,13 @@ export const api = {
   adminEvents: () => request<{ events: GameEvent[] }>('/api/admin/events'),
   adminCreateEvent: (body: Record<string, unknown>) => post<{ id: string }>('/api/admin/events', body),
   adminCancelEvent: (id: string) => post<{ ok: true }>(`/api/admin/events/${id}/cancel`, {}),
+  raid: () => request<RaidLobbyPayload>('/api/raid'),
+  raidCreate: (bossId: string) => post<{ id: string }>('/api/raid/create', { bossId }),
+  raidJoin: (code: string) => post<{ ok: true }>('/api/raid/join', { code }),
+  raidRole: (role: string) => post<{ ok: true }>('/api/raid/role', { role }),
+  raidReady: (ready: boolean) => post<{ ok: true }>('/api/raid/ready', { ready }),
+  raidLeave: () => post<{ ok: true }>('/api/raid/leave', {}),
+  raidStart: () => post<{ ok: true }>('/api/raid/start', {}),
+  raidAct: (body: { action: 'attack' | 'guard' | 'skill'; skillId?: string; targetId?: string }) => post<RaidRoomView>('/api/raid/action', body),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };
