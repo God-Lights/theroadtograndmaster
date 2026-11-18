@@ -71,11 +71,16 @@ describe('서명 검증·기본 응답', () => {
     const res = await app.request('https://rtgm.officialgl.com/discord/interactions', { method: 'POST', body: '{"type":1}' }, env);
     expect(res.status).toBe(401); // 서명 헤더 없음
   });
-  it('봇 설정(공개 키·서비스 키)이 없으면 동작하지 않는다', async () => {
+  it('공개 키가 없으면 안내와 함께 503, 서비스 키만 없으면 PING 은 통과하고 명령은 설정 안내를 보여 준다', async () => {
     env.DISCORD_PUBLIC_KEY = undefined;
-    expect((await interact({ type: 1 })).status).toBe(404);
+    const off = await interact({ type: 1 });
+    expect(off.status).toBe(503);
+    expect(off.json.reason).toContain('DISCORD_PUBLIC_KEY');
     env.DISCORD_PUBLIC_KEY = pubHex; env.BOT_API_KEY = undefined;
-    expect((await interact({ type: 1 })).status).toBe(404);
+    expect((await interact({ type: 1 })).json).toEqual({ type: 1 }); // 디스코드의 URL 검증은 통과해야 한다
+    const cmd = await slash('프로필');
+    expect(cmd.json.data.content).toContain('BOT_API_KEY');
+    expect((await interact({ type: 1 }, DA, { badSig: true })).status).toBe(401); // 서명 검증은 그대로
   });
   it('verifyDiscordSignature: 다른 키·잘못된 형식은 false', async () => {
     const body = '{"type":1}'; const h = await sign(body);
