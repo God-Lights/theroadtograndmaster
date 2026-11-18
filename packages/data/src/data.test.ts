@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_STATS, ITEMS, MOBS, PROFICIENCY_TIERS, computeStats, getNextTier, getProfTier, itemById } from './index';
+import { BASE_STATS, ITEMS, MOBS, PROFICIENCY_TIERS, RECIPES, computeStats, getNextTier, getProfTier, itemById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -33,5 +33,43 @@ describe('데이터 무결성', () => {
     const ids = ITEMS.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const m of MOBS) for (const d of m.drops) expect(itemById(d.itemId), `${m.id} → ${d.itemId}`).toBeDefined();
+  });
+});
+
+describe('레시피 무결성', () => {
+  const dropped = new Set(MOBS.flatMap((m) => m.drops.map((d) => d.itemId)));
+  const crafted = new Set(RECIPES.map((r) => r.resultId));
+
+  it('레시피 ID는 유일하고 결과·재료는 존재하는 아이템이다', () => {
+    expect(new Set(RECIPES.map((r) => r.id)).size).toBe(RECIPES.length);
+    for (const r of RECIPES) {
+      expect(itemById(r.resultId), `${r.id} 결과`).toBeDefined();
+      for (const m of r.materials) expect(itemById(m.itemId), `${r.id} 재료 ${m.itemId}`).toBeDefined();
+    }
+  });
+
+  it('모든 재료는 지금 게임에서 구할 수 있다 (상점·몹 드롭·다른 레시피)', () => {
+    for (const r of RECIPES) {
+      for (const m of r.materials) {
+        const obtainable = itemById(m.itemId)!.buy !== null || dropped.has(m.itemId) || crafted.has(m.itemId);
+        expect(obtainable, `${r.id}: ${m.itemId}`).toBe(true);
+      }
+    }
+  });
+
+  it('레시피가 서로를 순환 참조하지 않는다', () => {
+    const deps = new Map(RECIPES.map((r) => [r.resultId, r.materials.map((m) => m.itemId)]));
+    const visit = (id: string, path: string[]): void => {
+      expect(path.includes(id), `순환: ${[...path, id].join(' → ')}`).toBe(false);
+      for (const d of deps.get(id) ?? []) visit(d, [...path, id]);
+    };
+    for (const id of deps.keys()) visit(id, []);
+  });
+
+  it('몹 숙련도 보상은 양수이고 패배 < 승리', () => {
+    for (const m of MOBS) {
+      expect(m.profWin).toBeGreaterThan(0);
+      expect(m.profLose).toBeLessThan(m.profWin);
+    }
   });
 });

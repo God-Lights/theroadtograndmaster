@@ -156,3 +156,6 @@ a.btn{text-decoration:none}
   .blog{max-height:56px;margin-bottom:8px}
   .bactions .btn{flex:1 1 calc(25% - 6px);min-height:44px}
 }
+.recipe-mats{margin-top:10px;border-top:1px solid var(--border);padding-top:4px}
+.item-pick{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto}
+.item-pick .btn{display:flex;justify-content:space-between;gap:10px;text-align:left}

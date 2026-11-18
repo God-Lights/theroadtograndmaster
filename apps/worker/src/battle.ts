@@ -18,6 +18,8 @@ const ENEMY_ID = 'enemy';
 
 export interface Rewards {
   gold: number;
+  /** 이번 전투로 오른 숙련도 */
+  proficiency: number;
   items: { itemId: string; name: string; quantity: number }[];
 }
 
@@ -29,7 +31,12 @@ export function rollRewards(mob: MobData, seed: number): Rewards {
   const items = mob.drops
     .filter((d) => rng() < d.chance)
     .map((d) => ({ itemId: d.itemId, name: itemById(d.itemId)?.name ?? d.itemId, quantity: 1 }));
-  return { gold, items };
+  return { gold, proficiency: mob.profWin, items };
+}
+
+/** 패배해도 소량의 숙련도는 얻는다 (EDRPG와 같음) */
+export function defeatRewards(mob: MobData): Rewards {
+  return { gold: 0, proficiency: mob.profLose, items: [] };
 }
 
 battle.post('/battle', async (c) => {
@@ -100,15 +107,18 @@ battle.post('/battle/:id/round', async (c) => {
   const result = resolveRound(state, { [PLAYER_ID]: playerAction, [ENEMY_ID]: enemyAction });
   await c.env.DB.prepare('UPDATE battles SET state = ? WHERE id = ?').bind(JSON.stringify(result.state), id).run();
 
-  // 승리 보상은 전투당 한 번만 (rewarded 플래그를 먼저 선점한 요청만 지급)
+  // 승패 보상(골드·아이템·숙련도)은 전투당 한 번만 (rewarded 플래그를 먼저 선점한 요청만 지급)
   let rewards: Rewards | undefined;
   const mob = mobById(row.mob_id);
-  if (result.state.status === 'victory' && mob && row.rewarded === 0) {
+  const outcome = result.state.status;
+  if (outcome !== 'ongoing' && mob && row.rewarded === 0) {
     const claim = await c.env.DB.prepare('UPDATE battles SET rewarded = 1 WHERE id = ? AND rewarded = 0').bind(id).run();
     if (claim.meta.changes === 1) {
-      rewards = rollRewards(mob, state.rngSeed);
+      rewards = outcome === 'victory' ? rollRewards(mob, state.rngSeed) : defeatRewards(mob);
       await c.env.DB.batch([
-        c.env.DB.prepare('UPDATE characters SET gold = gold + ? WHERE user_id = ?').bind(rewards.gold, userId),
+        c.env.DB
+          .prepare('UPDATE characters SET gold = gold + ?, proficiency = proficiency + ? WHERE user_id = ?')
+          .bind(rewards.gold, rewards.proficiency, userId),
         ...rewards.items.map((it) =>
           c.env.DB
             .prepare(

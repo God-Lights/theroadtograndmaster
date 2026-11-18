@@ -39,6 +39,25 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
     .map((r) => ({ row: r, item: itemById(r.itemId) }))
     .filter((x) => x.item?.type === 'consumable' && x.item.heal > 0);
 
+  // 소모품 종류가 많아지면 전투 버튼이 화면을 밀어내므로, 3종 이상이면 '아이템' 시트 하나로 묶는다
+  const COMPACT_AT = 3;
+  const useItem = (itemId: string) => { modal(null); void act('item', itemId); };
+  const openItems = () =>
+    modal({
+      title: <><Icon name="bag" className="ico-hd" /> 아이템 사용</>,
+      body: (
+        <div className="item-pick">
+          {potions.map(({ row, item }) => (
+            <button key={row.itemId} className="btn btn-info" onClick={() => useItem(row.itemId)}>
+              <span>{item!.name} x{row.quantity}</span>
+              <span>HP {item!.heal >= 9999 ? '완전 회복' : `+${item!.heal}`}</span>
+            </button>
+          ))}
+        </div>
+      ),
+      buttons: [{ text: '닫기', cls: 'btn-ghost', onClick: () => modal(null) }],
+    });
+
   const finish = async (status: 'victory' | 'defeat', rewards?: Rewards) => {
     await refresh();
     const close = () => { modal(null); onEnd(); };
@@ -49,6 +68,7 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
         body: (
           <>
             <p>달런트 +{rewards?.gold ?? 0}D</p>
+            {!!rewards?.proficiency && <p style={{ color: 'var(--epic)' }}>숙련도 +{rewards.proficiency}</p>}
             {rewards?.items.map((it) => <p key={it.itemId}>아이템: {it.name}{it.quantity > 1 ? ` x${it.quantity}` : ''}</p>)}
           </>
         ),
@@ -57,7 +77,12 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
     } else {
       modal({
         title: <><Icon name="skull" className="ico-hd" /> 패배...</>,
-        body: <p>쓰러졌습니다. 장비를 점검하고 다시 도전해 보세요.</p>,
+        body: (
+          <>
+            <p>쓰러졌습니다. 장비를 점검하고 다시 도전해 보세요.</p>
+            {!!rewards?.proficiency && <p style={{ color: 'var(--epic)' }}>숙련도 +{rewards.proficiency}</p>}
+          </>
+        ),
         buttons: [{ text: '확인', cls: 'btn-ghost', onClick: close }],
       });
     }
@@ -100,11 +125,15 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
         <div className="bactions">
           <button className="btn btn-danger" disabled={busy} onClick={() => act('attack')}><Icon name="sword" /> 공격</button>
           <button className="btn btn-warn" disabled={busy} onClick={() => act('guard')}><Icon name="shield" /> 방어</button>
-          {potions.map(({ row, item }) => (
-            <button key={row.itemId} className="btn btn-info" disabled={busy} onClick={() => act('item', row.itemId)}>
-              {item!.name} x{row.quantity}
-            </button>
-          ))}
+          {potions.length >= COMPACT_AT ? (
+            <button className="btn btn-info" disabled={busy} onClick={openItems}><Icon name="bag" /> 아이템 ({potions.length})</button>
+          ) : (
+            potions.map(({ row, item }) => (
+              <button key={row.itemId} className="btn btn-info" disabled={busy} onClick={() => act('item', row.itemId)}>
+                {item!.name} x{row.quantity}
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>
