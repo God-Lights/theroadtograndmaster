@@ -26,7 +26,7 @@ export interface GlPublicUser {
 }
 
 export type AppEnv = {
-  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string };
+  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string; DISCORD_PUBLIC_GUILD_ID?: string; DISCORD_PUBLIC_CHANNEL_ID?: string };
   Variables: { user: GlUser; viaBot?: boolean };
 };
 

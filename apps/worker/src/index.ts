@@ -6,6 +6,10 @@ import { battle } from './battle';
 import { parseRows, renderBarsPng } from './bot/barimg';
 import { handleInteraction } from './bot/handler';
 import { setAssetOrigin, type Msg } from './bot/ui';
+
+/** 게임 결과를 전체 공개로 올리는 디스코드 서버·채널 (환경 변수 DISCORD_PUBLIC_GUILD_ID / DISCORD_PUBLIC_CHANNEL_ID 로 바꿀 수 있다) */
+export const PUBLIC_RESULT_GUILD_ID = '1572492493604397110';
+export const PUBLIC_RESULT_CHANNEL_ID = '1572492730641420389';
 import { relayAnnouncements } from './bot/relay';
 import { verifyDiscordSignature } from './bot/verify';
 import { discord } from './discord';
@@ -65,7 +69,11 @@ app.post('/discord/interactions', async (c) => {
   };
   setAssetOrigin(new URL(c.req.url).origin);
   const posts: Msg[] = [];
-  const out = await handleInteraction(interaction, callFor, (m) => posts.push(m));
+  // 전체 공개 결과는 지정한 서버·채널에서 실행한 명령에서만 올린다. 그 밖에서는 결과도 나만 보이는 메시지로만 보여 준다.
+  const where = interaction as { guild_id?: string; channel_id?: string; channel?: { id?: string } };
+  const allowPublic = where.guild_id === (c.env.DISCORD_PUBLIC_GUILD_ID || PUBLIC_RESULT_GUILD_ID)
+    && (where.channel_id ?? where.channel?.id) === (c.env.DISCORD_PUBLIC_CHANNEL_ID || PUBLIC_RESULT_CHANNEL_ID);
+  const out = await handleInteraction(interaction, callFor, allowPublic ? (m) => posts.push(m) : undefined);
   if (posts.length > 0) {
     // 전체 공개 결과: 디스코드가 이번 응답을 받은 뒤에 새 메시지(웹훅 후속 메시지, 플래그 없음 = 전체 공개)로 올린다
     const { application_id: appId, token } = interaction as { application_id?: string; token?: string };

@@ -32,7 +32,7 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function interact(rawPayload: object) {
-  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', ...rawPayload });
+  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', guild_id: '1572492493604397110', channel_id: '1572492730641420389', ...rawPayload });
   const ts = String(Math.floor(Date.now() / 1000));
   const sig = await crypto.subtle.sign({ name: 'Ed25519' } as never, priv, new TextEncoder().encode(ts + body));
   const res = await app.request('https://rtgm.officialgl.com/discord/interactions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature-Ed25519': toHex(sig), 'X-Signature-Timestamp': ts }, body }, env);

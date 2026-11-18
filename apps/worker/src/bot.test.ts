@@ -41,7 +41,7 @@ async function sign(body: string, ts = String(Math.floor(Date.now() / 1000))) {
   return { 'X-Signature-Ed25519': toHex(sig), 'X-Signature-Timestamp': ts };
 }
 async function interact(payload: object, userId = DA, opts: { badSig?: boolean; ts?: string } = {}) {
-  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', ...payload });
+  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', guild_id: '1572492493604397110', channel_id: '1572492730641420389', ...payload });
   const headers = { 'Content-Type': 'application/json', ...(await sign(body, opts.ts)) };
   if (opts.badSig) headers['X-Signature-Ed25519'] = '00'.repeat(64);
   const res = await app.request('https://rtgm.officialgl.com/discord/interactions', { method: 'POST', headers, body }, env);
@@ -381,6 +381,44 @@ describe('전체 공개 결과', () => {
     } else {
       expect(hooks).toHaveLength(0); // 몬스터 방: 전투 중에는 올리지 않는다
     }
+  });
+  const endBattleAt = async (where: Record<string, unknown>) => {
+    const start = await interact({ type: 2, member: { user: { id: DA } }, data: { name: '탐험', options: [{ name: '지역', value: 'plains' }] }, ...where });
+    const id = start.json.data.components[0].components.find((c: any) => c.custom_id.includes(':atk:')).custom_id.split(':')[1] as string;
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(id) as any).state);
+    st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), id);
+    let last: any;
+    for (let n = 0; n < 8; n++) {
+      last = await interact({ type: 3, member: { user: { id: DA } }, data: { custom_id: `bt:${id}:atk:enemy` }, ...where });
+      if (!last.json.data.components.length) break;
+    }
+    return last;
+  };
+  it('지정한 서버·채널에서만 공개되고, 다른 채널·다른 서버·DM에서는 나만 보이는 결과로만 끝난다', async () => {
+    for (const where of [{ channel_id: '999999999999999999' }, { guild_id: '999999999999999999' }, { guild_id: undefined, channel_id: undefined }]) {
+      sqlite.prepare('DELETE FROM action_cooldowns').run();
+      const last = await endBattleAt(where);
+      expect(last.json.data.embeds[0].footer.text).toBe('승리!'); // 내 화면에는 결과가 그대로 나온다
+      expect(JSON.stringify(last.json.data.embeds[0].fields)).toContain('보상');
+      expect(hooks, JSON.stringify(where)).toHaveLength(0);
+    }
+    expect(sqlite.prepare("SELECT COUNT(*) AS n FROM bot_state WHERE key LIKE 'pub:%'").get()).toEqual({ n: 0 }); // 공개 안 했으니 중복 방지 키도 쓰지 않는다
+    sqlite.prepare('DELETE FROM action_cooldowns').run();
+    await endBattleAt({}); // 지정한 곳
+    expect(hooks).toHaveLength(1);
+  });
+  it('channel.id 형식으로 와도 지정한 채널로 인식하고, 환경 변수로 바꿀 수 있다', async () => {
+    await endBattleAt({ channel_id: undefined, channel: { id: '1572492730641420389' } });
+    expect(hooks).toHaveLength(1);
+    hooks.length = 0;
+    sqlite.prepare('DELETE FROM action_cooldowns').run();
+    env.DISCORD_PUBLIC_CHANNEL_ID = '555555555555555555';
+    await endBattleAt({}); // 이제 기본 채널은 지정 채널이 아니다
+    expect(hooks).toHaveLength(0);
+    sqlite.prepare('DELETE FROM action_cooldowns').run();
+    await endBattleAt({ channel_id: '555555555555555555' });
+    expect(hooks).toHaveLength(1);
   });
   it('개인 전용 안내(프로필·상점·오류)는 전체 공개되지 않는다', async () => {
     await slash('프로필'); await slash('상점'); await slash('구매', { 아이템: 'bread', 수량: 99 });
