@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
+import { RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -38,6 +38,7 @@ describe('데이터 무결성', () => {
 
 describe('레시피 무결성', () => {
   const dropped = new Set(MOBS.flatMap((m) => m.drops.map((d) => d.itemId)));
+  for (const b of Object.values(RAID_BOSSES)) for (const d of b.drops) dropped.add(d.itemId);
   const crafted = new Set(RECIPES.map((r) => r.resultId));
 
   it('레시피 ID는 유일하고 결과·재료는 존재하는 아이템이다', () => {

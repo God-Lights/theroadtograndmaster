@@ -19,8 +19,8 @@ export const GAUGE_ON_HEAL = 8;
 /** 방어력 기반 스킬(방패 강타 등)의 공격값 = 방어력 × 이 값 × 계수 */
 export const DEF_SCALE = 3;
 
-const RUNTIME_DEFAULTS: Pick<BossRuntime, 'stance' | 'stanceBoost' | 'reversed' | 'lastPlayerDamage'> = {
-  stance: 'neutral', stanceBoost: 1, reversed: false, lastPlayerDamage: 0,
+const RUNTIME_DEFAULTS: Pick<BossRuntime, 'stance' | 'stanceBoost' | 'reversed' | 'lastPlayerDamage' | 'hunger' | 'lastItemHeal' | 'itemHealThisRound'> = {
+  stance: 'neutral', stanceBoost: 1, reversed: false, lastPlayerDamage: 0, hunger: 0, lastItemHeal: 0, itemHealThisRound: 0,
 };
 
 const clone = (c: Combatant): Combatant => ({
@@ -56,6 +56,7 @@ export function createBattle(
         sinceUsed: Object.fromEntries(Object.keys(script.patterns).map((id) => [id, 99])),
         damageThisRound: 0, minionSeq: 0,
         stance: 'neutral', stanceBoost: 1, reversed: false, lastActions: [], lastPlayerDamage: 0, playerDamageThisRound: 0,
+        hunger: 0, lastItemHeal: 0, itemHealThisRound: 0,
       },
     };
     state.intents = planIntents(state, mulberry32((seed ^ 0xa5a5a5a5) >>> 0));
@@ -291,7 +292,10 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   const stanceCfg = boss.script.stance;
   const offense = !!stanceCfg && actor.role === 'boss' && rt.stance === 'offense';
   const phaseMult = (actor.role === 'boss' ? (boss.script.phases[rt.phase - 1]?.atkMult ?? 1) : 1)
-    * (offense ? 1 + (stanceCfg!.offense.atkMult - 1) * rt.stanceBoost : 1);
+    * (offense ? 1 + (stanceCfg!.offense.atkMult - 1) * rt.stanceBoost : 1)
+    * (actor.role === 'boss' && boss.script.hunger ? 1 + boss.script.hunger.atkPerStack * rt.hunger : 1)
+    * (actor.role === 'boss' && boss.script.enrage && ctx.round >= boss.script.enrage.fromRound
+      ? 1 + boss.script.enrage.perRound * (ctx.round - boss.script.enrage.fromRound + 1) : 1);
   const pierce = offense ? Math.min(1, stanceCfg!.offense.guardPierce * rt.stanceBoost) : 0;
 
   switch (intent.kind) {
@@ -316,13 +320,31 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   const def = boss.script.patterns[intent.patternId];
   if (!def) return;
 
-  if (def.kind === 'attack' && target && target.hp > 0) {
-    for (let i = 0; i < (def.hits ?? 1) && target.hp > 0; i++) {
-      hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+  // 이번 기술을 맞는 플레이어들: 전체 기술은 살아 있는 모두, 단일 기술은 예고한 대상(쓰러졌으면 다른 생존자)
+  const alivePlayers = ctx.state.combatants.filter((c) => c.side === 'player' && c.hp > 0);
+  const rule = 'target' in def ? def.target : undefined;
+  const victims = rule === 'all' ? alivePlayers
+    : target && target.hp > 0 ? [target]
+      : alivePlayers.length ? [alivePlayers[Math.floor(ctx.rng() * alivePlayers.length)]!] : [];
+
+  if (def.kind === 'attack' && victims.length) {
+    for (const v of victims) {
+      for (let i = 0; i < (def.hits ?? 1) && v.hp > 0; i++) {
+        hit(ctx, actor, v, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+      }
     }
   } else if (def.kind === 'stance') {
     addStatus(actor, { id: 'shell', until: ctx.round, takenMult: def.takenMult, reflectPct: def.reflectPct });
     say(ctx, 'status', actor.id, `${josa(actor.name, '이', '가')} ${def.name}! ${def.telegraph}`);
+  } else if (def.kind === 'devour' && target && target.hp > 0) {
+    rt.hunger = 0;
+    const dmg = hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+    const healed = healTo(ctx, actor, Math.round(dmg * def.healPct));
+    if (healed > 0) say(ctx, 'heal', actor.id, `${josa(actor.name, '은', '는')} 배를 채웠다! HP ${healed} 회복. 허기가 가셨다.`, { amount: healed });
+  } else if (def.kind === 'copy_item') {
+    const want = Math.min(rt.lastItemHeal, Math.round(actor.stats.maxHp * def.maxHealPct));
+    const healed = healTo(ctx, actor, want);
+    say(ctx, 'heal', actor.id, `“부족해!” ${josa(actor.name, '이', '가')} 당신이 쓴 아이템을 가로채 똑같이 썼다. HP ${healed} 회복.`, { amount: healed });
   } else if (def.kind === 'mirror' && target && target.hp > 0) {
     const raw = Math.round(rt.lastPlayerDamage * def.pct);
     if (raw <= 0) {
@@ -340,12 +362,14 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
     if (rt.damageThisRound >= need) {
       rt.stunned = true;
       say(ctx, 'interrupt', actor.id, `강한 일격이 ${def.name}을(를) 끊었다! ${josa(actor.name, '은', '는')} 경직된다.`);
-    } else if (target && target.hp > 0) {
-      hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+    } else {
+      for (const v of victims) hit(ctx, actor, v, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
     }
-  } else if (def.kind === 'debuff' && target && target.hp > 0) {
-    applyWeaken(ctx, target, def.atkMult, def.turns);
-    say(ctx, 'status', actor.id, `${josa(actor.name, '이', '가')} ${def.name}을(를) 걸었다! ${target.name}의 공격력이 약해졌다.`, { targetId: target.id });
+  } else if (def.kind === 'debuff' && victims.length) {
+    for (const v of victims) {
+      applyWeaken(ctx, v, def.atkMult, def.turns);
+      say(ctx, 'status', actor.id, `${josa(actor.name, '이', '가')} ${def.name}을(를) 걸었다! ${v.name}의 공격력이 약해졌다.`, { targetId: v.id });
+    }
   } else if (def.kind === 'drain' && target && target.hp > 0) {
     const raw = Math.ceil(target.stats.maxHp * def.pct);
     const want = Math.max(1, Math.round(raw * guardFactorOf(target, ctx.guarding.has(target.id))));
@@ -362,6 +386,10 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
 }
 
 // ─── 스킬 실행 ────────────────────────────────────────────────────────────────
+
+const isAllyTarget = (skill: SkillDef) => skill.target === 'ally' || skill.target === 'all_allies';
+/** 회복·보호막·정화를 받는 쪽: 아군 대상 스킬은 고른 아군, 그 밖에는 시전자 */
+const recipients = (skill: SkillDef, actor: Combatant, targets: Combatant[]): Combatant[] => (isAllyTarget(skill) ? targets.filter((t) => t.hp > 0) : [actor]);
 
 function execEffect(ctx: Ctx, actor: Combatant, skill: SkillDef, effect: SkillEffect, targets: Combatant[]): void {
   switch (effect.kind) {
@@ -393,25 +421,34 @@ function execEffect(ctx: Ctx, actor: Combatant, skill: SkillDef, effect: SkillEf
       return;
     }
     case 'heal': {
-      let amount = effect.scale === 'maxhp' ? (actor.stats.maxHp * effect.coef) / 100 : ((actor.stats.int ?? 0) * effect.coef) / 100;
-      if (effect.doubleBelowPct !== undefined && actor.hp <= (actor.stats.maxHp * effect.doubleBelowPct) / 100) amount *= 2;
-      const healed = healTo(ctx, actor, amount);
-      addGauge(actor, GAUGE_ON_HEAL);
-      say(ctx, 'heal', actor.id, `${josa(actor.name, '이', '가')} ${skill.name}으로 HP ${healed} 회복.`, { amount: healed });
+      // 아군 대상 스킬이면 대상들을, 아니면 시전자를 회복한다 (회복량은 시전자의 지력·최대 HP 기준)
+      for (const who of recipients(skill, actor, targets)) {
+        let amount = effect.scale === 'maxhp' ? (actor.stats.maxHp * effect.coef) / 100 : ((actor.stats.int ?? 0) * effect.coef) / 100;
+        if (effect.doubleBelowPct !== undefined && who.hp <= (who.stats.maxHp * effect.doubleBelowPct) / 100) amount *= 2;
+        const healed = healTo(ctx, who, amount);
+        addGauge(actor, GAUGE_ON_HEAL);
+        say(ctx, 'heal', actor.id, who === actor
+          ? `${josa(actor.name, '이', '가')} ${skill.name}으로 HP ${healed} 회복.`
+          : `${josa(actor.name, '이', '가')} ${skill.name}으로 ${who.name}의 HP를 ${healed} 회복시켰다.`, { targetId: who.id, amount: healed });
+      }
       return;
     }
     case 'shield': {
-      const amount = Math.max(1, Math.round((actor.stats.maxHp * effect.maxHpPct) / 100));
-      addStatus(actor, { id: 'shield', shield: amount, until: ctx.round + effect.turns - 1 });
-      say(ctx, 'status', actor.id, `${josa(actor.name, '은', '는')} 보호막 ${amount}을(를) 두른다.`);
+      for (const who of recipients(skill, actor, targets)) {
+        const amount = Math.max(1, Math.round((who.stats.maxHp * effect.maxHpPct) / 100));
+        addStatus(who, { id: 'shield', shield: amount, until: ctx.round + effect.turns - 1 });
+        say(ctx, 'status', actor.id, `${josa(who.name, '은', '는')} 보호막 ${amount}을(를) 두른다.`, { targetId: who.id });
+      }
       return;
     }
     case 'cleanse': {
-      const harmful = (actor.statuses ?? []).filter((s) => s.harmful);
-      const remove = new Set(harmful.slice(0, effect.count ?? harmful.length));
-      if (remove.size > 0) {
-        actor.statuses = (actor.statuses ?? []).filter((s) => !remove.has(s));
-        say(ctx, 'status', actor.id, `${josa(actor.name, '은', '는')} 해로운 효과 ${remove.size}개를 정화했다.`);
+      for (const who of recipients(skill, actor, targets)) {
+        const harmful = (who.statuses ?? []).filter((s) => s.harmful);
+        const remove = new Set(harmful.slice(0, effect.count ?? harmful.length));
+        if (remove.size > 0) {
+          who.statuses = (who.statuses ?? []).filter((s) => !remove.has(s));
+          say(ctx, 'status', actor.id, `${josa(who.name, '은', '는')} 해로운 효과 ${remove.size}개를 정화했다.`, { targetId: who.id });
+        }
       }
       return;
     }
@@ -431,13 +468,16 @@ function execEffect(ctx: Ctx, actor: Combatant, skill: SkillDef, effect: SkillEf
 function execSkill(ctx: Ctx, actor: Combatant, skill: SkillDef, targetId: string | undefined): void {
   const foes = enemiesOf(ctx, actor);
   let targets: Combatant[] = [];
+  const allies = ctx.state.combatants.filter((x) => x.side === actor.side && x.hp > 0 && x.role !== 'minion' && x.role !== 'vessel');
   if (skill.target === 'self') targets = [actor];
+  else if (skill.target === 'all_allies') targets = allies;
+  else if (skill.target === 'ally') targets = [allies.find((x) => x.id === targetId) ?? actor];
   else if (skill.target === 'all_enemies') targets = foes;
   else {
     const t = foes.find((x) => x.id === targetId) ?? foes.find((x) => x.role !== 'vessel' && x.role !== 'minion') ?? foes[0];
     if (t) targets = [t];
   }
-  if (skill.target !== 'self' && targets.length === 0) {
+  if (skill.target !== 'self' && !isAllyTarget(skill) && targets.length === 0) {
     say(ctx, 'skip', actor.id, `${skill.name}의 대상이 없다.`);
     return;
   }
@@ -654,6 +694,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
         c, prio: 2, speed: c.stats.spd,
         run: () => {
           const healed = healTo(ctx, c, item.healHp);
+          if (next.boss && c.side === 'player') next.boss.runtime.itemHealThisRound += item.healHp;
           addGauge(c, GAUGE_ON_HEAL);
           say(ctx, 'heal', c.id, `${josa(c.name, '이', '가')} 아이템으로 HP ${healed} 회복.`, { amount: healed });
         },
@@ -683,6 +724,10 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
     if (playerKind) rt.lastActions = [...rt.lastActions, playerKind].slice(-2);
     rt.lastPlayerDamage = rt.playerDamageThisRound;
     rt.playerDamageThisRound = 0;
+    rt.lastItemHeal = rt.itemHealThisRound;
+    rt.itemHealThisRound = 0;
+    const hg = next.boss.script.hunger;
+    if (hg) rt.hunger = Math.min(hg.max, rt.hunger + hg.perRound);
     updateStance(ctx);
   }
 

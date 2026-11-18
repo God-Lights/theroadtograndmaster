@@ -1,4 +1,4 @@
-import type { BattleState, LogEntry } from '@rtgm/engine';
+import type { BattleState, LogEntry, SkillDef } from '@rtgm/engine';
 import type { CombatStats, ItemData, MobData, SkillData } from '@rtgm/data';
 
 /** 로그인·로그아웃·회원가입 화면은 GL Account가 담당한다. 로그인 후 현재 주소로 돌아온다. */
@@ -10,6 +10,7 @@ export interface Me {
   username: string;
   nickname: string;
   emailVerified: boolean;
+  isAdmin?: boolean;
   gold: number;
   proficiency: number;
 }
@@ -43,6 +44,59 @@ export interface SkillsPayload {
   skills: SkillView[];
 }
 
+export interface Person { id: string; nickname: string; online: boolean; proficiency: number }
+export type Relation = 'none' | 'friend' | 'sent' | 'received';
+export interface FriendsPayload { friends: Person[]; incoming: Person[]; outgoing: Person[] }
+export interface ChatMessage { id: number; userId: string; nickname: string; body: string; at: number }
+export interface GuildListItem { id: string; name: string; description: string; level: number; members: number }
+export interface GuildMember { id: string; nickname: string; role: 'leader' | 'officer' | 'member'; contribution: number; online: boolean; proficiency: number }
+export interface GuildDetail {
+  id: string; name: string; description: string; level: number; gold: number; capacity: number;
+  myRole: 'leader' | 'officer' | 'member'; members: GuildMember[];
+}
+export interface Listing {
+  id: string; sellerId: string; seller: string; itemId: string; quantity: number; price: number; private: boolean;
+  status: 'active' | 'sold' | 'cancelled'; buyer?: string; proceeds?: number;
+}
+
+export interface PvpStatus {
+  rating: number; wins: number; losses: number; draws: number; matchId: string | null; queued: boolean; queuedAt: number | null;
+  incoming: { id: string; nickname: string }[]; outgoing: { id: string; nickname: string }[];
+  history: { id: string; opponent: string; ranked: boolean; result: 'win' | 'loss' | 'draw'; ratingChange: number }[];
+}
+export interface PvpMatchView {
+  id: string; mine: 'p1' | 'p2'; opponent: { id: string; nickname: string }; ranked: boolean; status: 'active' | 'done';
+  round: number; deadline: number; serverNow: number; needsAction: boolean; submitted: boolean; opponentSubmitted: boolean;
+  state: Omit<BattleState, 'rngSeed'>; skills: Record<string, SkillDef>; log: LogEntry[];
+  result?: { winner: 'me' | 'opponent' | 'draw'; ratingChange: number };
+}
+export interface RankRow { rank: number; id: string; nickname: string; rating: number; wins: number; losses: number; draws: number; me: boolean }
+
+export type EventKind = 'notice' | 'bonus' | 'gift';
+export interface GameEvent {
+  id: string; title: string; description: string; kind: EventKind; startsAt: number; endsAt: number;
+  status: 'cancelled' | 'upcoming' | 'active' | 'ended'; claimed?: boolean; claims?: number;
+  config: { gold?: number; proficiency?: number; drop?: number; items?: { itemId: string; quantity: number }[] };
+}
+
+export interface RaidMemberView {
+  userId: string; nickname: string; role: 'tank' | 'dealer' | 'healer' | 'support' | null; ready: boolean; slot: string | null; submitted: boolean; miss: number;
+  rewards?: Rewards;
+}
+export interface RaidRoomView {
+  id: string; code: string; status: 'lobby' | 'active' | 'done'; bossId: string; bossName: string; leaderId: string; maxParty: number; minParty: number; roundSeconds: number;
+  members: RaidMemberView[]; mySlot: string | null; myRole: RaidMemberView['role'];
+  round: number; deadline: number; serverNow: number; needsAction: boolean;
+  state: Omit<BattleState, 'rngSeed'> | null; skills: Record<string, SkillDef>; log: LogEntry[]; result?: 'victory' | 'defeat';
+}
+export interface RaidLobbyPayload {
+  proficiency: number;
+  bosses: { id: string; name: string; minProficiency: number; note: string; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
+  roles: Record<string, { label: string; desc: string; skills: SkillData[] }>;
+  friendRooms: { code: string; leader: string; members: number; bossName: string }[];
+  room: RaidRoomView | null;
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -71,6 +125,52 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_enough_material: () => '재료가 부족합니다.',
   unknown_recipe: () => '알 수 없는 레시피입니다.',
   craft_failed: () => '제작에 실패했어요. 다시 시도해 주세요.',
+  player_not_found: () => '그런 플레이어를 찾을 수 없어요.',
+  already_friends: () => '이미 친구예요.',
+  already_requested: () => '이미 친구 신청을 보냈어요.',
+  friends_full: () => '친구는 최대 50명까지예요.',
+  request_not_found: () => '친구 신청이 없어요.',
+  no_channel: () => '이 채팅방에는 들어갈 수 없어요.',
+  email_required: () => '전체 채팅은 이메일 인증 후에 쓸 수 있어요.',
+  slow_down: () => '조금 천천히 보내 주세요.',
+  invalid_message: () => '메시지는 1~200자로 써 주세요.',
+  invalid_guild_name: () => '길드 이름은 한글·영문·숫자 2~12자예요.',
+  guild_name_taken: () => '이미 있는 길드 이름이에요.',
+  already_in_guild: () => '이미 길드에 가입해 있어요.',
+  not_in_guild: () => '길드에 가입해 있지 않아요.',
+  guild_full_or_missing: () => '정원이 찼거나 없는 길드예요.',
+  leader_must_transfer: () => '길드장은 다른 사람에게 길드장을 넘긴 뒤에 떠날 수 있어요.',
+  not_allowed: () => '권한이 없어요.',
+  invalid_price: () => '가격은 1 ~ 99,999,999D로 정해 주세요.',
+  cannot_list: () => '등록할 수 없어요. (수량 부족이거나 장착 중인 마지막 1개예요)',
+  too_many_listings: () => '동시에 등록할 수 있는 물품은 20개까지예요.',
+  listing_unavailable: () => '이미 팔렸거나 없어진 물품이에요.',
+  own_listing: () => '내가 올린 물품은 살 수 없어요.',
+  already_in_match: () => '이미 진행 중인 대전이 있어요.',
+  not_friends: () => '친구에게만 도전할 수 있어요.',
+  challenge_not_found: () => '도전장이 없어졌어요.',
+  match_not_found: () => '대전을 찾을 수 없어요.',
+  already_submitted: () => '이번 라운드의 선택은 이미 제출했어요.',
+  invalid_action: () => '낼 수 없는 행동이에요. (PvP에서는 아이템을 쓸 수 없어요)',
+  event_unavailable: () => '지금은 받을 수 없는 이벤트예요.',
+  already_claimed: () => '이미 받았어요.',
+  invalid_title: () => '제목은 2~40자로 써 주세요.',
+  invalid_description: () => '설명은 300자까지예요.',
+  invalid_kind: () => '이벤트 종류를 골라 주세요.',
+  invalid_period: () => '기간이 올바르지 않아요. (끝이 시작보다 뒤, 지금보다 뒤, 최대 60일)',
+  invalid_bonus: () => '보너스 배율은 1 초과 5 이하로, 하나 이상 넣어 주세요.',
+  invalid_gift: () => '선물 내용이 올바르지 않아요. (달런트 0~100만, 아이템 최대 5종·각 999개)',
+  unknown_boss: () => '알 수 없는 레이드예요.',
+  already_in_raid: () => '이미 레이드 방에 들어가 있어요.',
+  room_not_found: () => '그 코드의 방이 없거나 이미 시작했어요.',
+  room_full: () => '방이 가득 찼어요. (최대 4명)',
+  role_taken: () => '이미 다른 사람이 고른 역할이에요.',
+  role_required: () => '먼저 역할을 골라 주세요.',
+  not_in_lobby: () => '대기실에 있지 않아요.',
+  not_in_raid: () => '레이드에 참가 중이 아니에요.',
+  party_too_small: (d) => `최소 ${d.min ?? 2}명이 모여야 시작할 수 있어요.`,
+  not_ready: () => '모든 파티원이 역할을 고르고 준비해야 해요.',
+  raid_active: () => '진행 중인 레이드에서는 나갈 수 없어요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -125,4 +225,50 @@ export const api = {
   skills: () => request<SkillsPayload>('/api/skills'),
   equipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/equip', { skillId }),
   unequipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/unequip', { skillId }),
+
+  friends: () => request<FriendsPayload>('/api/friends'),
+  searchPlayers: (q: string) => request<{ players: (Person & { relation: Relation })[] }>(`/api/players/search?q=${encodeURIComponent(q)}`),
+  friendRequest: (userId: string) => post<{ status: 'sent' | 'friend' }>('/api/friends/request', { userId }),
+  friendAccept: (userId: string) => post<{ ok: true }>('/api/friends/accept', { userId }),
+  friendRemove: (userId: string) => post<{ ok: true }>('/api/friends/remove', { userId }),
+  chat: (channel: string, after = 0) => request<{ messages: ChatMessage[] }>(`/api/chat/${encodeURIComponent(channel)}?after=${after}`),
+  chatSend: (channel: string, body: string) => post<{ ok: true }>(`/api/chat/${encodeURIComponent(channel)}`, { body }),
+  guilds: (q = '') => request<{ capacity: number; guilds: GuildListItem[] }>(`/api/guilds?q=${encodeURIComponent(q)}`),
+  guild: () => request<{ guild: GuildDetail | null; createCost: number }>('/api/guild'),
+  guildCreate: (name: string, description: string) => post<{ id: string }>('/api/guild/create', { name, description }),
+  guildJoin: (guildId: string) => post<{ ok: true }>('/api/guild/join', { guildId }),
+  guildLeave: () => post<{ ok: true }>('/api/guild/leave', {}),
+  guildDisband: () => post<{ ok: true }>('/api/guild/disband', {}),
+  guildKick: (userId: string) => post<{ ok: true }>('/api/guild/kick', { userId }),
+  guildRole: (userId: string, role: 'officer' | 'member' | 'leader') => post<{ ok: true }>('/api/guild/role', { userId, role }),
+  guildDonate: (amount: number) => post<{ ok: true }>('/api/guild/donate', { amount }),
+  exchange: () => request<{ feeRate: number; listings: Listing[] }>('/api/exchange'),
+  exchangeMine: () => request<{ feeRate: number; listings: Listing[] }>('/api/exchange/mine'),
+  exchangeList: (itemId: string, quantity: number, price: number, to: string | null) =>
+    post<{ id: string }>('/api/exchange/list', { itemId, quantity, price, to }),
+  exchangeBuy: (listingId: string) => post<{ ok: true }>('/api/exchange/buy', { listingId }),
+  pvpStatus: () => request<PvpStatus>('/api/pvp/status'),
+  pvpQueue: () => post<{ matchId?: string; queued?: boolean }>('/api/pvp/queue', {}),
+  pvpLeave: () => post<{ ok: true }>('/api/pvp/queue/leave', {}),
+  pvpChallenge: (userId: string) => post<{ ok: true }>('/api/pvp/challenge', { userId }),
+  pvpAccept: (id: string) => post<{ matchId: string }>('/api/pvp/challenge/accept', { id }),
+  pvpDecline: (id: string) => post<{ ok: true }>('/api/pvp/challenge/decline', { id }),
+  pvpMatch: (id: string) => request<PvpMatchView>(`/api/pvp/match/${id}`),
+  pvpAct: (id: string, body: { action: 'attack' | 'guard' | 'skill'; skillId?: string }) => post<PvpMatchView>(`/api/pvp/match/${id}/action`, body),
+  pvpForfeit: (id: string) => post<PvpMatchView>(`/api/pvp/match/${id}/forfeit`, {}),
+  pvpRanking: () => request<{ ranking: RankRow[] }>('/api/pvp/ranking'),
+  events: () => request<{ events: GameEvent[]; bonus: { gold: number; proficiency: number; drop: number } }>('/api/events'),
+  claimEvent: (id: string) => post<{ ok: true }>(`/api/events/${id}/claim`, {}),
+  adminEvents: () => request<{ events: GameEvent[] }>('/api/admin/events'),
+  adminCreateEvent: (body: Record<string, unknown>) => post<{ id: string }>('/api/admin/events', body),
+  adminCancelEvent: (id: string) => post<{ ok: true }>(`/api/admin/events/${id}/cancel`, {}),
+  raid: () => request<RaidLobbyPayload>('/api/raid'),
+  raidCreate: (bossId: string) => post<{ id: string }>('/api/raid/create', { bossId }),
+  raidJoin: (code: string) => post<{ ok: true }>('/api/raid/join', { code }),
+  raidRole: (role: string) => post<{ ok: true }>('/api/raid/role', { role }),
+  raidReady: (ready: boolean) => post<{ ok: true }>('/api/raid/ready', { ready }),
+  raidLeave: () => post<{ ok: true }>('/api/raid/leave', {}),
+  raidStart: () => post<{ ok: true }>('/api/raid/start', {}),
+  raidAct: (body: { action: 'attack' | 'guard' | 'skill'; skillId?: string; targetId?: string }) => post<RaidRoomView>('/api/raid/action', body),
+  exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

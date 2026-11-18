@@ -217,3 +217,66 @@ a.btn{text-decoration:none}
 .stance-hint b{color:var(--text)}
 .dungeon-lock{opacity:.55}
 .cost-line{font-size:.78rem;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+
+/* 위키 */
+.wiki-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.wiki-bar .btn{min-height:40px;display:inline-flex;align-items:center;text-decoration:none}
+.wiki-search{display:flex;gap:8px;margin-bottom:12px}
+.wiki-search input{flex:1;min-width:0;padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px}
+.wiki-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wiki-card{display:block;text-decoration:none;color:inherit;margin-bottom:0;min-height:72px}
+.wiki-card .card-title{margin-bottom:4px}
+.wiki-row{display:flex;align-items:center;gap:8px;padding:11px 2px;min-height:44px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);font-size:.88rem}
+.wiki-row:last-child{border-bottom:none}
+.wiki-hint{margin-left:auto;font-size:.76rem;text-align:right}
+.wiki-line{padding:5px 0;font-size:.86rem;line-height:1.55}
+.wiki-def{padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;line-height:1.55}
+.wiki-def:last-child{border-bottom:none}
+.wiki-k{font-weight:700;color:var(--gold2);margin-bottom:2px}
+.wiki-focus{background:#ffd70014}
+.wiki-mine{color:var(--gold);font-weight:700}
+.wlink{color:var(--info);text-decoration:none}
+.wlink:active{text-decoration:underline}
+@media(max-width:360px){.wiki-grid{grid-template-columns:1fr}}
+.hunger{background:#ffa72614;border-color:#ffa72655}
+.hunger .stance-head{color:var(--warn)}
+.hunger-full{background:#ef535018;border-color:#ef535066}
+.hunger .ap-pips i.on{background:var(--warn);box-shadow:0 0 6px #ffa72666}
+
+/* 소셜 */
+.srow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);min-height:48px}
+.srow:last-child{border-bottom:none}
+.sname{flex:1;min-width:0;font-size:.88rem;overflow-wrap:anywhere}
+.sbtns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.srow .btn-sm{min-height:36px;padding:6px 10px}
+.gdesc{font-size:.74rem;margin-top:2px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#444;margin-right:2px}
+.dot.on{background:var(--success);box-shadow:0 0 5px var(--success)}
+.form-col{display:flex;flex-direction:column;gap:8px}
+.form-col input,.form-col select,.chat-dm,.qty-row input{padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px;font:inherit;font-size:16px;min-width:0;width:100%}
+.qty-row input.donate{flex:1}
+.chat-dm{margin-bottom:10px}
+.chat-box{height:min(50vh,360px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px}
+.cmsg{font-size:.84rem;line-height:1.45;max-width:92%;align-self:flex-start;overflow-wrap:anywhere}
+.cmsg.mine{align-self:flex-end;text-align:right}
+.cname{color:var(--gold2);font-weight:700;font-size:.76rem}
+.ctime{color:var(--dim);font-size:.68rem}
+.cbody{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:inline-block;text-align:left}
+.cmsg.mine .cbody{background:#ffd70014;border-color:#ffd70044}
+.role-leader{color:var(--gold)}.role-officer{color:var(--info)}
+@media(max-width:600px){.pill{min-height:40px}}
+.timer{margin-left:6px;color:var(--info)}
+.timer.hot{color:var(--danger);font-weight:700}
+.pvp-result.me{background:#66bb6a22;color:var(--success);border-color:#66bb6a55}
+.pvp-result.opponent{background:#ef535022;color:var(--danger);border-color:#ef535055}
+.res-win{color:var(--success);font-weight:700}.res-loss{color:var(--danger);font-weight:700}
+.forfeit{width:100%;margin-top:8px;min-height:44px}
+input[type=datetime-local]{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px;font:inherit;font-size:16px}
+.code{font-family:ui-monospace,monospace;font-size:1.2rem;letter-spacing:.15em;color:var(--gold)}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role-btn{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;padding:10px;min-height:76px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font:inherit}
+.role-btn.active{border-color:var(--gold);background:#ffd70014}
+.role-btn:disabled{opacity:.45}
+.fighter.dead{opacity:.45}
+.fighter.pickable{outline:2px dashed var(--info);cursor:pointer}
+.boss-hp{background:linear-gradient(90deg,#ef5350,#ff8a65)}

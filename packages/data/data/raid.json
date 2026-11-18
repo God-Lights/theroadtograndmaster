@@ -1,0 +1,680 @@
+{
+  "caps": {
+    "maxHp": 900,
+    "atk": 150,
+    "def": 60
+  },
+  "partyHpScale": {
+    "1": 0.35,
+    "2": 0.55,
+    "3": 0.8,
+    "4": 1.0
+  },
+  "roles": {
+    "tank": {
+      "label": "탱커",
+      "desc": "도발로 공격을 끌어오고 철벽·수호로 버틴다",
+      "hp": 1.6,
+      "atk": 0.6,
+      "int": 60,
+      "kit": [
+        "r_taunt",
+        "r_bash",
+        "r_ironwall",
+        "r_guardian"
+      ],
+      "ultimate": "r_fortress",
+      "def": 1.4
+    },
+    "dealer": {
+      "label": "딜러",
+      "desc": "보스의 HP를 깎는 주력. 광란과 집중으로 폭발력을 낸다",
+      "hp": 0.9,
+      "atk": 1.3,
+      "int": 60,
+      "kit": [
+        "r_strike",
+        "r_multi",
+        "r_focus",
+        "r_frenzy"
+      ],
+      "ultimate": "r_execute",
+      "def": 0.8
+    },
+    "healer": {
+      "label": "힐러",
+      "desc": "파티의 HP를 지키고 해로운 효과를 푼다",
+      "hp": 1.0,
+      "atk": 0.6,
+      "int": 220,
+      "kit": [
+        "r_heal",
+        "r_mass",
+        "r_purify",
+        "r_ward"
+      ],
+      "ultimate": "r_blessing",
+      "def": 0.9
+    },
+    "support": {
+      "label": "서포터",
+      "desc": "아군을 강화하고 보스를 약화시킨다",
+      "hp": 1.0,
+      "atk": 0.8,
+      "int": 120,
+      "kit": [
+        "r_morale",
+        "r_analyze",
+        "r_snare",
+        "r_aid"
+      ],
+      "ultimate": "r_command",
+      "def": 1.0
+    }
+  },
+  "skills": [
+    {
+      "id": "r_taunt",
+      "name": "도발",
+      "role": "탱커",
+      "ultimate": false,
+      "apCost": 1,
+      "cooldown": 2,
+      "priority": "first",
+      "target": "self",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "self",
+          "status": {
+            "id": "taunt",
+            "taunt": true,
+            "takenMult": 0.85,
+            "turns": 2
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "2라운드간 적의 단일 공격을 끌어오고 받는 피해 -15%"
+    },
+    {
+      "id": "r_bash",
+      "name": "방패 강타",
+      "role": "탱커",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 0,
+      "priority": "normal",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "damage",
+          "coef": 90,
+          "scale": "def"
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "방어력 기반 90% 피해"
+    },
+    {
+      "id": "r_ironwall",
+      "name": "철벽",
+      "role": "탱커",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 3,
+      "priority": "first",
+      "target": "self",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "self",
+          "status": {
+            "id": "ironwall",
+            "takenMult": 0.5,
+            "turns": 1
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "이번 라운드 받는 피해 -50%"
+    },
+    {
+      "id": "r_guardian",
+      "name": "수호",
+      "role": "탱커",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 3,
+      "priority": "first",
+      "target": "ally",
+      "effects": [
+        {
+          "kind": "shield",
+          "maxHpPct": 30,
+          "turns": 2
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 한 명에게 최대 HP 30% 보호막 (2라운드)"
+    },
+    {
+      "id": "r_fortress",
+      "name": "불굴의 성벽",
+      "role": "탱커",
+      "ultimate": true,
+      "apCost": 0,
+      "cooldown": 0,
+      "priority": "first",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "target",
+          "status": {
+            "id": "fortress",
+            "takenMult": 0.6,
+            "turns": 2
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "2라운드간 아군 전원이 받는 피해 -40%"
+    },
+    {
+      "id": "r_strike",
+      "name": "강타",
+      "role": "딜러",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 0,
+      "priority": "normal",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "damage",
+          "coef": 130
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "공격력 130% 피해"
+    },
+    {
+      "id": "r_multi",
+      "name": "연속 베기",
+      "role": "딜러",
+      "ultimate": false,
+      "apCost": 3,
+      "cooldown": 1,
+      "priority": "normal",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "damage",
+          "coef": 70,
+          "hits": 3
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "공격력 70% 피해 3회"
+    },
+    {
+      "id": "r_focus",
+      "name": "일점 집중",
+      "role": "딜러",
+      "ultimate": false,
+      "apCost": 3,
+      "cooldown": 2,
+      "priority": "normal",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "damage",
+          "coef": 230
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "공격력 230% 피해"
+    },
+    {
+      "id": "r_frenzy",
+      "name": "전투 광란",
+      "role": "딜러",
+      "ultimate": false,
+      "apCost": 1,
+      "cooldown": 3,
+      "priority": "first",
+      "target": "self",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "self",
+          "status": {
+            "id": "frenzy",
+            "atkMult": 1.3,
+            "turns": 2
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "2라운드간 공격력 +30%"
+    },
+    {
+      "id": "r_execute",
+      "name": "대폭발",
+      "role": "딜러",
+      "ultimate": true,
+      "apCost": 0,
+      "cooldown": 0,
+      "priority": "normal",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "damage",
+          "coef": 500
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "공격력 500% 피해"
+    },
+    {
+      "id": "r_heal",
+      "name": "치유",
+      "role": "힐러",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 0,
+      "priority": "last",
+      "target": "ally",
+      "effects": [
+        {
+          "kind": "heal",
+          "scale": "int",
+          "coef": 140
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 한 명을 지력 140% 회복"
+    },
+    {
+      "id": "r_mass",
+      "name": "광역 치유",
+      "role": "힐러",
+      "ultimate": false,
+      "apCost": 3,
+      "cooldown": 2,
+      "priority": "last",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "heal",
+          "scale": "int",
+          "coef": 70
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 전원을 지력 70% 회복"
+    },
+    {
+      "id": "r_purify",
+      "name": "정화",
+      "role": "힐러",
+      "ultimate": false,
+      "apCost": 1,
+      "cooldown": 1,
+      "priority": "normal",
+      "target": "ally",
+      "effects": [
+        {
+          "kind": "cleanse"
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 한 명의 해로운 효과 해제"
+    },
+    {
+      "id": "r_ward",
+      "name": "수호의 막",
+      "role": "힐러",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 2,
+      "priority": "first",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "shield",
+          "maxHpPct": 12,
+          "turns": 2
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 전원에게 최대 HP 12% 보호막 (2라운드)"
+    },
+    {
+      "id": "r_blessing",
+      "name": "천상의 축복",
+      "role": "힐러",
+      "ultimate": true,
+      "apCost": 0,
+      "cooldown": 0,
+      "priority": "last",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "heal",
+          "scale": "int",
+          "coef": 160
+        },
+        {
+          "kind": "cleanse"
+        },
+        {
+          "kind": "shield",
+          "maxHpPct": 15,
+          "turns": 2
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "전원 지력 160% 회복 + 정화 + 최대 HP 15% 보호막"
+    },
+    {
+      "id": "r_morale",
+      "name": "사기 고취",
+      "role": "서포터",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 2,
+      "priority": "first",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "target",
+          "status": {
+            "id": "morale",
+            "atkMult": 1.15,
+            "turns": 2
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "2라운드간 아군 전원 공격력 +15%"
+    },
+    {
+      "id": "r_analyze",
+      "name": "약점 분석",
+      "role": "서포터",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 1,
+      "priority": "first",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "target",
+          "status": {
+            "id": "vulnerable",
+            "takenMult": 1.2,
+            "turns": 2,
+            "harmful": true
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "대상이 2라운드간 받는 피해 +20%"
+    },
+    {
+      "id": "r_snare",
+      "name": "둔화의 덫",
+      "role": "서포터",
+      "ultimate": false,
+      "apCost": 2,
+      "cooldown": 2,
+      "priority": "first",
+      "target": "enemy",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "target",
+          "status": {
+            "id": "weaken",
+            "atkMult": 0.85,
+            "turns": 2,
+            "harmful": true
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "대상의 공격력 -15% (2라운드)"
+    },
+    {
+      "id": "r_aid",
+      "name": "응급 처치",
+      "role": "서포터",
+      "ultimate": false,
+      "apCost": 1,
+      "cooldown": 1,
+      "priority": "last",
+      "target": "ally",
+      "effects": [
+        {
+          "kind": "heal",
+          "scale": "int",
+          "coef": 80
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "아군 한 명을 지력 80% 회복"
+    },
+    {
+      "id": "r_command",
+      "name": "전장 지휘",
+      "role": "서포터",
+      "ultimate": true,
+      "apCost": 0,
+      "cooldown": 0,
+      "priority": "first",
+      "target": "all_allies",
+      "effects": [
+        {
+          "kind": "status",
+          "to": "target",
+          "status": {
+            "id": "command",
+            "atkMult": 1.3,
+            "turns": 2
+          }
+        }
+      ],
+      "unlockProficiency": 0,
+      "description": "2라운드간 아군 전원 공격력 +30%"
+    }
+  ],
+  "bosses": {
+    "ankio": {
+      "id": "ankio",
+      "name": "안키오 (Ankio)",
+      "hp": 9500,
+      "atk": 195,
+      "spd": 9,
+      "minProficiency": 1800,
+      "gold": [
+        1500,
+        2500
+      ],
+      "profWin": 120,
+      "profLose": 30,
+      "drops": [
+        {
+          "itemId": "ankio_feather",
+          "chance": 1
+        },
+        {
+          "itemId": "ankio_fragment",
+          "chance": 0.5
+        },
+        {
+          "itemId": "abyss_crystal",
+          "chance": 0.25
+        }
+      ],
+      "note": "신의 대리인. 신탁의 창이 누구를 노리는지 읽고, 날개의 봉인은 파티가 함께 끊어야 해요. 28라운드가 넘으면 격노해요.",
+      "script": {
+        "patterns": {
+          "oracle": {
+            "kind": "attack",
+            "name": "신탁의 창",
+            "mult": 1.8,
+            "telegraph": "신탁의 창이 {target}을(를) 겨눈다! 보호막이나 방어로 대비하자.",
+            "target": "random"
+          },
+          "radiance": {
+            "kind": "attack",
+            "name": "성광",
+            "mult": 0.55,
+            "telegraph": "눈부신 성광이 퍼진다.",
+            "target": "all"
+          },
+          "scales": {
+            "kind": "attack",
+            "name": "심판의 저울",
+            "mult": 1.3,
+            "telegraph": "저울이 가장 건강한 자에게 기운다.",
+            "target": "highest_hp"
+          },
+          "wings": {
+            "kind": "charge_attack",
+            "name": "날개의 봉인",
+            "mult": 1.2,
+            "chargeRounds": [
+              2,
+              2,
+              2
+            ],
+            "interruptPct": [
+              0.06,
+              0.06,
+              0.06
+            ],
+            "minGap": 6,
+            "minPhase": 2,
+            "target": "all",
+            "telegraphCharge": "날개가 펼쳐지며 빛이 모인다... 파티가 힘을 모아 끊어야 한다!",
+            "telegraphRelease": "날개의 봉인이 터진다!"
+          },
+          "apostle": {
+            "kind": "summon",
+            "name": "빛의 사도",
+            "count": 2,
+            "minPhase": 2,
+            "telegraph": "빛 속에서 사도들이 내려온다."
+          },
+          "chain": {
+            "kind": "debuff",
+            "name": "속죄의 사슬",
+            "atkMult": 0.8,
+            "turns": 2,
+            "target": "all",
+            "telegraph": "속죄의 사슬이 모두를 옭아맨다."
+          }
+        },
+        "phases": [
+          {
+            "fromHpPct": 100,
+            "atkMult": 1.0,
+            "pool": [
+              {
+                "id": "oracle",
+                "weight": 3
+              },
+              {
+                "id": "radiance",
+                "weight": 3
+              },
+              {
+                "id": "scales",
+                "weight": 2
+              }
+            ]
+          },
+          {
+            "fromHpPct": 60,
+            "atkMult": 1.1,
+            "pool": [
+              {
+                "id": "oracle",
+                "weight": 3
+              },
+              {
+                "id": "radiance",
+                "weight": 2
+              },
+              {
+                "id": "scales",
+                "weight": 2
+              },
+              {
+                "id": "wings",
+                "weight": 1
+              },
+              {
+                "id": "apostle",
+                "weight": 1
+              }
+            ],
+            "enterText": "“빛은 심판한다.” 날개가 펼쳐진다."
+          },
+          {
+            "fromHpPct": 25,
+            "atkMult": 1.25,
+            "pool": [
+              {
+                "id": "oracle",
+                "weight": 2
+              },
+              {
+                "id": "radiance",
+                "weight": 2
+              },
+              {
+                "id": "scales",
+                "weight": 1
+              },
+              {
+                "id": "wings",
+                "weight": 2
+              },
+              {
+                "id": "chain",
+                "weight": 2
+              },
+              {
+                "id": "apostle",
+                "weight": 1
+              }
+            ],
+            "enterText": "“신은 침묵한다.” 하늘이 갈라진다."
+          }
+        ],
+        "minion": {
+          "name": "빛의 사도",
+          "stats": {
+            "maxHp": 300,
+            "atk": 60,
+            "def": 10,
+            "spd": 9
+          },
+          "max": 2,
+          "healBossPct": 0.01
+        },
+        "enrage": {
+          "fromRound": 28,
+          "perRound": 0.35
+        }
+      },
+      "def": 20
+    }
+  }
+}

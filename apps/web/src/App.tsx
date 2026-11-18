@@ -4,26 +4,30 @@ import { ACCOUNT_ORIGIN } from './api';
 import { GameProvider, useGame } from './game';
 import { Icon } from './Icon';
 import type { IconName } from './icon-paths';
-import { Adventure } from './screens/Adventure';
+import { AdventureHub } from './screens/AdventureHub';
 import { Craft } from './screens/Craft';
 import { Inventory } from './screens/Inventory';
 import { Profile } from './screens/Profile';
 import { Skills } from './screens/Skills';
 import { Shop } from './screens/Shop';
+import { Social } from './screens/Social';
+import { Wiki, isWikiHash, openWiki, useWikiPath } from './wiki/Wiki';
 
 const TABS = [
   { id: 'profile', label: '내 정보', icon: 'person', view: Profile },
-  { id: 'adventure', label: '모험', icon: 'map', view: Adventure },
+  { id: 'adventure', label: '모험', icon: 'map', view: AdventureHub },
   { id: 'inventory', label: '인벤토리', icon: 'bag', view: Inventory },
   { id: 'skills', label: '스킬', icon: 'star', view: Skills },
   { id: 'craft', label: '제작', icon: 'hammer', view: Craft },
   { id: 'shop', label: '상점', icon: 'shop', view: Shop },
+  { id: 'social', label: '소셜', icon: 'users', view: Social },
 ] as const satisfies readonly { id: string; label: string; icon: IconName; view: () => JSX.Element | null }[];
 
 type TabId = (typeof TABS)[number]['id'];
 
 function Shell() {
   const [tab, setTab] = useState<TabId>('profile');
+  const hash = useWikiPath();
   const { me, loadFailed, refresh, fail } = useGame();
   const View = TABS.find((t) => t.id === tab)!.view;
   const mobile = typeof window !== 'undefined' && window.innerWidth <= 600;
@@ -40,10 +44,12 @@ function Shell() {
             <span className="utier">{getProfTier(me.proficiency).name}</span>
           </div>
         )}
+        <button className="btn btn-ghost account-btn" onClick={openWiki}>위키</button>
         <a className="btn btn-ghost account-btn" href={ACCOUNT_ORIGIN} target="_blank" rel="noreferrer">
           계정
         </a>
       </div>
+      {isWikiHash(hash) ? <div className="tab-content"><Wiki hash={hash} /></div> : <>
       <nav className="nav-tabs">
         {TABS.map((t) => (
           <button key={t.id} className={`nav-tab${t.id === tab ? ' active' : ''}`} onClick={() => setTab(t.id)}>
@@ -64,6 +70,7 @@ function Shell() {
           <div className="empty">불러오는 중...</div>
         )}
       </div>
+      </>}
     </div>
   );
 }

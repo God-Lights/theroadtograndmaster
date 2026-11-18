@@ -7,7 +7,7 @@ import { Icon } from '../Icon';
 import { Battle } from './Battle';
 
 /** 보스 권장 숙련도 (참고용 안내. 입장을 막지는 않는다) */
-const RECOMMENDED: Record<string, number> = { rich: 450, oppoko: 900 };
+const RECOMMENDED: Record<string, number> = { rich: 450, oppoko: 900, fodermore: 1500 };
 
 function MobRow({ mob, locked, gold, keys, onStart }: { mob: MobData; locked: boolean; gold: number; keys: number; onStart: () => void }) {
   const rec = RECOMMENDED[mob.id];

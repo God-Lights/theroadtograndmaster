@@ -397,5 +397,317 @@
       "reversalFromPhase": 3,
       "reversalEvery": 3
     }
+  },
+  "raidos": {
+    "patterns": {
+      "strike": {
+        "kind": "attack",
+        "name": "일격",
+        "mult": 1.0,
+        "telegraph": "번개가 튄다."
+      },
+      "flurry": {
+        "kind": "attack",
+        "name": "연속 베기",
+        "mult": 0.55,
+        "telegraph": "눈으로 따라갈 수 없는 속도로 파고든다.",
+        "hits": 3
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "strike",
+            "weight": 3
+          },
+          {
+            "id": "flurry",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "core_lord": {
+    "patterns": {
+      "pulse": {
+        "kind": "attack",
+        "name": "핵 박동",
+        "mult": 1.0,
+        "telegraph": "핵이 둔하게 울린다."
+      },
+      "overload": {
+        "kind": "charge_attack",
+        "name": "핵 과부하",
+        "mult": 2.2,
+        "chargeRounds": [
+          2,
+          2,
+          2
+        ],
+        "interruptPct": [
+          0.15,
+          0.15,
+          0.15
+        ],
+        "minGap": 4,
+        "minPhase": 1,
+        "telegraphCharge": "핵이 붉게 달아오른다...",
+        "telegraphRelease": "핵이 폭발한다!"
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "pulse",
+            "weight": 3
+          },
+          {
+            "id": "overload",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "ancient_lord": {
+    "patterns": {
+      "smite": {
+        "kind": "attack",
+        "name": "고대의 일격",
+        "mult": 1.2,
+        "telegraph": "고대의 문장이 빛난다."
+      },
+      "curse": {
+        "kind": "debuff",
+        "name": "고대의 저주",
+        "atkMult": 0.8,
+        "turns": 2,
+        "telegraph": "낮은 주문이 흘러나온다."
+      },
+      "siphon": {
+        "kind": "drain",
+        "name": "생기 흡수",
+        "pct": 0.08,
+        "telegraph": "손끝이 당신의 숨결을 향한다."
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "smite",
+            "weight": 3
+          },
+          {
+            "id": "curse",
+            "weight": 2
+          },
+          {
+            "id": "siphon",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "paka": {
+    "patterns": {
+      "nibble": {
+        "kind": "attack",
+        "name": "갉아먹기",
+        "mult": 0.9,
+        "telegraph": "이빨을 드러낸다."
+      },
+      "greedy": {
+        "kind": "copy_item",
+        "name": "욕심",
+        "maxHealPct": 0.1,
+        "telegraph": "눈이 당신의 가방에 꽂힌다."
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "nibble",
+            "weight": 3
+          },
+          {
+            "id": "greedy",
+            "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "fodermore": {
+    "patterns": {
+      "chomp": {
+        "kind": "attack",
+        "name": "우걱우걱",
+        "mult": 1.0,
+        "telegraph": "크게 입을 벌린다."
+      },
+      "slam": {
+        "kind": "attack",
+        "name": "식탁 두드리기",
+        "mult": 0.7,
+        "telegraph": "식탁을 두 번 두드린다.",
+        "hits": 2
+      },
+      "devour": {
+        "kind": "devour",
+        "name": "식사",
+        "mult": 1.7,
+        "healPct": 0.5,
+        "minHunger": 3,
+        "telegraph": "군침을 흘리며 달려든다! 가드하지 않으면 크게 당한다."
+      },
+      "more": {
+        "kind": "copy_item",
+        "name": "부족해!",
+        "maxHealPct": 0.08,
+        "telegraph": "“부족해!” 눈이 당신의 가방을 노린다."
+      },
+      "guests": {
+        "kind": "summon",
+        "name": "식객 초대",
+        "count": 1,
+        "minPhase": 2,
+        "telegraph": "식탁 위로 손님들이 몰려든다."
+      },
+      "overeat": {
+        "kind": "charge_attack",
+        "name": "과식",
+        "mult": 3.0,
+        "chargeRounds": [
+          2,
+          2,
+          2
+        ],
+        "interruptPct": [
+          0.1,
+          0.1,
+          0.1
+        ],
+        "minGap": 6,
+        "minPhase": 2,
+        "telegraphCharge": "배가 터질 듯 부풀어 오른다...",
+        "telegraphRelease": "과식의 일격이 쏟아진다!"
+      }
+    },
+    "phases": [
+      {
+        "fromHpPct": 100,
+        "atkMult": 1.0,
+        "pool": [
+          {
+            "id": "chomp",
+            "weight": 3
+          },
+          {
+            "id": "slam",
+            "weight": 2
+          },
+          {
+            "id": "more",
+            "weight": 2
+          },
+          {
+            "id": "devour",
+            "weight": 3
+          }
+        ]
+      },
+      {
+        "fromHpPct": 60,
+        "atkMult": 1.1,
+        "pool": [
+          {
+            "id": "chomp",
+            "weight": 2
+          },
+          {
+            "id": "slam",
+            "weight": 2
+          },
+          {
+            "id": "more",
+            "weight": 2
+          },
+          {
+            "id": "devour",
+            "weight": 3
+          },
+          {
+            "id": "guests",
+            "weight": 2
+          },
+          {
+            "id": "overeat",
+            "weight": 1
+          }
+        ],
+        "enterText": "“손님 받아라!” 식탁이 가득 찬다."
+      },
+      {
+        "fromHpPct": 25,
+        "atkMult": 1.25,
+        "pool": [
+          {
+            "id": "chomp",
+            "weight": 1
+          },
+          {
+            "id": "slam",
+            "weight": 2
+          },
+          {
+            "id": "more",
+            "weight": 2
+          },
+          {
+            "id": "devour",
+            "weight": 4
+          },
+          {
+            "id": "guests",
+            "weight": 1
+          },
+          {
+            "id": "overeat",
+            "weight": 2
+          }
+        ],
+        "enterText": "“부족해… 전부 다 부족해!” 허기가 폭주한다."
+      }
+    ],
+    "minion": {
+      "name": "식객",
+      "stats": {
+        "maxHp": 130,
+        "atk": 45,
+        "def": 10,
+        "spd": 9
+      },
+      "max": 2,
+      "healBossPct": 0.015
+    },
+    "hunger": {
+      "perRound": 1,
+      "max": 5,
+      "atkPerStack": 0.08
+    }
   }
 }

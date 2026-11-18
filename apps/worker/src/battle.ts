@@ -11,6 +11,7 @@ import {
   canUseSkill,
 } from '@rtgm/engine';
 import type { AppEnv } from './auth';
+import { activeBonus } from './events';
 import { equippedItems, getCharacter, getInventory } from './character';
 import { guard } from './guard';
 import { battleSkills } from './skills';
@@ -20,6 +21,10 @@ export const battle = new Hono<AppEnv>();
 const PLAYER_ID = 'player';
 const ENEMY_ID = 'enemy';
 
+/** 이벤트 보너스 배율 (1 = 없음) */
+export interface BonusMults { gold: number; proficiency: number; drop: number }
+const NO_BONUS: BonusMults = { gold: 1, proficiency: 1, drop: 1 };
+
 export interface Rewards {
   gold: number;
   /** 이번 전투로 오른 숙련도 */
@@ -28,19 +33,19 @@ export interface Rewards {
 }
 
 /** 시드로 재현 가능한 보상 굴림 */
-export function rollRewards(mob: MobData, seed: number): Rewards {
+export function rollRewards(mob: MobData, seed: number, bonus: BonusMults = NO_BONUS): Rewards {
   const rng = mulberry32((seed ^ 0x5bd1e995) >>> 0);
   const [min, max] = mob.gold;
-  const gold = min + Math.floor(rng() * (max - min + 1));
+  const gold = Math.round((min + Math.floor(rng() * (max - min + 1))) * bonus.gold);
   const items = mob.drops
-    .filter((d) => rng() < d.chance)
+    .filter((d) => rng() < Math.min(1, d.chance * bonus.drop))
     .map((d) => ({ itemId: d.itemId, name: itemById(d.itemId)?.name ?? d.itemId, quantity: 1 }));
-  return { gold, proficiency: mob.profWin, items };
+  return { gold, proficiency: Math.round(mob.profWin * bonus.proficiency), items };
 }
 
 /** 패배해도 소량의 숙련도는 얻는다 (EDRPG와 같음) */
-export function defeatRewards(mob: MobData): Rewards {
-  return { gold: 0, proficiency: mob.profLose, items: [] };
+export function defeatRewards(mob: MobData, bonus: BonusMults = NO_BONUS): Rewards {
+  return { gold: 0, proficiency: Math.round(mob.profLose * bonus.proficiency), items: [] };
 }
 
 battle.post('/battle', async (c) => {
@@ -184,7 +189,8 @@ battle.post('/battle/:id/round', async (c) => {
   if (outcome !== 'ongoing' && mob && row.rewarded === 0) {
     const claim = await c.env.DB.prepare('UPDATE battles SET rewarded = 1 WHERE id = ? AND rewarded = 0').bind(id).run();
     if (claim.meta.changes === 1) {
-      rewards = outcome === 'victory' ? rollRewards(mob, state.rngSeed) : defeatRewards(mob);
+      const bonus = await activeBonus(c.env.DB);
+      rewards = outcome === 'victory' ? rollRewards(mob, state.rngSeed, bonus) : defeatRewards(mob, bonus);
       await c.env.DB.batch([
         c.env.DB
           .prepare('UPDATE characters SET gold = gold + ?, proficiency = proficiency + ? WHERE user_id = ?')

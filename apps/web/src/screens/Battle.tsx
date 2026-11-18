@@ -86,6 +86,22 @@ function StanceBanner({ state }: { state: BattleState }) {
   );
 }
 
+/** 허기 규칙이 있는 보스(포더모어)의 허기 게이지 */
+function HungerBanner({ state }: { state: BattleState }) {
+  const cfg = state.boss?.script.hunger;
+  const rt = state.boss?.runtime;
+  if (!cfg || !rt) return null;
+  const hasDevour = Object.values(state.boss!.script.patterns).some((p) => p.kind === 'devour');
+  const bonus = Math.round(cfg.atkPerStack * rt.hunger * 100);
+  return (
+    <div className={`stance hunger${rt.hunger >= cfg.max ? ' hunger-full' : ''}`}>
+      <div className="stance-head"><Icon name="info" /> <b>허기 {rt.hunger}/{cfg.max}</b> <span className="muted">보스 공격력 +{bonus}%</span></div>
+      <div className="ap-pips" aria-hidden>{Array.from({ length: cfg.max }, (_, i) => <i key={i} className={i < rt.hunger ? 'on' : ''} />)}</div>
+      {hasDevour && <div className="stance-hint">허기가 쌓이면 <b>식사</b>로 크게 물어뜯고 회복해요. 예고가 뜨면 방어하세요. 회복 아이템을 쓰면 <b>“부족해!”</b>로 가로채일 수 있어요.</div>}
+    </div>
+  );
+}
+
 export function Battle({ battleId, initial, mob, onEnd }: { battleId: string; initial: BattleState; mob: MobData; onEnd: () => void }) {
   const mobName = mob.name;
   const isBossMob = mob.kind === 'boss';
@@ -231,6 +247,7 @@ export function Battle({ battleId, initial, mob, onEnd }: { battleId: string; in
         </div>
       )}
       {bossMode && state.status === 'ongoing' && <StanceBanner state={state} />}
+      {bossMode && state.status === 'ongoing' && <HungerBanner state={state} />}
       {charging && state.status === 'ongoing' && (
         <div className="charge-note"><Icon name="bolt" /> 힘을 모으는 중: 이번 라운드에 <b>{charging.name}</b>이(가) 발동해요. 다른 행동은 할 수 없어요.</div>
       )}

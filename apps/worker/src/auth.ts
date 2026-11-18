@@ -25,7 +25,7 @@ export interface GlPublicUser {
 }
 
 export type AppEnv = {
-  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string };
+  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string };
   Variables: { user: GlUser };
 };
 

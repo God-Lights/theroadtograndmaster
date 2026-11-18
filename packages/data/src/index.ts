@@ -6,6 +6,7 @@ import tiersJson from '../data/proficiency-tiers.json';
 import recipesJson from '../data/recipes.json';
 import bossesJson from '../data/bosses.json';
 import dungeonsJson from '../data/dungeons.json';
+import raidJson from '../data/raid.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -174,3 +175,51 @@ export function entryCost(mob: MobData): { gold: number; key: string | null } {
     ? { gold: d.entry.bossGold, key: d.entry.bossKey }
     : { gold: d.entry.normalGold, key: null };
 }
+
+// ─── 레이드 (4인 역할 파티) ───────────────────────────────────────────────────
+
+export type RaidRole = 'tank' | 'dealer' | 'healer' | 'support';
+export const RAID_ROLE_IDS: readonly RaidRole[] = ['tank', 'dealer', 'healer', 'support'];
+
+export interface RaidRoleData {
+  label: string;
+  desc: string;
+  /** 장비 스탯에 곱하는 배율 */
+  hp: number; atk: number; def: number;
+  /** 이 역할의 지력 (회복량 기준) */
+  int: number;
+  kit: string[];
+  ultimate: string;
+}
+export interface RaidBossData {
+  id: string; name: string; hp: number; atk: number; def: number; spd: number;
+  minProficiency: number; gold: [number, number]; profWin: number; profLose: number;
+  drops: { itemId: string; chance: number }[]; note: string;
+  script: Record<string, unknown>;
+}
+
+export const RAID_CAPS = raidJson.caps as { maxHp: number; atk: number; def: number };
+export const RAID_PARTY_HP_SCALE = raidJson.partyHpScale as Record<string, number>;
+export const RAID_ROLES = raidJson.roles as unknown as Record<RaidRole, RaidRoleData>;
+export const RAID_SKILLS = raidJson.skills as unknown as SkillData[];
+export const RAID_BOSSES = raidJson.bosses as unknown as Record<string, RaidBossData>;
+export const raidSkillById = (id: string): SkillData | undefined => RAID_SKILLS.find((s) => s.id === id);
+/** 역할 킷의 스킬 id (일반 4 + 궁극기 1) */
+export const raidKit = (role: RaidRole): string[] => [...RAID_ROLES[role].kit, RAID_ROLES[role].ultimate];
+export const RAID_MAX_PARTY = 4;
+export const RAID_MIN_PARTY = 2;
+export const RAID_MISS_LIMIT = 3;
+
+/** 레이드 스탯: 장비 스탯을 상한으로 보정한 뒤 역할 배율을 곱한다 */
+export function raidStats(role: RaidRole, gear: CombatStats): CombatStats {
+  const r = RAID_ROLES[role];
+  return {
+    ...gear,
+    maxHp: Math.round(Math.min(gear.maxHp, RAID_CAPS.maxHp) * r.hp),
+    atk: Math.round(Math.min(gear.atk, RAID_CAPS.atk) * r.atk),
+    def: Math.round(Math.min(gear.def, RAID_CAPS.def) * r.def),
+    int: r.int,
+  };
+}
+export const raidBossHp = (bossId: string, partySize: number): number =>
+  Math.round(RAID_BOSSES[bossId]!.hp * (RAID_PARTY_HP_SCALE[String(partySize)] ?? 1));
