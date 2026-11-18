@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { START_AP, computeStats, type CombatStats } from '@rtgm/data';
+import { PVP_RULES, START_AP, computeStats, type CombatStats } from '@rtgm/data';
 import {
   canUseSkill, createBattle, resolveRound,
   type Action, type BattleState, type Combatant, type LogEntry, type SkillDef,
@@ -20,13 +20,13 @@ export const pvp = new Hono<AppEnv>();
 
 export const P1 = 'p1';
 export const P2 = 'p2';
-export const ROUND_MS = 45_000;
-export const MAX_MISSES = 3;
-export const MAX_ROUNDS = 40;
+export const ROUND_MS = PVP_RULES.roundSeconds * 1000;
+export const MAX_MISSES = PVP_RULES.missLimit;
+export const MAX_ROUNDS = PVP_RULES.maxRounds;
 export const QUEUE_TTL_MS = 120_000;
-export const K_FACTOR = 32;
+export const K_FACTOR = PVP_RULES.kFactor;
 /** PvP 스탯 상한: 좋은 장비는 유리하지만 한 방에 끝나지 않게 한다 */
-export const PVP_CAP = { maxHp: 300, atk: 60, def: 30 } as const;
+export const PVP_CAP = PVP_RULES.cap;
 
 export const clampStats = (s: CombatStats): CombatStats => ({
   ...s, maxHp: Math.min(s.maxHp, PVP_CAP.maxHp), atk: Math.min(s.atk, PVP_CAP.atk), def: Math.min(s.def, PVP_CAP.def),

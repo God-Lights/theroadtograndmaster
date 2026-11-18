@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { RAID_ROLES, RAID_ROLE_IDS, START_AP, computeStats, raidKit, raidSkillById, raidStats, type RaidRole } from '@rtgm/data';
+import { PVP_RULES, RAID_ROLES, RAID_ROLE_IDS, START_AP, computeStats, raidKit, raidSkillById, raidStats, type RaidRole } from '@rtgm/data';
 import {
   canUseSkill, createBattle, resolveRound,
   type Action, type BattleState, type Combatant, type LogEntry, type SkillDef,
@@ -17,11 +17,11 @@ import { K_FACTOR, PVP_CAP, clampStats } from './pvp';
  */
 export const team = new Hono<AppEnv>();
 
-export const TEAM_SIZE = 4;
-export const TEAM_ROUND_MS = 45_000;
-export const TEAM_MAX_ROUNDS = 40;
-export const TEAM_MISS_LIMIT = 3;
-export const TEAM_QUEUE_TTL_MS = 180_000;
+export const TEAM_SIZE = PVP_RULES.teamSize;
+export const TEAM_ROUND_MS = PVP_RULES.roundSeconds * 1000;
+export const TEAM_MAX_ROUNDS = PVP_RULES.maxRounds;
+export const TEAM_MISS_LIMIT = PVP_RULES.missLimit;
+export const TEAM_QUEUE_TTL_MS = PVP_RULES.queueSeconds * 1000;
 export const TEAM_LOBBY_TTL_MS = 30 * 60_000;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 

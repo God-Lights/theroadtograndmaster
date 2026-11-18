@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  DUNGEONS, ITEMS, MOBS, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
+  DUNGEONS, ITEMS, MOBS, PVP_RULES, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
   dungeonById, getProfTier, itemById, mobById, skillById,
 } from '@rtgm/data';
 import {
@@ -37,6 +37,7 @@ const SECTIONS = [
   { id: 'items', label: '아이템', desc: `${ITEMS.length}종 · 얻는 곳과 쓰임` },
   { id: 'mobs', label: '몹·보스', desc: `${MOBS.length}종 · 드롭과 패턴` },
   { id: 'raids', label: '레이드', desc: `${Object.keys(RAID_BOSSES).length}종 · 별 등급과 역할` },
+  { id: 'pvp', label: 'PvP·팀전', desc: '1v1 랭크, 4v4 역할 팀전' },
   { id: 'skills', label: '스킬', desc: `${SKILLS.length}종 · 역할별` },
   { id: 'dungeons', label: '던전', desc: `${DUNGEONS.length}곳 · 입장 조건` },
   { id: 'recipes', label: '제작', desc: `${RECIPES.length}종 · 재료와 해금` },
@@ -59,6 +60,7 @@ export function Wiki({ hash }: { hash: string }) {
       {section === 'guide' && <Guide />}
       {section === 'items' && (id ? <ItemPage id={id} /> : <ItemList />)}
       {section === 'mobs' && (id ? <MobPage id={id} /> : <MobList />)}
+      {section === 'pvp' && <PvpGuide />}
       {section === 'raids' && (id ? <RaidPage id={id} /> : <RaidList />)}
       {section === 'skills' && <SkillList focus={id} />}
       {section === 'dungeons' && (id ? <DungeonPage id={id} /> : <DungeonList />)}
@@ -394,6 +396,40 @@ function RaidPage({ id }: { id: string }) {
         {b.drops.map((d) => <div key={d.itemId} className="wiki-line">{itemLink(d.itemId)} {pct(d.chance)}</div>)}
       </div>
       <BossBlocks view={view} />
+    </>
+  );
+}
+
+function PvpGuide() {
+  const r = PVP_RULES;
+  const common: [string, string][] = [
+    ['동시 선택', `매 라운드 모두 행동을 숨겨서 내고, 모두 내면 서버가 한꺼번에 처리해요. 제한 시간은 ${r.roundSeconds}초예요.`],
+    ['미제출', `시간 안에 못 내면 방어로 처리돼요. ${r.missLimit}번 연속 안 내면 1v1은 기권패, 팀전은 그 사람이 쓰러진 것으로 봐요.`],
+    ['아이템', 'PvP에서는 아이템을 쓸 수 없어요 (돈으로 이기지 않게).'],
+    ['스탯 상한', `장비 스탯은 HP ${r.cap.maxHp}·ATK ${r.cap.atk}·DEF ${r.cap.def}까지만 반영돼요. 좋은 장비는 유리하지만 한 방에 끝나지 않아요.`],
+    ['시간 초과', `${r.maxRounds}라운드가 넘으면 남은 HP 비율이 높은 쪽(팀은 팀 합계)이 이겨요.`],
+    ['레이팅', `Elo 방식이에요. 시작은 ${r.startRating}이고 변동은 최대 ±${r.kFactor}예요. 기대보다 강한 상대를 이기면 더 많이 올라요. 친선전은 레이팅이 바뀌지 않아요.`],
+    ['보상', '랭크전 승리에는 골드·숙련도 보상이 없어요 (승리 거래 방지). 레이팅과 랭킹이 보상이에요.'],
+  ];
+  return (
+    <>
+      <div className="card">
+        <div className="card-title">공통 규칙</div>
+        {common.map(([k, v]) => <div key={k} className="wiki-def"><div className="wiki-k">{k}</div><div>{v}</div></div>)}
+      </div>
+      <div className="card">
+        <div className="card-title">1v1 랭크 · 친구 도전</div>
+        <div className="wiki-line">모험 탭의 <b>대전 1v1</b>에서 랭크전 대기열에 들어가면 비슷한 레이팅의 상대와 매칭돼요. 기다릴수록 범위가 넓어지고, 화면을 열어 둬야 매칭이 이어져요 (대기 {r.queueSeconds}초 후 만료).</div>
+        <div className="wiki-line">스킬은 내가 장착한 스킬(숙련도로 해금된 것)과 궁극기를 그대로 써요. 친구에게는 도전장을 보내 레이팅 없이 겨룰 수 있어요.</div>
+      </div>
+      <div className="card">
+        <div className="card-title">4v4 역할 팀전</div>
+        <div className="wiki-line">팀마다 <b>탱커·딜러·힐러·서포터</b>가 한 명씩이에요. 스킬은 레이드와 같은 역할별 스킬 {`(`}<A to="/raids">레이드 위키</A>{`)`}를 쓰고, 힐·보호막은 아군에게 써요.</div>
+        <div className="wiki-line"><b>랭크전</b>: 역할을 고르고 대기하면 역할별 2명씩 8명이 모여 대전이 만들어져요. 두 팀의 레이팅 합이 비슷하게 나뉘고, 팀 평균 레이팅으로 Elo를 계산해 팀원 모두에게 같은 규칙이 적용돼요.</div>
+        <div className="wiki-line"><b>친선 방</b>: 코드로 모이고 팀·역할을 정해요. 양 팀에 한 명 이상이면 시작할 수 있어서 1v1~4v4가 모두 가능하고, 레이팅은 변하지 않아요. 방은 30분 뒤 사라져요.</div>
+        <div className="wiki-line"><b>도발</b>: 탱커가 도발하면 상대 팀은 단일 대상 공격을 도발한 사람에게만 할 수 있어요.</div>
+        <div className="wiki-line">스탯은 PvP 상한을 적용한 뒤 역할 배율(탱커 HP↑·방어↑, 딜러 공격↑, 힐러 지력↑ 등)을 곱해요.</div>
+      </div>
     </>
   );
 }
