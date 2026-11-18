@@ -425,5 +425,295 @@
     "dungeon": "midrealm_2",
     "note": "배고픔이 쌓일수록 강해지고, 다 쌓이면 식사로 회복해요. 쓴 아이템을 빼앗고 과식 일격을 준비해요.",
     "announce": true
+  },
+  {
+    "id": "slime",
+    "name": "슬라임",
+    "kind": "normal",
+    "hp": 28,
+    "atk": 6,
+    "def": 0,
+    "spd": 5,
+    "gold": [
+      10,
+      35
+    ],
+    "drops": [
+      {
+        "itemId": "slime_jelly",
+        "chance": 0.75
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "plains"
+  },
+  {
+    "id": "wild_boar",
+    "name": "멧돼지",
+    "kind": "normal",
+    "hp": 48,
+    "atk": 11,
+    "def": 2,
+    "spd": 7,
+    "gold": [
+      20,
+      60
+    ],
+    "drops": [
+      {
+        "itemId": "boar_tusk",
+        "chance": 0.7
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "plains"
+  },
+  {
+    "id": "bandit",
+    "name": "도적",
+    "kind": "normal",
+    "hp": 38,
+    "atk": 13,
+    "def": 2,
+    "spd": 10,
+    "gold": [
+      30,
+      80
+    ],
+    "drops": [
+      {
+        "itemId": "bandit_pouch",
+        "chance": 0.6
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "plains"
+  },
+  {
+    "id": "ghost",
+    "name": "유령",
+    "kind": "normal",
+    "hp": 35,
+    "atk": 10,
+    "def": 1,
+    "spd": 10,
+    "gold": [
+      30,
+      80
+    ],
+    "drops": [
+      {
+        "itemId": "ghost_dust",
+        "chance": 0.7
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "graveyard"
+  },
+  {
+    "id": "bone_archer",
+    "name": "뼈 궁수",
+    "kind": "normal",
+    "hp": 32,
+    "atk": 12,
+    "def": 1,
+    "spd": 11,
+    "gold": [
+      35,
+      85
+    ],
+    "drops": [
+      {
+        "itemId": "bone_arrow",
+        "chance": 0.7
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "graveyard"
+  },
+  {
+    "id": "ghoul",
+    "name": "구울",
+    "kind": "normal",
+    "hp": 55,
+    "atk": 12,
+    "def": 4,
+    "spd": 6,
+    "gold": [
+      40,
+      100
+    ],
+    "drops": [
+      {
+        "itemId": "ghoul_fang",
+        "chance": 0.65
+      }
+    ],
+    "profWin": 6,
+    "profLose": 2,
+    "dungeon": "graveyard"
+  },
+  {
+    "id": "giant_spider",
+    "name": "거대 거미",
+    "kind": "normal",
+    "hp": 55,
+    "atk": 15,
+    "def": 3,
+    "spd": 13,
+    "gold": [
+      70,
+      170
+    ],
+    "drops": [
+      {
+        "itemId": "spider_silk",
+        "chance": 0.7
+      }
+    ],
+    "profWin": 15,
+    "profLose": 6,
+    "dungeon": "forest"
+  },
+  {
+    "id": "treant",
+    "name": "트렌트",
+    "kind": "normal",
+    "hp": 110,
+    "atk": 14,
+    "def": 8,
+    "spd": 3,
+    "gold": [
+      80,
+      200
+    ],
+    "drops": [
+      {
+        "itemId": "treant_bark",
+        "chance": 0.65
+      }
+    ],
+    "profWin": 15,
+    "profLose": 6,
+    "dungeon": "forest"
+  },
+  {
+    "id": "brown_bear",
+    "name": "불곰",
+    "kind": "normal",
+    "hp": 95,
+    "atk": 18,
+    "def": 5,
+    "spd": 7,
+    "gold": [
+      90,
+      210
+    ],
+    "drops": [
+      {
+        "itemId": "bear_pelt",
+        "chance": 0.65
+      }
+    ],
+    "profWin": 15,
+    "profLose": 6,
+    "dungeon": "forest"
+  },
+  {
+    "id": "mist_stalker",
+    "name": "미스트 스토커 (Mist Stalker)",
+    "kind": "normal",
+    "hp": 400,
+    "atk": 48,
+    "def": 14,
+    "spd": 11,
+    "gold": [
+      100,
+      260
+    ],
+    "drops": [
+      {
+        "itemId": "stalker_claw",
+        "chance": 0.6
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "안개에 몸을 숨기고 달려드는 사냥꾼이에요."
+  },
+  {
+    "id": "crystal_golem",
+    "name": "크리스탈 골렘 (Crystal Golem)",
+    "kind": "normal",
+    "hp": 520,
+    "atk": 44,
+    "def": 22,
+    "spd": 3,
+    "gold": [
+      150,
+      350
+    ],
+    "drops": [
+      {
+        "itemId": "golem_crystal",
+        "chance": 0.55
+      }
+    ],
+    "profWin": 20,
+    "profLose": 8,
+    "dungeon": "midrealm_1",
+    "note": "단단하지만 느려요. 방어를 뚫을 한 방이 필요해요."
+  },
+  {
+    "id": "shadow_slayer",
+    "name": "섀도 슬레이어 (Shadow Slayer)",
+    "kind": "normal",
+    "hp": 600,
+    "atk": 80,
+    "def": 22,
+    "spd": 14,
+    "gold": [
+      220,
+      460
+    ],
+    "drops": [
+      {
+        "itemId": "shadow_shard",
+        "chance": 0.6
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "그림자처럼 빠르게 연속으로 베어요."
+  },
+  {
+    "id": "flame_spirit",
+    "name": "불의 정령 (Flame Spirit)",
+    "kind": "normal",
+    "hp": 680,
+    "atk": 76,
+    "def": 24,
+    "spd": 10,
+    "gold": [
+      230,
+      480
+    ],
+    "drops": [
+      {
+        "itemId": "flame_core",
+        "chance": 0.55
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "타오르는 불꽃으로 강하게 때려요."
   }
 ]
