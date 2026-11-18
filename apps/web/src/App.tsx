@@ -5,6 +5,7 @@ import { GameProvider, useGame } from './game';
 import { Icon } from './Icon';
 import type { IconName } from './icon-paths';
 import { Adventure } from './screens/Adventure';
+import { Craft } from './screens/Craft';
 import { Inventory } from './screens/Inventory';
 import { Profile } from './screens/Profile';
 import { Shop } from './screens/Shop';
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'profile', label: '내 정보', icon: 'person', view: Profile },
   { id: 'adventure', label: '모험', icon: 'map', view: Adventure },
   { id: 'inventory', label: '인벤토리', icon: 'bag', view: Inventory },
+  { id: 'craft', label: '제작', icon: 'hammer', view: Craft },
   { id: 'shop', label: '상점', icon: 'shop', view: Shop },
 ] as const satisfies readonly { id: string; label: string; icon: IconName; view: () => JSX.Element | null }[];
 

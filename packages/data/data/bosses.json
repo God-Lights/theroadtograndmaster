@@ -1,0 +1,27 @@
+{
+  "rich": {
+    "patterns": {
+      "dark_arrow":    { "kind": "attack", "name": "암흑 화살", "mult": 1.1, "telegraph": "마력이 모인다." },
+      "weaken_curse":  { "kind": "debuff", "name": "약화의 저주", "atkMult": 0.8, "turns": 2, "telegraph": "저주를 읊는다." },
+      "life_drain":    { "kind": "drain", "name": "생명 흡수", "pct": 0.15, "telegraph": "생기를 빨아들이려 한다." },
+      "undead_summon": { "kind": "summon", "name": "언데드 소집", "count": 2, "minPhase": 2, "telegraph": "뼈가 일어난다." },
+      "death_touch":   {
+        "kind": "charge_attack", "name": "죽음의 손길", "mult": 3.0,
+        "chargeRounds": [2, 2, 1], "interruptPct": [0.08, 0.08, 0.05], "minGap": 3, "minPhase": 2,
+        "telegraphCharge": "어둠이 손을 뻗는다.", "telegraphRelease": "죽음의 손이 닿으려 한다!"
+      }
+    },
+    "phases": [
+      { "fromHpPct": 100, "atkMult": 1.0, "pool": [
+        { "id": "dark_arrow", "weight": 5 }, { "id": "weaken_curse", "weight": 2 }, { "id": "life_drain", "weight": 2 } ] },
+      { "fromHpPct": 60, "atkMult": 1.0, "enterText": "리치가 영혼 의식을 시작한다!", "pool": [
+        { "id": "dark_arrow", "weight": 4 }, { "id": "weaken_curse", "weight": 2 }, { "id": "life_drain", "weight": 2 },
+        { "id": "undead_summon", "weight": 3 }, { "id": "death_touch", "weight": 3 } ] },
+      { "fromHpPct": 25, "atkMult": 1.25, "enterText": "리치가 분노한다!", "pool": [
+        { "id": "dark_arrow", "weight": 4 }, { "id": "weaken_curse", "weight": 1 }, { "id": "life_drain", "weight": 2 },
+        { "id": "undead_summon", "weight": 1 }, { "id": "death_touch", "weight": 3 } ] }
+    ],
+    "vessel": { "name": "영혼함", "hp": 60, "def": 0, "damageReduction": 0.6, "reviveHpPct": 0.3, "appearsAtPhase": 2 },
+    "minion": { "name": "리치몬드", "stats": { "maxHp": 45, "atk": 11, "def": 4, "spd": 7 }, "max": 2, "healBossPct": 0.02 }
+  }
+}

@@ -194,6 +194,8 @@ describe('전투 연결', () => {
     expect(rewards.gold).toBeLessThanOrEqual(mob.gold[1]);
     const goldAfter = (await call('tokA', 'GET', '/api/inventory')).json.gold;
     expect(goldAfter).toBe(500 + rewards.gold);
+    expect(rewards.proficiency).toBe(mob.profWin);
+    expect((await call('tokA', 'GET', '/api/inventory')).json.proficiency).toBe(mob.profWin);
 
     // 같은 전투를 다시 진행해도 추가 보상은 없다
     const again = await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' });
@@ -217,5 +219,158 @@ describe('보상 굴림', () => {
       expect(r.gold).toBeGreaterThanOrEqual(mob.gold[0]);
       expect(r.gold).toBeLessThanOrEqual(mob.gold[1]);
     }
+  });
+});
+
+describe('전투 숙련도', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+
+  const finishBattle = async (mobId: string, playerHp: number, enemyHp: number) => {
+    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId });
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
+    st.combatants.find((c: any) => c.id === 'player').hp = playerHp;
+    st.combatants.find((c: any) => c.id === 'enemy').hp = enemyHp;
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), b.id);
+    let last: any;
+    for (let i = 0; i < 6; i++) {
+      last = (await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' })).json;
+      if (last.state.status !== 'ongoing') break;
+    }
+    return { id: b.id, last };
+  };
+
+  it('패배해도 소량의 숙련도를 한 번만 얻는다 (골드·아이템은 없음)', async () => {
+    const mob = mobById('orc')!;
+    const { id, last } = await finishBattle('orc', 1, mob.hp); // 플레이어 HP 1 → 거의 확실히 패배
+    expect(last.state.status).toBe('defeat');
+    expect(last.rewards).toEqual({ gold: 0, proficiency: mob.profLose, items: [] });
+    const inv = (await call('tokA', 'GET', '/api/inventory')).json;
+    expect(inv.proficiency).toBe(mob.profLose);
+    expect(inv.gold).toBe(500);
+    await call('tokA', 'POST', `/api/battle/${id}/round`, { action: 'attack' });
+    expect((await call('tokA', 'GET', '/api/inventory')).json.proficiency).toBe(mob.profLose);
+  });
+});
+
+describe('제작', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); setProf(A.id, 300); });
+
+  it('재료와 골드를 소모하고 결과 아이템과 숙련도를 얻는다', async () => {
+    give(A.id, 'bread', 6);
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'grilled_meat' });
+    expect(r.status).toBe(200);
+    expect(r.json.crafted).toMatchObject({ itemId: 'grilled_meat', quantity: 1 });
+    expect(r.json.items.find((i: any) => i.itemId === 'bread').quantity).toBe(1);
+    expect(r.json.items.find((i: any) => i.itemId === 'grilled_meat').quantity).toBe(1);
+    expect(r.json.proficiency).toBe(303);
+  });
+
+  it('골드가 드는 레시피는 골드를 차감한다', async () => {
+    give(A.id, 'decent_sword', 1);
+    give(A.id, 'wolf_claw', 2);
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'lord_sword' });
+    expect(r.status).toBe(200);
+    expect(r.json.gold).toBe(500 - 300);
+    expect(r.json.items.find((i: any) => i.itemId === 'lord_sword').quantity).toBe(1);
+    expect(r.json.items.find((i: any) => i.itemId === 'wolf_claw')).toBeUndefined(); // 0개 행은 삭제
+  });
+
+  it('재료가 부족하면 아무것도 변하지 않는다', async () => {
+    give(A.id, 'bread', 4);
+    const before = (await call('tokA', 'GET', '/api/inventory')).json;
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'grilled_meat' });
+    expect(r.status).toBe(400);
+    expect(r.json.error).toBe('not_enough_material');
+    expect((await call('tokA', 'GET', '/api/inventory')).json).toEqual(before);
+  });
+
+  it('골드가 부족하면 재료도 소모되지 않는다', async () => {
+    give(A.id, 'decent_sword', 1);
+    give(A.id, 'wolf_claw', 2);
+    setGold(A.id, 100);
+    expect((await call('tokA', 'POST', '/api/craft', { recipeId: 'lord_sword' })).json.error).toBe('not_enough_gold');
+    const inv = (await call('tokA', 'GET', '/api/inventory')).json;
+    expect(inv.items.find((i: any) => i.itemId === 'wolf_claw').quantity).toBe(2);
+  });
+
+  it('숙련도가 모자라면 잠겨 있다', async () => {
+    setProf(A.id, 10);
+    give(A.id, 'bread', 5);
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'grilled_meat' });
+    expect(r.status).toBe(403);
+    expect(r.json).toMatchObject({ error: 'recipe_locked', required: 20 });
+  });
+
+  it('장착 중인 아이템은 재료로 쓸 수 없다 (장착한 1개를 뺀 수량만 사용)', async () => {
+    give(A.id, 'wolf_claw', 2);
+    give(A.id, 'decent_sword', 1);
+    await call('tokA', 'POST', '/api/inventory/equip', { itemId: 'decent_sword' });
+    const r = await call('tokA', 'POST', '/api/craft', { recipeId: 'lord_sword' });
+    expect(r.status).toBe(400);
+    expect(r.json.error).toBe('material_equipped');
+    give(A.id, 'decent_sword', 1); // 2개가 되면 1개는 쓸 수 있다
+    expect((await call('tokA', 'POST', '/api/craft', { recipeId: 'lord_sword' })).status).toBe(200);
+  });
+
+  it('알 수 없는 레시피는 거부된다', async () => {
+    expect((await call('tokA', 'POST', '/api/craft', { recipeId: 'nope' })).status).toBe(400);
+    expect((await call('tokA', 'POST', '/api/craft', {})).status).toBe(400);
+  });
+
+  it('가드가 걸리면 앞선 변경까지 모두 되돌아간다 (원자성)', async () => {
+    // 사전 검사를 통과한 뒤 동시 요청이 재료를 가져간 상황을 흉내 낸다
+    give(A.id, 'bread', 5);
+    const db = env.DB;
+    const guard = db.prepare("SELECT CASE WHEN changes() = 0 THEN json('guard_failed') ELSE 1 END");
+    await expect(
+      db.batch([
+        db.prepare('UPDATE characters SET gold = gold - 100 WHERE user_id = ?').bind(A.id),
+        guard,
+        db.prepare("UPDATE inventory SET quantity = quantity - 5 WHERE user_id = ? AND item_id = 'bread' AND quantity >= 99").bind(A.id),
+        guard,
+      ]),
+    ).rejects.toThrow();
+    const inv = (await call('tokA', 'GET', '/api/inventory')).json;
+    expect(inv.gold).toBe(500); // 첫 UPDATE도 롤백
+    expect(inv.items.find((i: any) => i.itemId === 'bread').quantity).toBe(5);
+  });
+});
+
+describe('보스전 (리치)', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+
+  it('보스는 시작할 때부터 다음 행동이 예고되고, 일반 몹에는 보스 기믹이 없다', async () => {
+    const { json: rich } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    expect(rich.state.boss).toBeDefined();
+    expect(rich.state.intents.enemy.telegraph).toBeTruthy();
+    const { json: zombie } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    expect(zombie.state.boss).toBeUndefined();
+  });
+
+  it('존재하지 않거나 쓰러진 대상은 공격할 수 없다', async () => {
+    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'vessel' })).status).toBe(400); // 아직 영혼함 없음
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'player' })).status).toBe(400); // 아군
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'enemy' })).status).toBe(200);
+  });
+
+  it('보스를 쓰러뜨리면 황금 리치를 받고, 같은 전투로 다시 받지 못한다', async () => {
+    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
+    st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), b.id);
+
+    let res: any;
+    for (let i = 0; i < 4; i++) {
+      res = (await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' })).json;
+      if (res.state.status !== 'ongoing') break;
+    }
+    expect(res.state.status).toBe('victory');
+    expect(res.rewards.items.map((i: any) => i.itemId)).toContain('golden_lich');
+    expect(res.rewards.proficiency).toBe(mobById('rich')!.profWin);
+    const inv = (await call('tokA', 'GET', '/api/inventory')).json;
+    expect(inv.items.find((i: any) => i.itemId === 'golden_lich').quantity).toBe(1);
+    await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' });
+    expect((await call('tokA', 'GET', '/api/inventory')).json.items.find((i: any) => i.itemId === 'golden_lich').quantity).toBe(1);
   });
 });

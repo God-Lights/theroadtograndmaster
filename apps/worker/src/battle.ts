@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { computeStats, itemById, mobById, type MobData } from '@rtgm/data';
+import { bossScriptFor, computeStats, itemById, mobById, type MobData } from '@rtgm/data';
 import {
   chooseEnemyAction,
   createBattle,
@@ -7,6 +7,7 @@ import {
   resolveRound,
   type Action,
   type BattleState,
+  type BossScript,
 } from '@rtgm/engine';
 import type { AppEnv } from './auth';
 import { equippedItems, getInventory } from './character';
@@ -18,6 +19,8 @@ const ENEMY_ID = 'enemy';
 
 export interface Rewards {
   gold: number;
+  /** 이번 전투로 오른 숙련도 */
+  proficiency: number;
   items: { itemId: string; name: string; quantity: number }[];
 }
 
@@ -29,7 +32,12 @@ export function rollRewards(mob: MobData, seed: number): Rewards {
   const items = mob.drops
     .filter((d) => rng() < d.chance)
     .map((d) => ({ itemId: d.itemId, name: itemById(d.itemId)?.name ?? d.itemId, quantity: 1 }));
-  return { gold, items };
+  return { gold, proficiency: mob.profWin, items };
+}
+
+/** 패배해도 소량의 숙련도는 얻는다 (EDRPG와 같음) */
+export function defeatRewards(mob: MobData): Rewards {
+  return { gold: 0, proficiency: mob.profLose, items: [] };
 }
 
 battle.post('/battle', async (c) => {
@@ -42,6 +50,10 @@ battle.post('/battle', async (c) => {
   const stats = computeStats(equippedItems(await getInventory(c.env.DB, userId)));
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
 
+  // 보스는 패턴 스크립트(영혼함·충전기·하수인 소환 등)를 적용하고, 일반 몹은 기본 AI를 쓴다
+  const raw = bossScriptFor(mob.id);
+  const script = raw ? ({ ...raw, bossId: ENEMY_ID } as unknown as BossScript) : undefined;
+
   const state = createBattle(
     [
       { id: PLAYER_ID, name: '모험가', side: 'player', hp: stats.maxHp, guardedLastRound: false, stats },
@@ -51,6 +63,7 @@ battle.post('/battle', async (c) => {
       },
     ],
     seed,
+    script,
   );
 
   const id = crypto.randomUUID();
@@ -63,7 +76,7 @@ battle.post('/battle', async (c) => {
 battle.post('/battle/:id/round', async (c) => {
   const userId = c.get('user').id;
   const id = c.req.param('id');
-  const body = await c.req.json<{ action?: 'attack' | 'guard' | 'item'; itemId?: string }>();
+  const body = await c.req.json<{ action?: 'attack' | 'guard' | 'item'; itemId?: string; targetId?: string }>();
 
   const row = await c.env.DB
     .prepare('SELECT state, mob_id, rewarded FROM battles WHERE id = ? AND user_id = ?')
@@ -76,7 +89,12 @@ battle.post('/battle/:id/round', async (c) => {
 
   let playerAction: Action;
   if (body.action === 'attack') {
-    playerAction = { kind: 'attack', targetId: ENEMY_ID };
+    // 공격 대상: 지정하지 않으면 주 적. 살아 있는 적만 고를 수 있다 (영혼함·하수인 포함)
+    const targetId = body.targetId ?? ENEMY_ID;
+    if (!state.combatants.some((x) => x.id === targetId && x.side === 'enemy' && x.hp > 0)) {
+      return c.json({ error: 'invalid_target' }, 400);
+    }
+    playerAction = { kind: 'attack', targetId };
   } else if (body.action === 'guard') {
     playerAction = { kind: 'guard' };
   } else if (body.action === 'item') {
@@ -95,20 +113,24 @@ battle.post('/battle/:id/round', async (c) => {
     return c.json({ error: 'invalid action' }, 400);
   }
 
-  const enemy = state.combatants.find((x) => x.id === ENEMY_ID)!;
-  const enemyAction = chooseEnemyAction(state, enemy);
-  const result = resolveRound(state, { [PLAYER_ID]: playerAction, [ENEMY_ID]: enemyAction });
+  // 보스전의 적 행동은 엔진이 예고(intent)대로 실행한다. 일반 전투만 기본 AI로 고른다.
+  const actions: Record<string, Action> = { [PLAYER_ID]: playerAction };
+  if (!state.boss) actions[ENEMY_ID] = chooseEnemyAction(state, state.combatants.find((x) => x.id === ENEMY_ID)!);
+  const result = resolveRound(state, actions);
   await c.env.DB.prepare('UPDATE battles SET state = ? WHERE id = ?').bind(JSON.stringify(result.state), id).run();
 
-  // 승리 보상은 전투당 한 번만 (rewarded 플래그를 먼저 선점한 요청만 지급)
+  // 승패 보상(골드·아이템·숙련도)은 전투당 한 번만 (rewarded 플래그를 먼저 선점한 요청만 지급)
   let rewards: Rewards | undefined;
   const mob = mobById(row.mob_id);
-  if (result.state.status === 'victory' && mob && row.rewarded === 0) {
+  const outcome = result.state.status;
+  if (outcome !== 'ongoing' && mob && row.rewarded === 0) {
     const claim = await c.env.DB.prepare('UPDATE battles SET rewarded = 1 WHERE id = ? AND rewarded = 0').bind(id).run();
     if (claim.meta.changes === 1) {
-      rewards = rollRewards(mob, state.rngSeed);
+      rewards = outcome === 'victory' ? rollRewards(mob, state.rngSeed) : defeatRewards(mob);
       await c.env.DB.batch([
-        c.env.DB.prepare('UPDATE characters SET gold = gold + ? WHERE user_id = ?').bind(rewards.gold, userId),
+        c.env.DB
+          .prepare('UPDATE characters SET gold = gold + ?, proficiency = proficiency + ? WHERE user_id = ?')
+          .bind(rewards.gold, rewards.proficiency, userId),
         ...rewards.items.map((it) =>
           c.env.DB
             .prepare(

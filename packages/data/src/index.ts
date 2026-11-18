@@ -1,6 +1,8 @@
 import itemsJson from '../data/items.json';
 import mobsJson from '../data/mobs.json';
 import tiersJson from '../data/proficiency-tiers.json';
+import recipesJson from '../data/recipes.json';
+import bossesJson from '../data/bosses.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -28,6 +30,9 @@ export interface MobData {
   def: number;
   spd: number;
   gold: [number, number];
+  /** 전투 승리/패배 시 얻는 숙련도 (EDRPG PROFICIENCY_GAINS 기준) */
+  profWin: number;
+  profLose: number;
   drops: { itemId: string; chance: number }[];
 }
 
@@ -89,3 +94,26 @@ export function getProfTier(proficiency: number): ProficiencyTier {
 export function getNextTier(proficiency: number): ProficiencyTier | null {
   return PROFICIENCY_TIERS.find((t) => t.min > proficiency) ?? null;
 }
+
+export interface RecipeData {
+  id: string;
+  resultId: string;
+  resultQty: number;
+  materials: { itemId: string; quantity: number }[];
+  gold: number;
+  /** 이 숙련도에 도달하면 레시피가 열린다 (EDRPG PROFICIENCY_RECIPE_UNLOCKS) */
+  unlockProficiency: number;
+}
+
+export const RECIPES = recipesJson as RecipeData[];
+export const recipeById = (id: string): RecipeData | undefined => RECIPES.find((r) => r.id === id);
+
+/** 제작 1회로 얻는 숙련도 */
+export const CRAFT_PROFICIENCY_GAIN = 3;
+
+/**
+ * 보스 패턴 스크립트 (몹 ID → 스크립트). 형식은 @rtgm/engine 의 BossScript 에서 bossId 를 뺀 것이다.
+ * 데이터 패키지는 엔진에 의존하지 않으므로 여기서는 구조만 열어 두고, 서버가 엔진 타입으로 변환한다.
+ */
+export const BOSS_SCRIPTS = bossesJson as unknown as Record<string, Record<string, unknown>>;
+export const bossScriptFor = (mobId: string): Record<string, unknown> | undefined => BOSS_SCRIPTS[mobId];

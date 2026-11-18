@@ -23,8 +23,14 @@ export interface InventorySnapshot {
 
 export interface Rewards {
   gold: number;
+  proficiency: number;
   items: { itemId: string; name: string; quantity: number }[];
 }
+
+export type CraftResult = InventorySnapshot & {
+  crafted: { itemId: string; name: string; quantity: number };
+  proficiencyGained: number;
+};
 
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
@@ -39,7 +45,13 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_owned: () => '보유하지 않은 아이템입니다.',
   not_equippable: () => '장착할 수 없는 아이템입니다.',
   no_item: () => '아이템이 없습니다.',
+  invalid_target: () => '공격할 수 없는 대상입니다.',
   invalid_request: () => '잘못된 요청입니다.',
+  recipe_locked: (d) => `숙련도 ${d.required ?? ''} 이상이 되면 제작할 수 있어요.`,
+  material_equipped: () => '장착 중인 아이템은 재료로 쓸 수 없어요. 먼저 해제해 주세요.',
+  not_enough_material: () => '재료가 부족합니다.',
+  unknown_recipe: () => '알 수 없는 레시피입니다.',
+  craft_failed: () => '제작에 실패했어요. 다시 시도해 주세요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -86,7 +98,8 @@ export const api = {
   unequip: (itemId: string) => post<InventorySnapshot>('/api/inventory/unequip', { itemId }),
   sell: (itemId: string, quantity: number) => post<InventorySnapshot>('/api/inventory/sell', { itemId, quantity }),
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
+  craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
   startBattle: (mobId: string) => post<{ id: string; state: BattleState }>('/api/battle', { mobId }),
-  round: (id: string, action: 'attack' | 'guard' | 'item', itemId?: string) =>
-    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, { action, itemId }),
+  round: (id: string, action: 'attack' | 'guard' | 'item', itemId?: string, targetId?: string) =>
+    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, { action, itemId, targetId }),
 };

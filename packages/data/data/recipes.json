@@ -1,0 +1,83 @@
+[
+  {
+    "id": "grilled_meat",
+    "resultId": "grilled_meat",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "bread",
+        "quantity": 5
+      }
+    ],
+    "gold": 0,
+    "unlockProficiency": 20
+  },
+  {
+    "id": "mushroom_soup",
+    "resultId": "mushroom_soup",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "grilled_meat",
+        "quantity": 2
+      },
+      {
+        "itemId": "wolf_claw",
+        "quantity": 1
+      }
+    ],
+    "gold": 100,
+    "unlockProficiency": 60
+  },
+  {
+    "id": "battle_potion",
+    "resultId": "battle_potion",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "hp_potion_l",
+        "quantity": 2
+      },
+      {
+        "itemId": "wolf_claw",
+        "quantity": 1
+      }
+    ],
+    "gold": 200,
+    "unlockProficiency": 140
+  },
+  {
+    "id": "lord_sword",
+    "resultId": "lord_sword",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "decent_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "wolf_claw",
+        "quantity": 2
+      }
+    ],
+    "gold": 300,
+    "unlockProficiency": 280
+  },
+  {
+    "id": "kings_feast",
+    "resultId": "kings_feast",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "grilled_meat",
+        "quantity": 3
+      },
+      {
+        "itemId": "mushroom_soup",
+        "quantity": 1
+      }
+    ],
+    "gold": 0,
+    "unlockProficiency": 300
+  }
+]
