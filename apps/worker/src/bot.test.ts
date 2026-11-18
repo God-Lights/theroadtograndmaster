@@ -189,7 +189,8 @@ describe('던전·인벤토리·스킬·상점', () => {
       const done = await press('rr');
       expect(embedText(done)).toContain('결과');
     } else {
-      expect(adv.json.data.embeds[0].title).toContain('지하 묘지'); // 몬스터 방: 전투 화면으로
+      expect(customIds(adv).some((x) => x.startsWith('bt:'))).toBe(true); // 몬스터 방: 전투 화면으로 (공격·방어 버튼)
+      expect(adv.json.data.embeds[0].title).toContain('1라운드');
     }
   });
   it('인벤토리에서 장비를 해제/장착한다', async () => {
