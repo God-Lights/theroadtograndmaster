@@ -549,9 +549,11 @@ describe('탐험 (지역별 몬스터)', () => {
       expect(r.json.state.combatants.find((c: any) => c.id === 'enemy').name).toBe(mobById(r.json.mobId)!.name);
     }
     for (const [biome, mobs] of Object.entries(seen)) for (const m of mobs) expect(biomeMobs(biome), `${biome}:${m}`).toContain(m);
-    expect([...seen.plains!].sort()).toEqual(['goblin', 'zombie']);
-    expect([...seen.forest!].sort()).toEqual(['orc', 'werewolf']);
-    expect([...seen.graveyard!].sort()).toEqual(['richmond', 'skeleton']); // 보스는 탐험으로 나오지 않는다
+    // 지역마다 출현 몹이 서로 다르고, 지역 몹 종류가 여럿이다 (보스는 탐험으로 나오지 않는다)
+    for (const biome of Object.keys(seen)) expect(seen[biome]!.size, biome).toBeGreaterThanOrEqual(3);
+    expect([...seen.plains!].some((m) => seen.forest!.has(m) || seen.graveyard!.has(m))).toBe(false);
+    expect([...seen.forest!].some((m) => seen.graveyard!.has(m))).toBe(false);
+    expect(seen.graveyard!.has('rich')).toBe(false);
   });
   it('일반 몹은 직접 고를 수 없고(탐험만), 보스는 도전으로 만난다', async () => {
     expect((await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' })).json.error).toBe('use_explore');

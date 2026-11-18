@@ -11,7 +11,10 @@
     },
     "mobs": [
       "zombie",
-      "goblin"
+      "goblin",
+      "slime",
+      "wild_boar",
+      "bandit"
     ],
     "spawns": [
       {
@@ -21,6 +24,18 @@
       {
         "mobId": "goblin",
         "weight": 4
+      },
+      {
+        "mobId": "slime",
+        "weight": 5
+      },
+      {
+        "mobId": "wild_boar",
+        "weight": 3
+      },
+      {
+        "mobId": "bandit",
+        "weight": 2
       }
     ],
     "recommendedProficiency": 0,
@@ -38,7 +53,10 @@
     },
     "mobs": [
       "orc",
-      "werewolf"
+      "werewolf",
+      "giant_spider",
+      "treant",
+      "brown_bear"
     ],
     "spawns": [
       {
@@ -47,6 +65,18 @@
       },
       {
         "mobId": "werewolf",
+        "weight": 2
+      },
+      {
+        "mobId": "giant_spider",
+        "weight": 3
+      },
+      {
+        "mobId": "treant",
+        "weight": 2
+      },
+      {
+        "mobId": "brown_bear",
         "weight": 2
       }
     ],
@@ -66,6 +96,9 @@
     "mobs": [
       "skeleton",
       "richmond",
+      "ghost",
+      "bone_archer",
+      "ghoul",
       "rich"
     ],
     "spawns": [
@@ -76,6 +109,18 @@
       {
         "mobId": "richmond",
         "weight": 3
+      },
+      {
+        "mobId": "ghost",
+        "weight": 3
+      },
+      {
+        "mobId": "bone_archer",
+        "weight": 2
+      },
+      {
+        "mobId": "ghoul",
+        "weight": 2
       }
     ],
     "recommendedProficiency": 60,
@@ -96,6 +141,8 @@
       "raufaino",
       "toka_loga",
       "xenosaurs",
+      "mist_stalker",
+      "crystal_golem",
       "oppoko"
     ],
     "spawns": [
@@ -113,6 +160,14 @@
       },
       {
         "mobId": "xenosaurs",
+        "weight": 1
+      },
+      {
+        "mobId": "mist_stalker",
+        "weight": 1
+      },
+      {
+        "mobId": "crystal_golem",
         "weight": 1
       }
     ],
@@ -134,6 +189,8 @@
       "core_lord",
       "ancient_lord",
       "paka",
+      "shadow_slayer",
+      "flame_spirit",
       "fodermore"
     ],
     "spawns": [
@@ -151,6 +208,14 @@
       },
       {
         "mobId": "paka",
+        "weight": 1
+      },
+      {
+        "mobId": "shadow_slayer",
+        "weight": 1
+      },
+      {
+        "mobId": "flame_spirit",
         "weight": 1
       }
     ],
