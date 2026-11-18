@@ -180,3 +180,40 @@ a.btn{text-decoration:none}
   .bactions.sticky{position:sticky;bottom:calc(52px + env(safe-area-inset-bottom));background:var(--surf);padding:8px 0 4px;margin:0;z-index:5;box-shadow:0 -8px 10px var(--surf)}
 }
 @media(max-width:600px){.bactions.sticky .btn{flex:1 1 0;min-width:0;padding-left:2px;padding-right:2px}}
+.badge.bad{background:#ef535022;color:var(--danger)}
+.badge.good{background:#66bb6a22;color:var(--success)}
+.resources{display:flex;align-items:center;gap:12px;margin-top:5px;font-size:.72rem}
+.ap-pips{display:inline-flex;align-items:center;gap:3px}
+.ap-pips .muted{margin-right:3px}
+.ap-pips i{width:9px;height:9px;border-radius:50%;background:#2a2a50;display:inline-block}
+.ap-pips i.on{background:var(--info);box-shadow:0 0 6px #42a5f566}
+.gauge{display:inline-flex;align-items:center;gap:6px;flex:1;min-width:0}
+.gauge-bar{flex:1;height:7px;background:#111;border-radius:6px;overflow:hidden}
+.gauge-bar span{display:block;height:100%;background:linear-gradient(90deg,#7e57c2,var(--epic));transition:width .3s}
+.gauge-bar span.full{background:linear-gradient(90deg,var(--gold2),var(--gold));box-shadow:0 0 8px #ffd70088}
+.skill-pick{display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+.skill-opt{display:flex;flex-direction:column;align-items:stretch;gap:2px;text-align:left;padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font:inherit}
+.skill-opt:disabled{opacity:.45;cursor:default}
+.skill-opt.ult{border-color:var(--epic)}
+.skill-opt.ult:not(:disabled){border-color:var(--gold);box-shadow:0 0 10px #ffd70044}
+.skill-opt .row{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:.9rem}
+.skill-opt .desc{font-size:.76rem;color:var(--dim);font-weight:400}
+.skill-opt .why{font-size:.74rem;color:var(--warn);font-weight:600}
+.tag{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:10px;font-size:.62rem;font-weight:700;background:#ffffff14;color:var(--dim)}
+.tag.ult{background:#ce93d822;color:var(--epic)}
+.charge-note{background:#ce93d818;border:1px solid #ce93d855;border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:.84rem;color:var(--epic)}
+.btn-skill{background:var(--epic);color:#000}
+.btn-skill.ready{background:linear-gradient(90deg,var(--gold2),var(--gold));box-shadow:0 0 10px #ffd70099}
+.skill-desc{font-size:.75rem;color:var(--dim);line-height:1.35;margin-top:3px}
+/* 아주 좁은 화면(320~360px): 버튼 아이콘을 숨겨 글자가 한 줄에 들어오게 한다 */
+@media(max-width:360px){.bactions .btn .ico{display:none}}
+.stance{border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:.84rem;line-height:1.5;background:#ffffff0c;border:1px solid var(--border)}
+.stance-counter{background:#42a5f518;border-color:#42a5f566}
+.stance-offense{background:#ef535018;border-color:#ef535066}
+.stance-head{margin-bottom:2px}
+.stance-counter .stance-head{color:var(--info)}
+.stance-offense .stance-head{color:var(--danger)}
+.stance-hint{margin-top:4px;font-size:.78rem;color:var(--dim)}
+.stance-hint b{color:var(--text)}
+.dungeon-lock{opacity:.55}
+.cost-line{font-size:.78rem;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}

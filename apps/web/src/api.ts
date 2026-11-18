@@ -1,5 +1,5 @@
 import type { BattleState, LogEntry } from '@rtgm/engine';
-import type { CombatStats, ItemData, MobData } from '@rtgm/data';
+import type { CombatStats, ItemData, MobData, SkillData } from '@rtgm/data';
 
 /** 로그인·로그아웃·회원가입 화면은 GL Account가 담당한다. 로그인 후 현재 주소로 돌아온다. */
 export const ACCOUNT_ORIGIN = 'https://account.officialgl.com';
@@ -32,6 +32,17 @@ export type CraftResult = InventorySnapshot & {
   proficiencyGained: number;
 };
 
+export interface SkillView extends SkillData {
+  unlocked: boolean;
+  equipped: boolean;
+}
+export interface SkillsPayload {
+  slots: number;
+  ultimateSlots: number;
+  proficiency: number;
+  skills: SkillView[];
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -46,6 +57,14 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_equippable: () => '장착할 수 없는 아이템입니다.',
   no_item: () => '아이템이 없습니다.',
   invalid_target: () => '공격할 수 없는 대상입니다.',
+  dungeon_locked: (d) => `숙련도 ${d.required ?? ''} 이상이어야 입장할 수 있어요.`,
+  key_missing: () => '이 보스에 도전하려면 열쇠가 필요해요.',
+  entry_failed: () => '입장에 실패했어요. 다시 시도해 주세요.',
+  skill_locked: (d) => `숙련도 ${d.required ?? ''} 이상이 되면 장착할 수 있어요.`,
+  slots_full: (d) => `일반 스킬 슬롯(${d.slots ?? 4}개)이 가득 찼어요. 하나를 해제해 주세요.`,
+  unknown_skill: () => '알 수 없는 스킬입니다.',
+  skill_unavailable: (d) =>
+    ({ ap: 'AP가 부족해요.', cooldown: '아직 쿨다운 중이에요.', gauge: '궁극기 게이지가 부족해요.', charging: '충전 중에는 다른 스킬을 쓸 수 없어요.' } as Record<string, string>)[String(d.reason)] ?? '쓸 수 없는 스킬입니다.',
   invalid_request: () => '잘못된 요청입니다.',
   recipe_locked: (d) => `숙련도 ${d.required ?? ''} 이상이 되면 제작할 수 있어요.`,
   material_equipped: () => '장착 중인 아이템은 재료로 쓸 수 없어요. 먼저 해제해 주세요.',
@@ -99,7 +118,11 @@ export const api = {
   sell: (itemId: string, quantity: number) => post<InventorySnapshot>('/api/inventory/sell', { itemId, quantity }),
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
   craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
-  startBattle: (mobId: string) => post<{ id: string; state: BattleState }>('/api/battle', { mobId }),
-  round: (id: string, action: 'attack' | 'guard' | 'item', itemId?: string, targetId?: string) =>
-    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, { action, itemId, targetId }),
+  startBattle: (mobId: string) =>
+    post<{ id: string; state: BattleState; paid: { gold: number; key: string | null } }>('/api/battle', { mobId }),
+  round: (id: string, body: { action: 'attack' | 'guard' | 'item' | 'skill'; itemId?: string; targetId?: string; skillId?: string }) =>
+    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, body),
+  skills: () => request<SkillsPayload>('/api/skills'),
+  equipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/equip', { skillId }),
+  unequipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/unequip', { skillId }),
 };

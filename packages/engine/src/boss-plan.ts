@@ -36,6 +36,8 @@ function usable(state: BattleState, id: string, def: PatternDef): boolean {
   if (def.kind === 'charge_attack') {
     return rt.phase >= def.minPhase && (rt.sinceUsed[id] ?? 99) >= def.minGap;
   }
+  // 거울 복제는 되돌려 줄 피해가 있을 때만
+  if (def.kind === 'mirror') return rt.lastPlayerDamage > 0;
   return true;
 }
 

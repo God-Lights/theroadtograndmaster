@@ -1,0 +1,621 @@
+[
+ {
+  "id": "strike",
+  "name": "강타",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 0,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 130
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "공격력 130% 피해"
+ },
+ {
+  "id": "weakpoint",
+  "name": "약점 공격",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 1,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 100,
+    "vsVulnerablePct": 40
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "공격력 100% 피해. 취약한 대상에게는 +40% 피해"
+ },
+ {
+  "id": "bleed",
+  "name": "출혈의 칼날",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 80
+   },
+   {
+    "kind": "status",
+    "to": "target",
+    "status": {
+     "id": "bleed",
+     "turns": 3,
+     "startsNextRound": true,
+     "dotAtkPct": 25,
+     "harmful": true
+    }
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "80% 피해 + 출혈 3라운드(라운드마다 공격력 25%)"
+ },
+ {
+  "id": "multi",
+  "name": "연속 베기",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 3,
+  "cooldown": 2,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 60,
+    "hits": 3
+   }
+  ],
+  "unlockProficiency": 30,
+  "description": "60% × 3회 연속 공격"
+ },
+ {
+  "id": "pierce",
+  "name": "관통 일격",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 3,
+  "cooldown": 2,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 90,
+    "ignoreDefPct": 50
+   }
+  ],
+  "unlockProficiency": 450,
+  "description": "90% 피해. 대상 방어력의 50%를 무시"
+ },
+ {
+  "id": "focus",
+  "name": "일점 집중",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 3,
+  "cooldown": 3,
+  "priority": "delayed",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 220
+   }
+  ],
+  "unlockProficiency": 660,
+  "description": "이번 라운드는 힘을 모으고(행동 불가), 다음 라운드 가장 마지막에 220% 피해"
+ },
+ {
+  "id": "frenzy",
+  "name": "전투 광란",
+  "role": "딜러",
+  "ultimate": false,
+  "apCost": 1,
+  "cooldown": 3,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "frenzy",
+     "atkMult": 1.25,
+     "takenMult": 1.1,
+     "turns": 2
+    }
+   }
+  ],
+  "unlockProficiency": 280,
+  "description": "2라운드간 공격력 +25%, 받는 피해 +10%"
+ },
+ {
+  "id": "bash",
+  "name": "방패 강타",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 0,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 90,
+    "scale": "def"
+   },
+   {
+    "kind": "status",
+    "to": "target",
+    "status": {
+     "id": "weaken",
+     "atkMult": 0.9,
+     "turns": 2,
+     "harmful": true
+    }
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "방어력 기반 90% 피해 + 대상 공격력 -10%(2라운드)"
+ },
+ {
+  "id": "counter",
+  "name": "반격 태세",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "counter",
+     "reflectPct": 0.8,
+     "turns": 1
+    }
+   }
+  ],
+  "unlockProficiency": 30,
+  "description": "이번 라운드 받은 피해의 80%를 공격자에게 반사 (공격받지 않으면 효과 없음)"
+ },
+ {
+  "id": "ironwall",
+  "name": "철벽",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 3,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "ironwall",
+     "takenMult": 0.5,
+     "turns": 1
+    }
+   },
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "ironwall_next",
+     "takenMult": 0.8,
+     "turns": 1,
+     "startsNextRound": true
+    }
+   }
+  ],
+  "unlockProficiency": 100,
+  "description": "이번 라운드 받는 피해 -50%, 다음 라운드 -20%"
+ },
+ {
+  "id": "roar",
+  "name": "위협의 포효",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 3,
+  "cooldown": 3,
+  "priority": "normal",
+  "target": "all_enemies",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "target",
+    "status": {
+     "id": "weaken",
+     "atkMult": 0.85,
+     "turns": 2,
+     "harmful": true
+    }
+   }
+  ],
+  "unlockProficiency": 280,
+  "description": "적 전체 공격력 -15%(2라운드)"
+ },
+ {
+  "id": "will",
+  "name": "단단한 의지",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 1,
+  "cooldown": 3,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "cleanse"
+   },
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "will",
+     "defMult": 1.2,
+     "turns": 2
+    }
+   }
+  ],
+  "unlockProficiency": 450,
+  "description": "해로운 효과를 모두 해제하고 방어력 +20%(2라운드)"
+ },
+ {
+  "id": "quake",
+  "name": "대지 가르기",
+  "role": "탱커",
+  "ultimate": false,
+  "apCost": 3,
+  "cooldown": 3,
+  "priority": "normal",
+  "target": "all_enemies",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 70,
+    "scale": "def"
+   }
+  ],
+  "unlockProficiency": 660,
+  "description": "적 전체에 방어력 기반 70% 피해"
+ },
+ {
+  "id": "heal",
+  "name": "치유",
+  "role": "힐러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 0,
+  "priority": "last",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "heal",
+    "scale": "int",
+    "coef": 150
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "지력 150% 만큼 HP 회복 (라운드 마지막에 처리)"
+ },
+ {
+  "id": "shield",
+  "name": "보호막",
+  "role": "힐러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "shield",
+    "maxHpPct": 15,
+    "turns": 2
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "최대 HP 15%의 보호막 (2라운드)"
+ },
+ {
+  "id": "firstaid",
+  "name": "응급 처치",
+  "role": "힐러",
+  "ultimate": false,
+  "apCost": 1,
+  "cooldown": 1,
+  "priority": "last",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "heal",
+    "scale": "int",
+    "coef": 100,
+    "doubleBelowPct": 30
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "지력 100% 회복. HP 30% 이하면 2배"
+ },
+ {
+  "id": "regen",
+  "name": "재생의 축복",
+  "role": "힐러",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "last",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "regen",
+     "turns": 3,
+     "startsNextRound": true,
+     "hotIntPct": 50
+    }
+   }
+  ],
+  "unlockProficiency": 100,
+  "description": "다음 라운드부터 3라운드간 지력 50%씩 회복"
+ },
+ {
+  "id": "purify",
+  "name": "정화",
+  "role": "힐러",
+  "ultimate": false,
+  "apCost": 1,
+  "cooldown": 2,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "cleanse",
+    "count": 2
+   }
+  ],
+  "unlockProficiency": 280,
+  "description": "해로운 효과 2개를 해제"
+ },
+ {
+  "id": "morale",
+  "name": "사기 고취",
+  "role": "서포터",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "morale",
+     "atkMult": 1.2,
+     "turns": 2
+    }
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "2라운드간 공격력 +20%"
+ },
+ {
+  "id": "analyze",
+  "name": "약점 분석",
+  "role": "서포터",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "first",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "target",
+    "status": {
+     "id": "vulnerable",
+     "takenMult": 1.15,
+     "turns": 3,
+     "harmful": true
+    }
+   }
+  ],
+  "unlockProficiency": 0,
+  "description": "대상이 3라운드간 받는 피해 +15% (취약)"
+ },
+ {
+  "id": "snare",
+  "name": "둔화의 덫",
+  "role": "서포터",
+  "ultimate": false,
+  "apCost": 2,
+  "cooldown": 2,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "target",
+    "status": {
+     "id": "slow",
+     "spdMult": 0.75,
+     "turns": 2,
+     "harmful": true
+    }
+   }
+  ],
+  "unlockProficiency": 30,
+  "description": "대상 속도 -25%(2라운드). 행동 순서가 뒤로 밀린다"
+ },
+ {
+  "id": "execute",
+  "name": "처형",
+  "role": "딜러",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "normal",
+  "target": "enemy",
+  "effects": [
+   {
+    "kind": "damage",
+    "coef": 200,
+    "executeBelowPct": 30,
+    "executeCoef": 350
+   }
+  ],
+  "unlockProficiency": 150,
+  "description": "200% 피해. 대상 HP 30% 이하면 350%"
+ },
+ {
+  "id": "overdrive",
+  "name": "극한 개방",
+  "role": "딜러",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "overdrive",
+     "atkMult": 1.4,
+     "apDiscount": 1,
+     "turns": 3
+    }
+   }
+  ],
+  "unlockProficiency": 150,
+  "description": "3라운드간 공격력 +40%, 모든 스킬 AP -1"
+ },
+ {
+  "id": "command",
+  "name": "전장 지휘",
+  "role": "서포터",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "ap",
+    "amount": 3
+   },
+   {
+    "kind": "cooldown_reduce",
+    "amount": 1
+   },
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "command",
+     "atkMult": 1.15,
+     "turns": 2
+    }
+   }
+  ],
+  "unlockProficiency": 150,
+  "description": "AP +3, 스킬 쿨다운 1 감소, 2라운드간 공격력 +15%"
+ },
+ {
+  "id": "unyielding",
+  "name": "불굴의 성벽",
+  "role": "탱커",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "unyielding",
+     "takenMult": 0.65,
+     "turns": 2
+    }
+   }
+  ],
+  "unlockProficiency": 910,
+  "description": "2라운드간 받는 피해 -35%"
+ },
+ {
+  "id": "lastshield",
+  "name": "최후의 방패",
+  "role": "탱커",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "first",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "status",
+    "to": "self",
+    "status": {
+     "id": "lastshield",
+     "undying": true,
+     "turns": 1
+    }
+   }
+  ],
+  "unlockProficiency": 910,
+  "description": "1라운드간 어떤 피해를 받아도 HP 1이 남는다"
+ },
+ {
+  "id": "blessing",
+  "name": "천상의 축복",
+  "role": "힐러",
+  "ultimate": true,
+  "apCost": 0,
+  "cooldown": 0,
+  "priority": "last",
+  "target": "self",
+  "effects": [
+   {
+    "kind": "heal",
+    "scale": "int",
+    "coef": 200
+   },
+   {
+    "kind": "cleanse"
+   },
+   {
+    "kind": "shield",
+    "maxHpPct": 10,
+    "turns": 2
+   }
+  ],
+  "unlockProficiency": 910,
+  "description": "지력 200% 회복 + 해로운 효과 해제 + 최대 HP 10% 보호막"
+ }
+]

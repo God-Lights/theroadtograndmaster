@@ -1,4 +1,6 @@
-import { STARTER_GOLD, STARTER_ITEMS, computeStats, itemById, type CombatStats, type ItemData } from '@rtgm/data';
+import {
+  DEFAULT_LOADOUT, STARTER_GOLD, STARTER_ITEMS, computeStats, itemById, type CombatStats, type ItemData,
+} from '@rtgm/data';
 
 export interface InventoryRow {
   item_id: string;
@@ -6,10 +8,29 @@ export interface InventoryRow {
   equipped: number;
 }
 
-/** 캐릭터가 없으면 만든다 (시작 골드 + 낡은 검·갑옷 장착). 이미 있으면 SELECT 한 번으로 끝난다. */
+/** 기본 스킬을 넣고 '초기화 완료'를 표시한다 (이미 장착한 게 있어도 덮어쓰지 않는다) */
+async function initSkills(db: D1Database, userId: string): Promise<void> {
+  await db.batch([
+    ...DEFAULT_LOADOUT.map((id) =>
+      db.prepare('INSERT OR IGNORE INTO skill_loadout (user_id, skill_id) VALUES (?, ?)').bind(userId, id),
+    ),
+    db.prepare('UPDATE characters SET skills_initialized = 1 WHERE user_id = ?').bind(userId),
+  ]);
+}
+
+/**
+ * 캐릭터가 없으면 만든다 (시작 골드 + 낡은 검·갑옷 장착 + 기본 스킬).
+ * 이미 있고 스킬까지 초기화돼 있으면 SELECT 한 번으로 끝난다.
+ */
 export async function ensureCharacter(db: D1Database, userId: string): Promise<void> {
-  const existing = await db.prepare('SELECT 1 AS x FROM characters WHERE user_id = ?').bind(userId).first();
-  if (existing) return;
+  const existing = await db
+    .prepare('SELECT skills_initialized AS init FROM characters WHERE user_id = ?')
+    .bind(userId)
+    .first<{ init: number }>();
+  if (existing) {
+    if (existing.init === 0) await initSkills(db, userId);
+    return;
+  }
 
   const res = await db
     .prepare('INSERT OR IGNORE INTO characters (user_id, gold, created_at) VALUES (?, ?, ?)')
@@ -23,6 +44,7 @@ export async function ensureCharacter(db: D1Database, userId: string): Promise<v
           .bind(userId, id),
       ),
     );
+    await initSkills(db, userId);
   }
 }
 

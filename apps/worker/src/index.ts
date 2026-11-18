@@ -5,6 +5,7 @@ import { battle } from './battle';
 import { craft } from './craft';
 import { ensureCharacter, getCharacter } from './character';
 import { inventory } from './inventory';
+import { skills } from './skills';
 
 export const app = new Hono<AppEnv>();
 
@@ -51,6 +52,7 @@ app.get('/api/users/:id', async (c) => {
 
 app.route('/api', inventory);
 app.route('/api', craft);
+app.route('/api', skills);
 app.route('/api', battle);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.

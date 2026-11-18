@@ -63,7 +63,7 @@ describe('약화의 저주', () => {
   it('저주가 걸리면 플레이어 공격력이 낮아진다', () => {
     let s = createBattle([player(), boss({ spd: 99 })], 1, withPatterns(['curse']));
     s = resolveRound(s, guard).state; // 보스가 저주를 건다
-    expect(s.combatants.find((c) => c.id === 'p')!.statuses).toEqual([{ id: 'weaken', until: 3, atkMult: 0.5 }]);
+    expect(s.combatants.find((c) => c.id === 'p')!.statuses).toEqual([{ id: 'weaken', until: 3, atkMult: 0.5, harmful: true }]);
     const r = resolveRound(s, attack());
     expect(r.log.find((l) => l.type === 'attack' && l.actorId === 'p')!.amount).toBe(15); // 30 × 0.5
   });
