@@ -42,13 +42,17 @@ app.use('/api/*', async (c, next) => {
  */
 app.post('/discord/interactions', async (c) => {
   const publicKey = c.env.DISCORD_PUBLIC_KEY;
-  if (!publicKey || !c.env.BOT_API_KEY) return c.json({ error: 'bot_disabled' }, 404);
+  // 공개 키가 없으면 어떤 요청도 검증할 수 없다 (디스코드의 URL 검증도 실패하므로 원인을 알 수 있게 안내를 남긴다)
+  if (!publicKey) return c.json({ error: 'bot_disabled', reason: 'DISCORD_PUBLIC_KEY 가 설정되지 않았습니다' }, 503);
   const body = await c.req.text();
   const ok = await verifyDiscordSignature(publicKey, c.req.header('X-Signature-Ed25519') ?? '', c.req.header('X-Signature-Timestamp') ?? '', body);
   if (!ok) return c.text('invalid request signature', 401);
-  let interaction: unknown;
+  let interaction: { type?: number } | null;
   try { interaction = JSON.parse(body); } catch { return c.text('bad request', 400); }
+  // PING(엔드포인트 검증)은 서비스 키 없이도 응답한다. 게임 명령은 BOT_API_KEY 가 있어야 한다.
+  if (interaction?.type === 1) return c.json({ type: 1 });
   const botKey = c.env.BOT_API_KEY;
+  if (!botKey) return c.json({ type: 4, data: { flags: 64, content: '⚠️ 봇 설정이 끝나지 않았어요. (운영자: BOT_API_KEY 시크릿을 설정하고 다시 배포해 주세요)' } });
   const callFor = (discordId: string) => async (method: string, path: string, payload?: unknown) => {
     const res = await app.request(path, {
       method,
