@@ -2,6 +2,7 @@ import itemsJson from '../data/items.json';
 import mobsJson from '../data/mobs.json';
 import tiersJson from '../data/proficiency-tiers.json';
 import recipesJson from '../data/recipes.json';
+import bossesJson from '../data/bosses.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -109,3 +110,10 @@ export const recipeById = (id: string): RecipeData | undefined => RECIPES.find((
 
 /** 제작 1회로 얻는 숙련도 */
 export const CRAFT_PROFICIENCY_GAIN = 3;
+
+/**
+ * 보스 패턴 스크립트 (몹 ID → 스크립트). 형식은 @rtgm/engine 의 BossScript 에서 bossId 를 뺀 것이다.
+ * 데이터 패키지는 엔진에 의존하지 않으므로 여기서는 구조만 열어 두고, 서버가 엔진 타입으로 변환한다.
+ */
+export const BOSS_SCRIPTS = bossesJson as unknown as Record<string, Record<string, unknown>>;
+export const bossScriptFor = (mobId: string): Record<string, unknown> | undefined => BOSS_SCRIPTS[mobId];

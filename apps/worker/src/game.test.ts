@@ -335,3 +335,42 @@ describe('제작', () => {
     expect(inv.items.find((i: any) => i.itemId === 'bread').quantity).toBe(5);
   });
 });
+
+describe('보스전 (리치)', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+
+  it('보스는 시작할 때부터 다음 행동이 예고되고, 일반 몹에는 보스 기믹이 없다', async () => {
+    const { json: rich } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    expect(rich.state.boss).toBeDefined();
+    expect(rich.state.intents.enemy.telegraph).toBeTruthy();
+    const { json: zombie } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    expect(zombie.state.boss).toBeUndefined();
+  });
+
+  it('존재하지 않거나 쓰러진 대상은 공격할 수 없다', async () => {
+    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'vessel' })).status).toBe(400); // 아직 영혼함 없음
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'player' })).status).toBe(400); // 아군
+    expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'enemy' })).status).toBe(200);
+  });
+
+  it('보스를 쓰러뜨리면 황금 리치를 받고, 같은 전투로 다시 받지 못한다', async () => {
+    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
+    st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), b.id);
+
+    let res: any;
+    for (let i = 0; i < 4; i++) {
+      res = (await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' })).json;
+      if (res.state.status !== 'ongoing') break;
+    }
+    expect(res.state.status).toBe('victory');
+    expect(res.rewards.items.map((i: any) => i.itemId)).toContain('golden_lich');
+    expect(res.rewards.proficiency).toBe(mobById('rich')!.profWin);
+    const inv = (await call('tokA', 'GET', '/api/inventory')).json;
+    expect(inv.items.find((i: any) => i.itemId === 'golden_lich').quantity).toBe(1);
+    await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' });
+    expect((await call('tokA', 'GET', '/api/inventory')).json.items.find((i: any) => i.itemId === 'golden_lich').quantity).toBe(1);
+  });
+});

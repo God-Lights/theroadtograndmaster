@@ -159,3 +159,24 @@ a.btn{text-decoration:none}
 .recipe-mats{margin-top:10px;border-top:1px solid var(--border);padding-top:4px}
 .item-pick{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto}
 .item-pick .btn{display:flex;justify-content:space-between;gap:10px;text-align:left}
+.battle-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.fighter.selectable{cursor:pointer;border:1px solid transparent;touch-action:manipulation}
+.fighter.selected{border-color:var(--gold)}
+.badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;font-size:.66rem;font-weight:600;background:#ffffff14;color:var(--dim);vertical-align:middle}
+.badge.role{background:#ce93d822;color:var(--epic)}
+.badge.target{background:var(--gold);color:#000}
+.intent{background:#ffa72614;border:1px solid #ffa72644;border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:.84rem;line-height:1.5}
+.intent.danger{background:#ef535018;border-color:#ef535066}
+.intent-head{color:var(--warn);margin-bottom:2px}
+.intent.danger .intent-head{color:var(--danger)}
+.intent-hint{margin-top:4px;font-size:.78rem;color:var(--info)}
+.minion-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.battle-stack .fighter{padding:8px 10px}
+.battle-stack .hp-bar-wrap{height:8px}
+.minion-row .fighter-name{font-size:.78rem}
+.minion-row .badge{margin-left:4px}
+@media(max-width:600px){
+  /* 보스전: 공격·방어 버튼을 하단 내비 바로 위에 고정해 스크롤 없이 누를 수 있게 한다 */
+  .bactions.sticky{position:sticky;bottom:calc(52px + env(safe-area-inset-bottom));background:var(--surf);padding:8px 0 4px;margin:0;z-index:5;box-shadow:0 -8px 10px var(--surf)}
+}
+@media(max-width:600px){.bactions.sticky .btn{flex:1 1 0;min-width:0;padding-left:2px;padding-right:2px}}

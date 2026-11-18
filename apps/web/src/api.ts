@@ -45,6 +45,7 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_owned: () => '보유하지 않은 아이템입니다.',
   not_equippable: () => '장착할 수 없는 아이템입니다.',
   no_item: () => '아이템이 없습니다.',
+  invalid_target: () => '공격할 수 없는 대상입니다.',
   invalid_request: () => '잘못된 요청입니다.',
   recipe_locked: (d) => `숙련도 ${d.required ?? ''} 이상이 되면 제작할 수 있어요.`,
   material_equipped: () => '장착 중인 아이템은 재료로 쓸 수 없어요. 먼저 해제해 주세요.',
@@ -99,6 +100,6 @@ export const api = {
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
   craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
   startBattle: (mobId: string) => post<{ id: string; state: BattleState }>('/api/battle', { mobId }),
-  round: (id: string, action: 'attack' | 'guard' | 'item', itemId?: string) =>
-    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, { action, itemId }),
+  round: (id: string, action: 'attack' | 'guard' | 'item', itemId?: string, targetId?: string) =>
+    post<{ state: BattleState; log: LogEntry[]; rewards?: Rewards }>(`/api/battle/${id}/round`, { action, itemId, targetId }),
 };

@@ -284,5 +284,70 @@
     "buy": 1500,
     "sell": 600,
     "minProficiency": 150
+  },
+  {
+    "id": "decent_shield",
+    "name": "꽤 괜찮은 방패",
+    "type": "shield",
+    "rarity": "normal",
+    "atk": 0,
+    "def": 5,
+    "hp": 0,
+    "heal": 0,
+    "buy": 400,
+    "sell": 160,
+    "minProficiency": 50
+  },
+  {
+    "id": "good_shield",
+    "name": "좋은 방패",
+    "type": "shield",
+    "rarity": "normal",
+    "atk": 0,
+    "def": 10,
+    "hp": 0,
+    "heal": 0,
+    "buy": 1000,
+    "sell": 400,
+    "minProficiency": 150
+  },
+  {
+    "id": "king_shield",
+    "name": "왕의 방패",
+    "type": "shield",
+    "rarity": "rare",
+    "atk": 0,
+    "def": 18,
+    "hp": 0,
+    "heal": 0,
+    "buy": 2500,
+    "sell": 1000,
+    "minProficiency": 300
+  },
+  {
+    "id": "plate_armor",
+    "name": "판금 갑옷",
+    "type": "armor",
+    "rarity": "rare",
+    "atk": 0,
+    "def": 0,
+    "hp": 70,
+    "heal": 0,
+    "buy": 2000,
+    "sell": 700,
+    "minProficiency": 150
+  },
+  {
+    "id": "spirit_sword",
+    "name": "영물의 검",
+    "type": "sword",
+    "rarity": "rare",
+    "atk": 30,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": 4000,
+    "sell": 1600,
+    "minProficiency": 300
   }
 ]
