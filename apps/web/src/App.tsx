@@ -1,42 +1,62 @@
-import { useEffect, useState } from 'react';
-import { api, ACCOUNT_ORIGIN, type Me } from './api';
-import { Town } from './screens/Town';
-import { Dungeon } from './screens/Dungeon';
-import { Shop } from './screens/Shop';
+import { useState } from 'react';
+import { getProfTier } from '@rtgm/data';
+import { ACCOUNT_ORIGIN } from './api';
+import { GameProvider, useGame } from './game';
+import { Icon } from './Icon';
+import type { IconName } from './icon-paths';
+import { Adventure } from './screens/Adventure';
 import { Inventory } from './screens/Inventory';
+import { Profile } from './screens/Profile';
+import { Shop } from './screens/Shop';
 
-const SCREENS = {
-  town: { label: '마을', view: Town },
-  dungeon: { label: '던전', view: Dungeon },
-  shop: { label: '상점', view: Shop },
-  inventory: { label: '인벤토리', view: Inventory },
-} as const;
+const TABS = [
+  { id: 'profile', label: '내 정보', icon: 'person', view: Profile },
+  { id: 'adventure', label: '모험', icon: 'map', view: Adventure },
+  { id: 'inventory', label: '인벤토리', icon: 'bag', view: Inventory },
+  { id: 'shop', label: '상점', icon: 'shop', view: Shop },
+] as const satisfies readonly { id: string; label: string; icon: IconName; view: () => JSX.Element | null }[];
 
-type ScreenId = keyof typeof SCREENS;
+type TabId = (typeof TABS)[number]['id'];
 
-export function App() {
-  const [screen, setScreen] = useState<ScreenId>('town');
-  const [me, setMe] = useState<Me>();
-  useEffect(() => { api.me().then(setMe).catch(() => {}); }, []);
-  const View = SCREENS[screen].view;
+function Shell() {
+  const [tab, setTab] = useState<TabId>('profile');
+  const { me } = useGame();
+  const View = TABS.find((t) => t.id === tab)!.view;
+  const mobile = typeof window !== 'undefined' && window.innerWidth <= 600;
+  const gold = me ? (mobile && me.gold >= 1000 ? `${Math.floor(me.gold / 1000)}k` : me.gold.toLocaleString()) : '';
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <div>RTGM <span>The Road to Grand Master</span></div>
+    <div>
+      <div className="top-bar">
+        <span className="logo"><Icon name="sword" className="ico-hd" /> RTGM</span>
         {me && (
-          <a className="account" href={ACCOUNT_ORIGIN} target="_blank" rel="noreferrer" title="계정 관리·로그아웃">
-            {me.nickname}
-          </a>
+          <div className="uinfo">
+            <span className="uname">{me.nickname}</span>
+            <span className="ugold">{gold}D</span>
+            <span className="utier">{getProfTier(me.proficiency).name}</span>
+          </div>
         )}
-      </header>
-      <nav className="sidebar">
-        {(Object.keys(SCREENS) as ScreenId[]).map((id) => (
-          <button key={id} className={id === screen ? 'active' : ''} onClick={() => setScreen(id)}>
-            {SCREENS[id].label}
+        <a className="btn btn-ghost account-btn" href={ACCOUNT_ORIGIN} target="_blank" rel="noreferrer">
+          계정
+        </a>
+      </div>
+      <nav className="nav-tabs">
+        {TABS.map((t) => (
+          <button key={t.id} className={`nav-tab${t.id === tab ? ' active' : ''}`} onClick={() => setTab(t.id)}>
+            <Icon name={t.icon} className="ico-nav" />
+            {t.label}
           </button>
         ))}
       </nav>
-      <main className="panel"><View /></main>
+      <div className="tab-content">{me ? <View /> : <div className="empty">불러오는 중...</div>}</div>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <GameProvider>
+      <Shell />
+    </GameProvider>
   );
 }

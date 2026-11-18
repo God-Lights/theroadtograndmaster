@@ -1,5 +1,6 @@
 import itemsJson from '../data/items.json';
 import mobsJson from '../data/mobs.json';
+import tiersJson from '../data/proficiency-tiers.json';
 
 export type ItemType = 'sword' | 'shield' | 'armor' | 'consumable' | 'material';
 
@@ -67,4 +68,24 @@ export function computeStats(equipped: readonly ItemData[]): CombatStats {
     stats.maxHp += item.hp;
   }
   return stats;
+}
+
+export interface ProficiencyTier {
+  level: number;
+  name: string;
+  /** 이 티어에 필요한 숙련도 점수 */
+  min: number;
+}
+
+/** EDRPG 숙련도 50단계 (초보자 → 최강자) */
+export const PROFICIENCY_TIERS = tiersJson as ProficiencyTier[];
+
+export function getProfTier(proficiency: number): ProficiencyTier {
+  let tier = PROFICIENCY_TIERS[0]!;
+  for (const t of PROFICIENCY_TIERS) if (proficiency >= t.min) tier = t;
+  return tier;
+}
+
+export function getNextTier(proficiency: number): ProficiencyTier | null {
+  return PROFICIENCY_TIERS.find((t) => t.min > proficiency) ?? null;
 }
