@@ -1,5 +1,5 @@
-import { Hono } from 'hono';
-import { START_AP, bossScriptFor, computeStats, dungeonById, entryCost, itemById, mobById, type MobData } from '@rtgm/data';
+import { Hono, type Context } from 'hono';
+import { START_AP, bossScriptFor, computeStats, dungeonById, entryCost, itemById, mobById, pickSpawn, type MobData } from '@rtgm/data';
 import {
   chooseEnemyAction,
   createBattle,
@@ -48,11 +48,9 @@ export function defeatRewards(mob: MobData, bonus: BonusMults = NO_BONUS): Rewar
   return { gold: 0, proficiency: Math.round(mob.profLose * bonus.proficiency), items: [] };
 }
 
-battle.post('/battle', async (c) => {
+/** 전투를 시작한다: 입장 조건(숙련도·골드·열쇠)을 확인하고 비용 차감과 전투 생성을 한 트랜잭션으로 */
+async function begin(c: Context<AppEnv>, mob: MobData, givenSeed?: number) {
   const userId = c.get('user').id;
-  const { mobId } = await c.req.json<{ mobId?: string }>();
-  const mob = mobId ? mobById(mobId) : undefined;
-  if (!mob) return c.json({ error: 'unknown mob' }, 404);
 
   // 던전 입장 조건: 숙련도(하드 제한), 입장 골드, 보스는 열쇠 1개
   const dungeon = dungeonById(mob.dungeon);
@@ -72,7 +70,7 @@ battle.post('/battle', async (c) => {
   const { proficiency } = character;
   // 장착한 스킬(숙련도가 충분한 것)을 전투 상태에 담아 간다
   const skillDefs = await battleSkills(c.env.DB, userId, proficiency);
-  const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
+  const seed = givenSeed ?? crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
 
   // 보스는 패턴 스크립트(영혼함·충전기·하수인 소환 등)를 적용하고, 일반 몹은 기본 AI를 쓴다
   const raw = bossScriptFor(mob.id);
@@ -120,7 +118,27 @@ battle.post('/battle', async (c) => {
   } catch {
     return c.json({ error: 'entry_failed' }, 409);
   }
-  return c.json({ id, state, paid: { gold: cost.gold, key: cost.key } });
+  return c.json({ id, state, mobId: mob.id, paid: { gold: cost.gold, key: cost.key } });
+}
+
+/** 보스 도전: 지역의 보스만 직접 고를 수 있다 (일반 몹은 탐험으로 만난다) */
+battle.post('/battle', async (c) => {
+  const { mobId } = await c.req.json<{ mobId?: string }>();
+  const mob = mobId ? mobById(mobId) : undefined;
+  if (!mob) return c.json({ error: 'unknown mob' }, 404);
+  if (mob.kind !== 'boss') return c.json({ error: 'use_explore' }, 400);
+  return begin(c, mob);
+});
+
+/** 탐험: 지역(바이옴)의 출현표에 따라 서버가 무작위로 몬스터를 만나게 한다 */
+battle.post('/explore', async (c) => {
+  const { biomeId } = await c.req.json<{ biomeId?: string }>();
+  const biome = biomeId ? dungeonById(biomeId) : undefined;
+  if (!biome || biome.spawns.length === 0) return c.json({ error: 'unknown_biome' }, 404);
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
+  const mob = mobById(pickSpawn(biome, seed));
+  if (!mob) return c.json({ error: 'unknown_biome' }, 404);
+  return begin(c, mob, seed);
 });
 
 battle.post('/battle/:id/round', async (c) => {

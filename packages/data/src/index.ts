@@ -159,9 +159,14 @@ export interface DungeonData {
   description: string;
   /** 이 숙련도 이상이어야 입장할 수 있다 (하드 제한) */
   minProficiency: number;
+  /** 권장 숙련도 (안내만 하고 막지는 않는다. 하드 제한은 minProficiency) */
+  recommendedProficiency: number;
   /** 전투 1회 입장 비용. 보스는 열쇠를 1개 소모하고 보스 비용을 낸다 */
   entry: { normalGold: number; bossGold: number; bossKey: string | null };
+  /** 이 지역(바이옴)에 속한 몹. 보스가 있으면 마지막이다 */
   mobs: string[];
+  /** 탐험할 때 무작위로 만나는 일반 몹과 출현 가중치 (보스는 포함하지 않는다) */
+  spawns: { mobId: string; weight: number }[];
 }
 
 export const DUNGEONS = dungeonsJson as DungeonData[];
@@ -247,3 +252,26 @@ export const PVP_RULES = {
   teamSize: 4,
   queueSeconds: 180,
 } as const;
+
+/** 탐험 한 번에 만나는 몹을 시드로 고른다 (가중치 비례) */
+export function pickSpawn(dungeon: DungeonData, seed: number): string {
+  const total = dungeon.spawns.reduce((a, b) => a + b.weight, 0);
+  let r = (mulberry32Like(seed) * total);
+  for (const sp of dungeon.spawns) {
+    r -= sp.weight;
+    if (r < 0) return sp.mobId;
+  }
+  return dungeon.spawns[dungeon.spawns.length - 1]!.mobId;
+}
+/** 지역의 몹 출현 확률 (화면·위키 표시용) */
+export const spawnRates = (dungeon: DungeonData): { mobId: string; rate: number }[] => {
+  const total = dungeon.spawns.reduce((a, b) => a + b.weight, 0);
+  return dungeon.spawns.map((s) => ({ mobId: s.mobId, rate: s.weight / total }));
+};
+/** 0~1 균등 난수 한 개 (엔진의 mulberry32 와 같은 식이라 데이터 패키지가 엔진에 의존하지 않는다) */
+function mulberry32Like(seed: number): number {
+  let t = (seed + 0x6d2b79f5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}

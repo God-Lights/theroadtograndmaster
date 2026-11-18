@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  DUNGEONS, ITEMS, MOBS, PVP_RULES, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
+  DUNGEONS, ITEMS, MOBS, PVP_RULES, spawnRates, PROFICIENCY_TIERS, RECIPES, SKILLS, SKILL_SLOTS, START_AP, ULTIMATE_SLOTS, CRAFT_PROFICIENCY_GAIN,
   dungeonById, getProfTier, itemById, mobById, skillById,
 } from '@rtgm/data';
 import {
@@ -39,7 +39,7 @@ const SECTIONS = [
   { id: 'raids', label: '레이드', desc: `${Object.keys(RAID_BOSSES).length}종 · 별 등급과 역할` },
   { id: 'pvp', label: 'PvP·팀전', desc: '1v1 랭크, 4v4 역할 팀전' },
   { id: 'skills', label: '스킬', desc: `${SKILLS.length}종 · 역할별` },
-  { id: 'dungeons', label: '던전', desc: `${DUNGEONS.length}곳 · 입장 조건` },
+  { id: 'dungeons', label: '지역(바이옴)', desc: `${DUNGEONS.length}곳 · 출현 몬스터와 입장 조건` },
   { id: 'recipes', label: '제작', desc: `${RECIPES.length}종 · 재료와 해금` },
   { id: 'tiers', label: '숙련도', desc: `${PROFICIENCY_TIERS.length}단계 칭호` },
 ];
@@ -125,7 +125,7 @@ function Guide() {
     ['쿨다운', '강한 스킬은 쓴 뒤 몇 라운드 동안 다시 쓸 수 없어요.'],
     ['방어력', '방어력이 높을수록 받는 피해가 줄어요. 단, 보스의 일부 공격은 방어를 무시해요.'],
     ['보스', '보스는 패턴과 예고가 있어요. 예고 문구를 읽고 가드·끊기·회복 타이밍을 정하세요. HP가 줄면 페이즈가 바뀌어요.'],
-    ['숙련도', `전투 승리·패배와 제작(+${CRAFT_PROFICIENCY_GAIN})으로 올라요. 숙련도에 따라 상점 품목, 제작법, 스킬, 던전 입장이 열려요.`],
+    ['숙련도', `전투 승리·패배와 제작(+${CRAFT_PROFICIENCY_GAIN})으로 올라요. 숙련도에 따라 상점 품목, 제작법, 스킬, 지역(바이옴) 입장이 열려요.`],
   ];
   return <div className="card">{rows.map(([k, v]) => <div key={k} className="wiki-def"><div className="wiki-k">{k}</div><div>{v}</div></div>)}</div>;
 }
@@ -222,7 +222,7 @@ function MobPage({ id }: { id: string }) {
         ))}
         <div className="stat-row"><span className="stat-label">골드</span><span>{mob.gold[0]}~{mob.gold[1]}D</span></div>
         <div className="stat-row"><span className="stat-label">숙련도</span><span>승리 +{mob.profWin} / 패배 +{mob.profLose}</span></div>
-        <div className="stat-row"><span className="stat-label">출현</span><span>{s.dungeon ? <A to={`/dungeons/${s.dungeon.id}`}>{s.dungeon.name}</A> : mob.dungeon}</span></div>
+        <div className="stat-row"><span className="stat-label">출현</span><span>{s.dungeon ? <A to={`/dungeons/${s.dungeon.id}`}>{s.dungeon.name}</A> : mob.dungeon}{(() => { const r = s.dungeon && spawnRates(s.dungeon).find((x) => x.mobId === mob.id); return r ? <span className="muted"> (탐험 시 {pct(r.rate)})</span> : null; })()}</span></div>
         <div className="stat-row"><span className="stat-label">입장 비용</span><span>{s.cost.gold}D{s.cost.key && <> + {itemLink(s.cost.key)} 1개</>}</span></div>
       </div>
       <div className="card">
@@ -299,19 +299,26 @@ function DungeonList() {
 
 function DungeonPage({ id }: { id: string }) {
   const d = dungeonById(id);
-  if (!d) return <div className="empty">없는 던전이에요.</div>;
+  if (!d) return <div className="empty">없는 지역이에요.</div>;
   return (
     <>
       <div className="card">
         <div className="card-title">{d.name}</div>
         <div className="note">{d.description}</div>
-        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{d.minProficiency}+</span></div>
+        <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{d.minProficiency > 0 ? `${d.minProficiency}+` : '제한 없음'}</span></div>
+        <div className="stat-row"><span className="stat-label">권장 숙련도</span><span>{d.recommendedProficiency}+ ({getProfTier(d.recommendedProficiency).name})</span></div>
         <div className="stat-row"><span className="stat-label">일반 전투</span><span>{d.entry.normalGold}D</span></div>
         <div className="stat-row"><span className="stat-label">보스 전투</span><span>{d.entry.bossGold}D{d.entry.bossKey && <> + {itemLink(d.entry.bossKey)}</>}</span></div>
       </div>
       <div className="card">
-        <div className="card-title">출현 몹</div>
-        {d.mobs.map((m) => <div key={m} className="wiki-line"><A to={`/mobs/${m}`}>{mobById(m)?.name ?? m}</A></div>)}
+        <div className="card-title">탐험하면 만나는 몬스터</div>
+        {spawnRates(d).map(({ mobId, rate }) => <div key={mobId} className="wiki-line"><A to={`/mobs/${mobId}`}>{mobById(mobId)?.name ?? mobId}</A> <span className="muted">{pct(rate)}</span></div>)}
+        {d.mobs.some((m) => mobById(m)?.kind === 'boss') && (
+          <>
+            <div className="card-title" style={{ marginTop: 10 }}>지역의 보스 (직접 도전)</div>
+            {d.mobs.filter((m) => mobById(m)?.kind === 'boss').map((m) => <div key={m} className="wiki-line"><A to={`/mobs/${m}`}>{mobById(m)?.name ?? m}</A></div>)}
+          </>
+        )}
       </div>
     </>
   );

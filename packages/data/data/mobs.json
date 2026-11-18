@@ -19,7 +19,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "plains"
   },
   {
     "id": "skeleton",
@@ -41,7 +41,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "graveyard"
   },
   {
     "id": "goblin",
@@ -67,7 +67,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "plains"
   },
   {
     "id": "orc",
@@ -93,7 +93,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "forest"
   },
   {
     "id": "richmond",
@@ -115,7 +115,7 @@
     ],
     "profWin": 6,
     "profLose": 2,
-    "dungeon": "basic"
+    "dungeon": "graveyard"
   },
   {
     "id": "werewolf",
@@ -141,7 +141,7 @@
     ],
     "profWin": 15,
     "profLose": 6,
-    "dungeon": "basic"
+    "dungeon": "forest"
   },
   {
     "id": "rich",
@@ -167,7 +167,7 @@
     ],
     "profWin": 30,
     "profLose": 12,
-    "dungeon": "basic",
+    "dungeon": "graveyard",
     "note": "영혼함과 하수인을 상대하며, 죽음의 손길은 강한 일격으로 끊을 수 있어요."
   },
   {

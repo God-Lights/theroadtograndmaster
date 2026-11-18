@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
+import { pickSpawn, spawnRates, RAID_BOSSES, BASE_STATS, BOSS_SCRIPTS, DEFAULT_LOADOUT, DUNGEONS, ITEMS, MOBS, SKILLS, SKILL_SLOTS, dungeonById, entryCost, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -130,12 +130,44 @@ describe('던전·몹 무결성', () => {
     expect(DUNGEONS.flatMap((d) => d.mobs).sort()).toEqual(MOBS.map((m) => m.id).sort());
   });
 
-  it('던전마다 보스가 마지막에 있고, 열쇠를 요구하면 그 열쇠 아이템이 존재한다', () => {
+  it('지역(바이옴)마다 다른 몬스터가 나온다: 출현표는 그 지역의 일반 몹만, 가중치는 양수, 지역끼리 겹치지 않는다', () => {
+    const seen = new Set<string>();
     for (const d of DUNGEONS) {
-      const last = MOBS.find((m) => m.id === d.mobs[d.mobs.length - 1])!;
-      expect(last.kind, d.id).toBe('boss');
+      expect(d.spawns.length, d.id).toBeGreaterThan(0);
+      for (const sp of d.spawns) {
+        const mob = MOBS.find((m) => m.id === sp.mobId);
+        expect(mob?.kind, `${d.id}:${sp.mobId}`).toBe('normal');
+        expect(mob?.dungeon).toBe(d.id);
+        expect(sp.weight).toBeGreaterThan(0);
+        expect(seen.has(sp.mobId), `중복 출현: ${sp.mobId}`).toBe(false);
+        seen.add(sp.mobId);
+      }
+      expect(spawnRates(d).reduce((a, r) => a + r.rate, 0)).toBeCloseTo(1, 9);
+      expect(d.recommendedProficiency).toBeGreaterThanOrEqual(d.minProficiency);
+    }
+    // 모든 일반 몹은 어딘가에서 만날 수 있다
+    expect([...seen].sort()).toEqual(MOBS.filter((m) => m.kind === 'normal').map((m) => m.id).sort());
+    expect(DUNGEONS.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('탐험 몹 고르기: 시드로 재현되고, 오랜 시간 돌리면 가중치 비율에 가깝다', () => {
+    const d = dungeonById('plains')!;
+    expect(pickSpawn(d, 42)).toBe(pickSpawn(d, 42));
+    const n = 20000;
+    const count: Record<string, number> = {};
+    for (let i = 1; i <= n; i++) { const id = pickSpawn(d, i * 2654435761); count[id] = (count[id] ?? 0) + 1; }
+    for (const { mobId, rate } of spawnRates(d)) expect(Math.abs((count[mobId] ?? 0) / n - rate), mobId).toBeLessThan(0.03);
+    for (const dd of DUNGEONS) for (let i = 0; i < 50; i++) expect(dd.spawns.map((x) => x.mobId)).toContain(pickSpawn(dd, i * 977 + 1));
+  });
+
+  it('보스는 지역에 하나까지, 있으면 마지막이다. 열쇠를 요구하면 그 열쇠 아이템이 존재한다', () => {
+    for (const d of DUNGEONS) {
+      const kinds = d.mobs.map((id) => MOBS.find((m) => m.id === id)!.kind);
+      expect(kinds.filter((k) => k === 'boss').length, d.id).toBeLessThanOrEqual(1);
+      if (kinds.includes('boss')) expect(kinds[kinds.length - 1], d.id).toBe('boss');
       if (d.entry.bossKey) expect(itemById(d.entry.bossKey), d.id).toBeDefined();
     }
+    expect(DUNGEONS.filter((d) => d.mobs.some((id) => MOBS.find((m) => m.id === id)!.kind === 'boss')).map((d) => d.id)).toEqual(['graveyard', 'midrealm_1', 'midrealm_2']);
   });
 
   it('입장 비용: 일반 몹은 골드만, 보스는 열쇠+골드 (기본 던전은 무료)', () => {

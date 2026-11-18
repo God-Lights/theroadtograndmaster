@@ -3,7 +3,7 @@ import { app } from './index';
 import { clearAuthCache } from './auth';
 import { createTestDb } from './test-db';
 import { rollRewards } from './battle';
-import { mobById } from '@rtgm/data';
+import { dungeonById, mobById, pickSpawn } from '@rtgm/data';
 
 const A = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', email: 'a@x.com', username: 'a', nickname: '에이', emailVerified: true };
 const B = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', email: 'b@x.com', username: 'b', nickname: '비', emailVerified: true };
@@ -34,6 +34,16 @@ async function call(token: string, method: string, path: string, body?: unknown)
     env,
   );
   return { status: res.status, json: (await res.json()) as any };
+}
+/** 일반 몹은 탐험으로만 만난다. 테스트에서는 원하는 몹이 나오는 시드를 찾아 난수를 고정하고, 보스는 직접 도전한다. */
+async function fight(mobId: string, token = 'tokA') {
+  const mob = mobById(mobId)!;
+  if (mob.kind === 'boss') return call(token, 'POST', '/api/battle', { mobId });
+  const biome = dungeonById(mob.dungeon)!;
+  let seed = 1;
+  while (pickSpawn(biome, seed) !== mobId) seed++;
+  const spy = vi.spyOn(crypto, 'getRandomValues').mockImplementationOnce(((arr: Uint32Array) => { arr[0] = seed; return arr; }) as never);
+  try { return await call(token, 'POST', '/api/explore', { biomeId: biome.id }); } finally { spy.mockRestore(); }
 }
 const setGold = (id: string, gold: number) => sqlite.prepare('UPDATE characters SET gold = ? WHERE user_id = ?').run(gold, id);
 const setProf = (id: string, p: number) => sqlite.prepare('UPDATE characters SET proficiency = ? WHERE user_id = ?').run(p, id);
@@ -160,13 +170,13 @@ describe('전투 연결', () => {
   it('장착 장비가 전투 스탯에 반영된다', async () => {
     give(A.id, 'decent_sword');
     await call('tokA', 'POST', '/api/inventory/equip', { itemId: 'decent_sword' });
-    const { json } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    const { json } = await fight('zombie');
     const me = json.state.combatants.find((c: any) => c.id === 'player');
     expect(me.stats).toMatchObject({ atk: 14, maxHp: 110 });
   });
 
   it('아이템 사용은 보유 수량을 소모하고, 없으면 거부된다', async () => {
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'orc' });
+    const { json: b } = await fight('orc');
     expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'item', itemId: 'bread' })).status).toBe(400);
     give(A.id, 'bread', 1);
     expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'item', itemId: 'bread' })).status).toBe(200);
@@ -176,7 +186,7 @@ describe('전투 연결', () => {
   it('승리 보상은 한 번만 지급된다', async () => {
     setProf(A.id, 0);
     sqlite.prepare("UPDATE inventory SET quantity = 1 WHERE user_id = ?").run(A.id);
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    const { json: b } = await fight('zombie');
     // 적을 거의 죽은 상태로 만들어 한 번에 승리하게 한다
     const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
     st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
@@ -205,7 +215,7 @@ describe('전투 연결', () => {
 
   it('다른 사용자의 전투는 조작할 수 없다', async () => {
     await call('tokB', 'GET', '/api/me');
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    const { json: b } = await fight('zombie');
     expect((await call('tokB', 'POST', `/api/battle/${b.id}/round`, { action: 'attack' })).status).toBe(404);
   });
 });
@@ -226,7 +236,7 @@ describe('전투 숙련도', () => {
   beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
 
   const finishBattle = async (mobId: string, playerHp: number, enemyHp: number) => {
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId });
+    const { json: b } = await fight(mobId);
     const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
     st.combatants.find((c: any) => c.id === 'player').hp = playerHp;
     st.combatants.find((c: any) => c.id === 'enemy').hp = enemyHp;
@@ -340,22 +350,22 @@ describe('보스전 (리치)', () => {
   beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
 
   it('보스는 시작할 때부터 다음 행동이 예고되고, 일반 몹에는 보스 기믹이 없다', async () => {
-    const { json: rich } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    const { json: rich } = await fight('rich');
     expect(rich.state.boss).toBeDefined();
     expect(rich.state.intents.enemy.telegraph).toBeTruthy();
-    const { json: zombie } = await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' });
+    const { json: zombie } = await fight('zombie');
     expect(zombie.state.boss).toBeUndefined();
   });
 
   it('존재하지 않거나 쓰러진 대상은 공격할 수 없다', async () => {
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    const { json: b } = await fight('rich');
     expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'vessel' })).status).toBe(400); // 아직 영혼함 없음
     expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'player' })).status).toBe(400); // 아군
     expect((await call('tokA', 'POST', `/api/battle/${b.id}/round`, { action: 'attack', targetId: 'enemy' })).status).toBe(200);
   });
 
   it('보스를 쓰러뜨리면 황금 리치를 받고, 같은 전투로 다시 받지 못한다', async () => {
-    const { json: b } = await call('tokA', 'POST', '/api/battle', { mobId: 'rich' });
+    const { json: b } = await fight('rich');
     const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(b.id) as any).state);
     st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
     sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), b.id);
@@ -443,7 +453,7 @@ describe('스킬 장착', () => {
 
 describe('스킬 전투', () => {
   beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
-  const start = async (mob = 'orc') => (await call('tokA', 'POST', '/api/battle', { mobId: mob })).json;
+  const start = async (mob = 'orc') => (await fight(mob)).json;
   const round = (id: string, body: object) => call('tokA', 'POST', `/api/battle/${id}/round`, body);
   const setState = (id: string, fn: (st: any) => void) => {
     const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(id) as any).state);
@@ -524,9 +534,43 @@ describe('스킬 전투', () => {
   });
 });
 
+describe('탐험 (지역별 몬스터)', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+  const biomeMobs = (id: string) => dungeonById(id)!.spawns.map((s) => s.mobId);
+  it('탐험하면 그 지역의 출현표에 있는 몹만 만나고, 지역마다 다르다', async () => {
+    const seen: Record<string, Set<string>> = { plains: new Set(), forest: new Set(), graveyard: new Set() };
+    for (let i = 0; i < 40; i++) for (const biome of Object.keys(seen)) {
+      const r = await call('tokA', 'POST', '/api/explore', { biomeId: biome });
+      expect(r.status).toBe(200);
+      seen[biome]!.add(r.json.mobId);
+      expect(r.json.state.combatants.find((c: any) => c.id === 'enemy').name).toBe(mobById(r.json.mobId)!.name);
+    }
+    for (const [biome, mobs] of Object.entries(seen)) for (const m of mobs) expect(biomeMobs(biome), `${biome}:${m}`).toContain(m);
+    expect([...seen.plains!].sort()).toEqual(['goblin', 'zombie']);
+    expect([...seen.forest!].sort()).toEqual(['orc', 'werewolf']);
+    expect([...seen.graveyard!].sort()).toEqual(['richmond', 'skeleton']); // 보스는 탐험으로 나오지 않는다
+  });
+  it('일반 몹은 직접 고를 수 없고(탐험만), 보스는 도전으로 만난다', async () => {
+    expect((await call('tokA', 'POST', '/api/battle', { mobId: 'zombie' })).json.error).toBe('use_explore');
+    expect((await call('tokA', 'POST', '/api/battle', { mobId: 'rich' })).status).toBe(200);
+    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'nowhere' })).status).toBe(404);
+  });
+  it('중간계 지역은 숙련도 제한과 입장 골드가 적용된다 (탐험도 동일)', async () => {
+    const low = await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' });
+    expect(low.status).toBe(403);
+    expect(low.json).toMatchObject({ error: 'dungeon_locked', required: 800 });
+    setProf(A.id, 900); setGold(A.id, 150);
+    const ok = await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' });
+    expect(ok.status).toBe(200);
+    expect(biomeMobs('midrealm_1')).toContain(ok.json.mobId);
+    expect((await call('tokA', 'GET', '/api/inventory')).json.gold).toBe(50); // 입장 100D
+    expect((await call('tokA', 'POST', '/api/explore', { biomeId: 'midrealm_1' })).json.error).toBe('not_enough_gold');
+  });
+});
+
 describe('던전 입장', () => {
   beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
-  const start = (mobId: string) => call('tokA', 'POST', '/api/battle', { mobId });
+  const start = (mobId: string) => fight(mobId);
   const battles = () => (sqlite.prepare('SELECT COUNT(*) AS n FROM battles').get() as any).n as number;
   const gold = async () => (await call('tokA', 'GET', '/api/inventory')).json.gold as number;
   const keys = async () => (((await call('tokA', 'GET', '/api/inventory')).json.items as any[]).find((i) => i.itemId === 'midrealm_key')?.quantity ?? 0) as number;

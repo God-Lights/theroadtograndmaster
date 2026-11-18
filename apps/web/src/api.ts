@@ -202,6 +202,8 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   match_active: () => '진행 중인 대전에서는 나갈 수 없어요.',
   not_in_match: () => '대전에 참가 중이 아니에요.',
   taunted: () => '상대가 도발 중이에요. 도발한 상대만 노릴 수 있어요.',
+  use_explore: () => '일반 몬스터는 지역을 탐험해서 만나요.',
+  unknown_biome: () => '알 수 없는 지역이에요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -249,6 +251,8 @@ export const api = {
   sell: (itemId: string, quantity: number) => post<InventorySnapshot>('/api/inventory/sell', { itemId, quantity }),
   buy: (itemId: string, quantity = 1) => post<InventorySnapshot>('/api/shop/buy', { itemId, quantity }),
   craft: (recipeId: string) => post<CraftResult>('/api/craft', { recipeId }),
+  explore: (biomeId: string) =>
+    post<{ id: string; state: BattleState; mobId: string; paid: { gold: number; key: string | null } }>('/api/explore', { biomeId }),
   startBattle: (mobId: string) =>
     post<{ id: string; state: BattleState; paid: { gold: number; key: string | null } }>('/api/battle', { mobId }),
   round: (id: string, body: { action: 'attack' | 'guard' | 'item' | 'skill'; itemId?: string; targetId?: string; skillId?: string }) =>

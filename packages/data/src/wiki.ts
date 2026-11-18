@@ -173,7 +173,7 @@ export interface WikiEntry {
   hint: string;
 }
 
-export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '던전', recipe: '제작', raid: '레이드' };
+export const WIKI_KIND_LABEL: Record<WikiKind, string> = { item: '아이템', mob: '몹·보스', skill: '스킬', dungeon: '지역', recipe: '제작', raid: '레이드' };
 
 /** 위키의 모든 항목 (검색 색인) */
 export function wikiEntries(): WikiEntry[] {
