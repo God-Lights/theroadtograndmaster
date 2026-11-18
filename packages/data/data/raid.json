@@ -498,8 +498,8 @@
       "spd": 8,
       "minProficiency": 1000,
       "gold": [
-        600,
-        1000
+        1200,
+        2000
       ],
       "profWin": 60,
       "profLose": 15,
@@ -660,8 +660,8 @@
       "spd": 9,
       "minProficiency": 1500,
       "gold": [
-        1200,
-        2000
+        3000,
+        5000
       ],
       "profWin": 90,
       "profLose": 22,
@@ -855,8 +855,8 @@
       "spd": 9,
       "minProficiency": 1800,
       "gold": [
-        1500,
-        2500
+        8000,
+        12000
       ],
       "profWin": 120,
       "profLose": 30,

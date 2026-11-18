@@ -562,11 +562,11 @@ describe('탐험 (지역별 몬스터)', () => {
     const low = await go('midrealm_1');
     expect(low.status).toBe(403);
     expect(low.json).toMatchObject({ error: 'dungeon_locked', required: 800 });
-    setProf(A.id, 900); setGold(A.id, 150);
+    setProf(A.id, 900); setGold(A.id, 40);
     const ok = await go('midrealm_1');
     expect(ok.status).toBe(200);
     expect(biomeMobs('midrealm_1')).toContain(ok.json.mobId);
-    expect((await call('tokA', 'GET', '/api/inventory')).json.gold).toBe(50); // 입장 100D
+    expect((await call('tokA', 'GET', '/api/inventory')).json.gold).toBe(10); // 입장 30D
     expect((await go('midrealm_1')).json.error).toBe('not_enough_gold');
   });
 });
@@ -619,17 +619,17 @@ describe('던전 입장', () => {
 
   it('일반 몹은 입장 골드만 내고, 부족하면 전투가 생성되지 않는다', async () => {
     setProf(A.id, 800);
-    setGold(A.id, 50);
+    setGold(A.id, 10);
     const no = await start('lappus');
     expect(no.status).toBe(400);
-    expect(no.json).toMatchObject({ error: 'not_enough_gold', required: 100 });
-    expect(await gold()).toBe(50);
+    expect(no.json).toMatchObject({ error: 'not_enough_gold', required: 30 });
+    expect(await gold()).toBe(10);
     expect(battles()).toBe(0);
     setGold(A.id, 500);
     const ok = await start('lappus');
     expect(ok.status).toBe(200);
-    expect(ok.json.paid).toEqual({ gold: 100, key: null });
-    expect(await gold()).toBe(400);
+    expect(ok.json.paid).toEqual({ gold: 30, key: null });
+    expect(await gold()).toBe(470);
     expect(battles()).toBe(1);
   });
 
