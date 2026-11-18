@@ -150,6 +150,10 @@ describe('던전·몹 무결성', () => {
     expect(DUNGEONS.length).toBeGreaterThanOrEqual(5);
   });
 
+  it('모험(탐험) 대기시간은 모든 지역 1분 30초', () => {
+    for (const d of DUNGEONS) expect(d.exploreCooldownSec, d.id).toBe(90);
+  });
+
   it('탐험 몹 고르기: 시드로 재현되고, 오랜 시간 돌리면 가중치 비율에 가깝다', () => {
     const d = dungeonById('plains')!;
     expect(pickSpawn(d, 42)).toBe(pickSpawn(d, 42));

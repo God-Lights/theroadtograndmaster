@@ -1,5 +1,6 @@
 import { getCookie } from 'hono/cookie';
 import type { MiddlewareHandler } from 'hono';
+import { BOT_OPEN_PATHS, DISCORD_ID_RE, safeEqual, userForDiscord } from './discord';
 
 /** GL Account 연동 (docs: gl-account/docs/INTEGRATION.md). 서비스 키는 Worker 시크릿으로만 쓴다. */
 export const ACCOUNT_ORIGIN = 'https://account.officialgl.com';
@@ -25,8 +26,8 @@ export interface GlPublicUser {
 }
 
 export type AppEnv = {
-  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string };
-  Variables: { user: GlUser };
+  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string };
+  Variables: { user: GlUser; viaBot?: boolean };
 };
 
 /** GL Account가 5xx이거나 응답이 이상할 때. 비로그인과 구분해서 로그인 무한 반복을 막는다. */
@@ -115,6 +116,22 @@ export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   const key = c.env.GL_ACCOUNT_KEY;
   if (!key) return c.json({ error: 'server misconfigured' }, 500);
+
+  // 디스코드 봇: 서비스 키로 인증하고, 연동된 사용자 대신 게임 API를 호출한다 (페이지·관리자 API는 불가)
+  const bearer = c.req.header('Authorization');
+  if (bearer?.startsWith('Bearer ')) {
+    const botKey = c.env.BOT_API_KEY;
+    if (!botKey || !safeEqual(bearer.slice(7).trim(), botKey)) return c.json({ error: 'unauthorized' }, 401);
+    if (!pathname.startsWith('/api/') || pathname.startsWith('/api/admin/')) return c.json({ error: 'not_found' }, 404);
+    if (BOT_OPEN_PATHS.test(pathname)) { c.set('viaBot', true); return next(); }
+    const discordId = c.req.header('X-Discord-User') ?? '';
+    if (!DISCORD_ID_RE.test(discordId)) return c.json({ error: 'discord_user_required' }, 400);
+    const linked = await userForDiscord(c.env.DB, discordId);
+    if (!linked) return c.json({ error: 'not_linked' }, 403);
+    c.set('user', linked);
+    c.set('viaBot', true);
+    return next();
+  }
 
   const token = getCookie(c, SESSION_COOKIE);
   let user: GlUser | null = null;

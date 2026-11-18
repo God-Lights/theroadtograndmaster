@@ -3,6 +3,7 @@ import { ITEMS, MOBS } from '@rtgm/data';
 import { authenticate, fetchPublicUser, AuthUpstreamError, type AppEnv } from './auth';
 import { isAdmin } from './admin';
 import { battle } from './battle';
+import { discord } from './discord';
 import { adminEvents, events } from './events';
 import { craft } from './craft';
 import { ensureCharacter, getCharacter } from './character';
@@ -77,6 +78,7 @@ app.route('/api', runs);
 app.route('/api', announcements);
 app.route('/api', team);
 app.route('/api', events);
+app.route('/api', discord);
 app.route('/api', adminEvents);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.

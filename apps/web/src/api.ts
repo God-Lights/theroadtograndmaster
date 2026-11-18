@@ -346,5 +346,8 @@ export const api = {
   runLast: () => request<{ run: RunView | null }>('/api/run/last'),
   announcements: (after = 0) => request<{ latest: number; announcements: Announcement[] }>(`/api/announcements?after=${after}`),
   users: (q = '', offset = 0) => request<{ total: number; online: number; hasMore: boolean; users: UserRow[] }>(`/api/users?q=${encodeURIComponent(q)}&offset=${offset}`),
+  discordStatus: () => request<{ linked: boolean; linkedAt: number | null; botEnabled: boolean }>('/api/discord/status'),
+  discordLinkCode: () => post<{ code: string; expiresAt: number }>('/api/discord/link-code', {}),
+  discordUnlink: () => post<{ ok: true }>('/api/discord/unlink', {}),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };
