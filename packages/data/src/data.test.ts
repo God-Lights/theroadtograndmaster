@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_STATS, ITEMS, MOBS, PROFICIENCY_TIERS, RECIPES, computeStats, getNextTier, getProfTier, itemById } from './index';
+import { BASE_STATS, DEFAULT_LOADOUT, ITEMS, MOBS, SKILLS, SKILL_SLOTS, PROFICIENCY_TIERS, RECIPES, ULTIMATE_SLOTS, computeStats, getNextTier, getProfTier, itemById, skillById } from './index';
 
 describe('숙련도 티어 (EDRPG 50단계)', () => {
   it('50단계, 점수는 오름차순', () => {
@@ -71,5 +71,50 @@ describe('레시피 무결성', () => {
       expect(m.profWin).toBeGreaterThan(0);
       expect(m.profLose).toBeLessThan(m.profWin);
     }
+  });
+});
+
+describe('스킬 데이터 무결성', () => {
+  it('ID가 유일하고 모든 스킬이 효과를 가진다', () => {
+    expect(new Set(SKILLS.map((s) => s.id)).size).toBe(SKILLS.length);
+    for (const s of SKILLS) {
+      expect(s.effects.length, s.id).toBeGreaterThan(0);
+      expect(s.description.length, s.id).toBeGreaterThan(0);
+      expect(['first', 'normal', 'last', 'delayed']).toContain(s.priority);
+    }
+  });
+
+  it('궁극기는 AP 0·쿨다운 0이고, 일반 스킬은 AP 비용이 있다 (비용 감소 스킬 제외)', () => {
+    for (const s of SKILLS) {
+      if (s.ultimate) {
+        expect(s.apCost, s.id).toBe(0);
+        expect(s.cooldown, s.id).toBe(0);
+      } else {
+        expect(s.apCost, s.id).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('기본 장착 스킬은 처음부터 쓸 수 있고 슬롯 수를 넘지 않는다', () => {
+    expect(DEFAULT_LOADOUT.length).toBeLessThanOrEqual(SKILL_SLOTS);
+    for (const id of DEFAULT_LOADOUT) {
+      const s = skillById(id);
+      expect(s, id).toBeDefined();
+      expect(s!.unlockProficiency).toBe(0);
+      expect(s!.ultimate).toBe(false);
+    }
+  });
+
+  it('처음부터 고를 수 있는 일반 스킬이 슬롯 수보다 많아 선택이 생기고, 궁극기는 후반에 열린다', () => {
+    const early = SKILLS.filter((s) => !s.ultimate && s.unlockProficiency === 0);
+    expect(early.length).toBeGreaterThan(SKILL_SLOTS);
+    const ults = SKILLS.filter((s) => s.ultimate);
+    expect(ults.length).toBeGreaterThan(ULTIMATE_SLOTS);
+    for (const u of ults) expect(u.unlockProficiency, u.id).toBeGreaterThanOrEqual(150);
+  });
+
+  it('지력 장비가 있어 회복 스킬 빌드가 가능하다', () => {
+    expect(ITEMS.some((i) => (i.int ?? 0) > 0)).toBe(true);
+    expect(computeStats([itemById('sage_staff')!]).int).toBe(BASE_STATS.int + 18);
   });
 });

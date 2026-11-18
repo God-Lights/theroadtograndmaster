@@ -137,7 +137,7 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
           <div className="fighter-name">
             나
             {(player.statuses ?? []).map((st) => (
-              <span key={st.id} className="badge" title="공격력 감소">약화 -{Math.round((1 - st.atkMult) * 100)}% · {st.until - state.round + 1}R</span>
+              <span key={st.id} className="badge" title="공격력 감소">약화 -{Math.round((1 - (st.atkMult ?? 1)) * 100)}% · {st.until - state.round + 1}R</span>
             ))}
           </div>
           <HpBar hp={player.hp} max={player.stats.maxHp} />

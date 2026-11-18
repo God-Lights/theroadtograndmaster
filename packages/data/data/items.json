@@ -349,5 +349,63 @@
     "buy": 4000,
     "sell": 1600,
     "minProficiency": 300
+  },
+  {
+    "id": "apprentice_staff",
+    "name": "견습생의 지팡이",
+    "type": "sword",
+    "rarity": "normal",
+    "atk": 1,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": 250,
+    "sell": 100,
+    "minProficiency": 10,
+    "int": 6
+  },
+  {
+    "id": "sage_staff",
+    "name": "현자의 지팡이",
+    "type": "sword",
+    "rarity": "rare",
+    "atk": 0,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": 3000,
+    "sell": 1200,
+    "minProficiency": 300,
+    "int": 18,
+    "spd": 2
+  },
+  {
+    "id": "apprentice_robe",
+    "name": "견습 로브",
+    "type": "armor",
+    "rarity": "normal",
+    "atk": 0,
+    "def": 0,
+    "hp": 15,
+    "heal": 0,
+    "buy": 280,
+    "sell": 110,
+    "minProficiency": 10,
+    "int": 4,
+    "spd": 1
+  },
+  {
+    "id": "hunter_bow",
+    "name": "사냥꾼의 활",
+    "type": "sword",
+    "rarity": "normal",
+    "atk": 10,
+    "def": 0,
+    "hp": 0,
+    "heal": 0,
+    "buy": 700,
+    "sell": 280,
+    "minProficiency": 100,
+    "spd": 3
   }
 ]

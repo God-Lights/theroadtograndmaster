@@ -141,9 +141,9 @@
     "id": "rich",
     "name": "리치 (Rich)",
     "kind": "boss",
-    "hp": 180,
-    "atk": 30,
-    "def": 5,
+    "hp": 220,
+    "atk": 32,
+    "def": 6,
     "spd": 9,
     "gold": [
       200,

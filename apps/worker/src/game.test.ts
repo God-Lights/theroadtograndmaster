@@ -374,3 +374,145 @@ describe('보스전 (리치)', () => {
     expect((await call('tokA', 'GET', '/api/inventory')).json.items.find((i: any) => i.itemId === 'golden_lich').quantity).toBe(1);
   });
 });
+
+describe('스킬 장착', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+  const equipped = async () => ((await call('tokA', 'GET', '/api/skills')).json.skills as any[]).filter((x) => x.equipped).map((x) => x.id).sort();
+
+  it('새 캐릭터는 기본 스킬 4개를 장착하고 있다', async () => {
+    expect(await equipped()).toEqual(['bash', 'heal', 'shield', 'strike']);
+  });
+
+  it('스킬 초기화 전의 기존 캐릭터에게도 기본 스킬이 한 번만 들어간다', async () => {
+    sqlite.prepare('DELETE FROM skill_loadout WHERE user_id = ?').run(A.id);
+    sqlite.prepare('UPDATE characters SET skills_initialized = 0 WHERE user_id = ?').run(A.id);
+    await call('tokA', 'GET', '/api/me');
+    expect(await equipped()).toEqual(['bash', 'heal', 'shield', 'strike']);
+    await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'strike' });
+    await call('tokA', 'GET', '/api/me'); // 다시 접속해도 직접 뺀 스킬이 되살아나지 않는다
+    expect(await equipped()).toEqual(['bash', 'heal', 'shield']);
+  });
+
+  it('일반 스킬은 4개까지, 슬롯이 차면 거부되고 해제하면 다시 장착할 수 있다', async () => {
+    const full = await call('tokA', 'POST', '/api/skills/equip', { skillId: 'morale' });
+    expect(full.status).toBe(400);
+    expect(full.json.error).toBe('slots_full');
+    await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'heal' });
+    expect((await call('tokA', 'POST', '/api/skills/equip', { skillId: 'morale' })).status).toBe(200);
+    expect(await equipped()).toEqual(['bash', 'morale', 'shield', 'strike']);
+  });
+
+  it('이미 장착한 스킬을 다시 장착해도 중복되지 않는다', async () => {
+    expect((await call('tokA', 'POST', '/api/skills/equip', { skillId: 'strike' })).status).toBe(200);
+    expect(await equipped()).toHaveLength(4);
+  });
+
+  it('숙련도가 모자라면 장착할 수 없다', async () => {
+    await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'heal' });
+    const r = await call('tokA', 'POST', '/api/skills/equip', { skillId: 'multi' }); // 숙련도 30 필요
+    expect(r.status).toBe(403);
+    expect(r.json).toMatchObject({ error: 'skill_locked', required: 30 });
+    setProf(A.id, 30);
+    expect((await call('tokA', 'POST', '/api/skills/equip', { skillId: 'multi' })).status).toBe(200);
+  });
+
+  it('궁극기는 하나만: 새로 장착하면 기존 궁극기가 빠진다 (일반 슬롯과 별개)', async () => {
+    setProf(A.id, 150);
+    await call('tokA', 'POST', '/api/skills/equip', { skillId: 'execute' });
+    expect(await equipped()).toContain('execute');
+    expect(await equipped()).toHaveLength(5); // 일반 4 + 궁극 1
+    await call('tokA', 'POST', '/api/skills/equip', { skillId: 'overdrive' });
+    const now = await equipped();
+    expect(now).toContain('overdrive');
+    expect(now).not.toContain('execute');
+    expect(now).toHaveLength(5);
+  });
+
+  it('알 수 없는 스킬은 거부된다', async () => {
+    expect((await call('tokA', 'POST', '/api/skills/equip', { skillId: 'nope' })).status).toBe(400);
+    expect((await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'nope' })).status).toBe(400);
+  });
+
+  it('사용자별로 장착이 분리된다', async () => {
+    await call('tokB', 'GET', '/api/me');
+    await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'strike' });
+    const b = ((await call('tokB', 'GET', '/api/skills')).json.skills as any[]).filter((x) => x.equipped).map((x) => x.id);
+    expect(b).toContain('strike');
+  });
+});
+
+describe('스킬 전투', () => {
+  beforeEach(async () => { await call('tokA', 'GET', '/api/me'); });
+  const start = async (mob = 'orc') => (await call('tokA', 'POST', '/api/battle', { mobId: mob })).json;
+  const round = (id: string, body: object) => call('tokA', 'POST', `/api/battle/${id}/round`, body);
+  const setState = (id: string, fn: (st: any) => void) => {
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM battles WHERE id = ?').get(id) as any).state);
+    fn(st);
+    sqlite.prepare('UPDATE battles SET state = ? WHERE id = ?').run(JSON.stringify(st), id);
+  };
+
+  it('장착한 스킬만 전투에 들어가고 AP로 시작한다', async () => {
+    const b = await start();
+    expect(Object.keys(b.state.skills).sort()).toEqual(['bash', 'heal', 'shield', 'strike']);
+    const me = b.state.combatants.find((c: any) => c.id === 'player');
+    expect(me).toMatchObject({ ap: 4, gauge: 0 });
+    expect(me.stats.int).toBe(20);
+  });
+
+  it('스킬을 쓰면 계수만큼 피해를 주고 AP가 줄었다가 라운드 종료에 회복된다', async () => {
+    const b = await start();
+    const r = await round(b.id, { action: 'skill', skillId: 'strike' });
+    expect(r.status).toBe(200);
+    const hit = r.json.log.find((l: any) => l.type === 'attack' && l.actorId === 'player');
+    expect(hit.amount).toBe(Math.max(1, Math.round((10 * 1.3) - 3))); // 낡은 검 ATK 10 × 130% − 오크 DEF 3
+    expect(r.json.state.combatants.find((c: any) => c.id === 'player').ap).toBe(4 - 2 + 2);
+  });
+
+  it('장착하지 않은 스킬·AP 부족·쿨다운 중인 스킬은 거부되고 이유를 알려 준다', async () => {
+    const b = await start();
+    const notEquipped = await round(b.id, { action: 'skill', skillId: 'morale' });
+    expect(notEquipped.status).toBe(400);
+    expect(notEquipped.json).toMatchObject({ error: 'skill_unavailable', reason: 'unknown' });
+
+    setState(b.id, (st) => { st.combatants.find((c: any) => c.id === 'player').ap = 0; });
+    expect((await round(b.id, { action: 'skill', skillId: 'strike' })).json.reason).toBe('ap');
+
+    setState(b.id, (st) => { st.combatants.find((c: any) => c.id === 'player').ap = 6; });
+    expect((await round(b.id, { action: 'skill', skillId: 'shield' })).status).toBe(200); // 쿨다운 2
+    const again = await round(b.id, { action: 'skill', skillId: 'shield' });
+    expect(again.json).toMatchObject({ error: 'skill_unavailable', reason: 'cooldown' });
+  });
+
+  it('쓰러진 적을 대상으로 지정할 수 없다', async () => {
+    const b = await start('rich');
+    expect((await round(b.id, { action: 'skill', skillId: 'strike', targetId: 'vessel' })).json.error).toBe('invalid_target');
+    expect((await round(b.id, { action: 'skill', skillId: 'strike', targetId: 'enemy' })).status).toBe(200);
+  });
+
+  it('충전 스킬(일점 집중)은 다음 라운드에 선택과 무관하게 발동한다', async () => {
+    setProf(A.id, 700);
+    await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'heal' });
+    await call('tokA', 'POST', '/api/skills/equip', { skillId: 'focus' });
+    const b = await start('orc');
+    setState(b.id, (st) => { st.combatants.find((c: any) => c.id === 'enemy').stats.maxHp = 5000; st.combatants.find((c: any) => c.id === 'enemy').hp = 5000; });
+    const r1 = await round(b.id, { action: 'skill', skillId: 'focus' });
+    expect(r1.status).toBe(200);
+    expect(r1.json.state.combatants.find((c: any) => c.id === 'player').pending).toBeDefined();
+    // 충전 중에는 다른 스킬을 요청해도 거부하지 않고, 충전한 스킬이 나간다
+    const r2 = await round(b.id, { action: 'guard' });
+    expect(r2.status).toBe(200);
+    const hit = r2.json.log.find((l: any) => l.type === 'attack' && l.actorId === 'player');
+    expect(hit.amount).toBe(Math.round(10 * 2.2 - 3));
+  });
+
+  it('궁극기는 게이지가 가득 차야 쓸 수 있다', async () => {
+    setProf(A.id, 150);
+    await call('tokA', 'POST', '/api/skills/equip', { skillId: 'execute' });
+    const b = await start('orc');
+    expect((await round(b.id, { action: 'skill', skillId: 'execute' })).json.reason).toBe('gauge');
+    setState(b.id, (st) => { st.combatants.find((c: any) => c.id === 'player').gauge = 100; });
+    const ok = await round(b.id, { action: 'skill', skillId: 'execute' });
+    expect(ok.status).toBe(200);
+    expect(ok.json.state.combatants.find((c: any) => c.id === 'player').gauge).toBeLessThan(100);
+  });
+});
