@@ -35,8 +35,20 @@ npm run dev:worker   # http://localhost:8787 (API + 빌드된 클라이언트)
 npm run dev:web      # http://localhost:5173 (HMR, /api 는 8787로 프록시)
 ```
 
-배포 도메인은 `rtgm.officialgl.com` (`wrangler.toml`의 `routes`, 커스텀 도메인).
-배포 전에 `wrangler d1 create rtgm`으로 D1을 만들고 `apps/worker/wrangler.toml`의 `database_id`를 교체한다.
+## 배포 (GitHub Actions)
+
+도메인은 `rtgm.officialgl.com` (`wrangler.toml`의 `routes`). D1 `rtgm`은 이미 만들어져 있다.
+`.github/workflows/deploy.yml`: PR은 타입체크·테스트·빌드만, `main` 푸시/수동 실행은 D1 마이그레이션 → 배포 → 시크릿 동기화 순서로 실행한다.
+
+GitHub 저장소 설정(Settings → Secrets and variables → Actions)에 등록할 값:
+
+| 이름 | 종류 | 용도 |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | Secret | Workers 편집 + D1 편집 권한 + 존 읽기(커스텀 도메인) |
+| `CLOUDFLARE_ACCOUNT_ID` | Secret | Cloudflare 계정 ID |
+| `GL_ACCOUNT_KEY` | Secret | GL Account 서비스 키 → 배포 때 Worker 시크릿으로 자동 동기화 |
+
+`production` Environment를 만들어 두면 배포 승인자·브랜치 제한을 걸 수 있다. 일반 변수는 GitHub Variables에 두고 워크플로우의 `wrangler deploy --var NAME:${{ vars.NAME }}`로 넘긴다.
 
 ## 로그인 (GL Account 연동)
 

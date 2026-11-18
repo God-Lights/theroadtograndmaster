@@ -12,13 +12,13 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "rtgm"
-# 배포 전 `wrangler d1 create rtgm` 으로 만든 ID로 교체
-database_id = "00000000-0000-0000-0000-000000000000"
+# D1 ID는 비밀이 아니다 (접근은 API 토큰으로 통제됨)
+database_id = "1830a1b6-e243-4d36-ad9b-30e9996d1332"
 migrations_dir = "migrations"
 
-# GL Account 서비스 키는 시크릿으로만 등록한다 (코드·저장소에 넣지 않는다):
-#   npx wrangler secret put GL_ACCOUNT_KEY
-# 로컬 개발은 apps/worker/.dev.vars (gitignore 대상) — .dev.vars.example 참고.
+# GL Account 서비스 키는 시크릿으로만 쓴다 (코드·저장소에 넣지 않는다).
+# 배포 시 GitHub Actions(.github/workflows/deploy.yml)가 GitHub 시크릿 GL_ACCOUNT_KEY 를
+# Worker 시크릿으로 동기화한다. 로컬 개발은 apps/worker/.dev.vars (gitignore 대상) — .dev.vars.example 참고.
 # 커스텀 도메인: officialgl.com 존이 이 Cloudflare 계정에 있어야 한다.
 # gl_session 쿠키(Domain=.officialgl.com)가 오려면 반드시 이 하위 도메인으로 접속해야 한다.
 routes = [{ pattern = "rtgm.officialgl.com", custom_domain = true }]
