@@ -43,6 +43,21 @@ export interface SkillsPayload {
   skills: SkillView[];
 }
 
+export interface Person { id: string; nickname: string; online: boolean; proficiency: number }
+export type Relation = 'none' | 'friend' | 'sent' | 'received';
+export interface FriendsPayload { friends: Person[]; incoming: Person[]; outgoing: Person[] }
+export interface ChatMessage { id: number; userId: string; nickname: string; body: string; at: number }
+export interface GuildListItem { id: string; name: string; description: string; level: number; members: number }
+export interface GuildMember { id: string; nickname: string; role: 'leader' | 'officer' | 'member'; contribution: number; online: boolean; proficiency: number }
+export interface GuildDetail {
+  id: string; name: string; description: string; level: number; gold: number; capacity: number;
+  myRole: 'leader' | 'officer' | 'member'; members: GuildMember[];
+}
+export interface Listing {
+  id: string; sellerId: string; seller: string; itemId: string; quantity: number; price: number; private: boolean;
+  status: 'active' | 'sold' | 'cancelled'; buyer?: string; proceeds?: number;
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -71,6 +86,27 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_enough_material: () => '재료가 부족합니다.',
   unknown_recipe: () => '알 수 없는 레시피입니다.',
   craft_failed: () => '제작에 실패했어요. 다시 시도해 주세요.',
+  player_not_found: () => '그런 플레이어를 찾을 수 없어요.',
+  already_friends: () => '이미 친구예요.',
+  already_requested: () => '이미 친구 신청을 보냈어요.',
+  friends_full: () => '친구는 최대 50명까지예요.',
+  request_not_found: () => '친구 신청이 없어요.',
+  no_channel: () => '이 채팅방에는 들어갈 수 없어요.',
+  email_required: () => '전체 채팅은 이메일 인증 후에 쓸 수 있어요.',
+  slow_down: () => '조금 천천히 보내 주세요.',
+  invalid_message: () => '메시지는 1~200자로 써 주세요.',
+  invalid_guild_name: () => '길드 이름은 한글·영문·숫자 2~12자예요.',
+  guild_name_taken: () => '이미 있는 길드 이름이에요.',
+  already_in_guild: () => '이미 길드에 가입해 있어요.',
+  not_in_guild: () => '길드에 가입해 있지 않아요.',
+  guild_full_or_missing: () => '정원이 찼거나 없는 길드예요.',
+  leader_must_transfer: () => '길드장은 다른 사람에게 길드장을 넘긴 뒤에 떠날 수 있어요.',
+  not_allowed: () => '권한이 없어요.',
+  invalid_price: () => '가격은 1 ~ 99,999,999D로 정해 주세요.',
+  cannot_list: () => '등록할 수 없어요. (수량 부족이거나 장착 중인 마지막 1개예요)',
+  too_many_listings: () => '동시에 등록할 수 있는 물품은 20개까지예요.',
+  listing_unavailable: () => '이미 팔렸거나 없어진 물품이에요.',
+  own_listing: () => '내가 올린 물품은 살 수 없어요.',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -125,4 +161,27 @@ export const api = {
   skills: () => request<SkillsPayload>('/api/skills'),
   equipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/equip', { skillId }),
   unequipSkill: (skillId: string) => post<SkillsPayload>('/api/skills/unequip', { skillId }),
+
+  friends: () => request<FriendsPayload>('/api/friends'),
+  searchPlayers: (q: string) => request<{ players: (Person & { relation: Relation })[] }>(`/api/players/search?q=${encodeURIComponent(q)}`),
+  friendRequest: (userId: string) => post<{ status: 'sent' | 'friend' }>('/api/friends/request', { userId }),
+  friendAccept: (userId: string) => post<{ ok: true }>('/api/friends/accept', { userId }),
+  friendRemove: (userId: string) => post<{ ok: true }>('/api/friends/remove', { userId }),
+  chat: (channel: string, after = 0) => request<{ messages: ChatMessage[] }>(`/api/chat/${encodeURIComponent(channel)}?after=${after}`),
+  chatSend: (channel: string, body: string) => post<{ ok: true }>(`/api/chat/${encodeURIComponent(channel)}`, { body }),
+  guilds: (q = '') => request<{ capacity: number; guilds: GuildListItem[] }>(`/api/guilds?q=${encodeURIComponent(q)}`),
+  guild: () => request<{ guild: GuildDetail | null; createCost: number }>('/api/guild'),
+  guildCreate: (name: string, description: string) => post<{ id: string }>('/api/guild/create', { name, description }),
+  guildJoin: (guildId: string) => post<{ ok: true }>('/api/guild/join', { guildId }),
+  guildLeave: () => post<{ ok: true }>('/api/guild/leave', {}),
+  guildDisband: () => post<{ ok: true }>('/api/guild/disband', {}),
+  guildKick: (userId: string) => post<{ ok: true }>('/api/guild/kick', { userId }),
+  guildRole: (userId: string, role: 'officer' | 'member' | 'leader') => post<{ ok: true }>('/api/guild/role', { userId, role }),
+  guildDonate: (amount: number) => post<{ ok: true }>('/api/guild/donate', { amount }),
+  exchange: () => request<{ feeRate: number; listings: Listing[] }>('/api/exchange'),
+  exchangeMine: () => request<{ feeRate: number; listings: Listing[] }>('/api/exchange/mine'),
+  exchangeList: (itemId: string, quantity: number, price: number, to: string | null) =>
+    post<{ id: string }>('/api/exchange/list', { itemId, quantity, price, to }),
+  exchangeBuy: (listingId: string) => post<{ ok: true }>('/api/exchange/buy', { listingId }),
+  exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

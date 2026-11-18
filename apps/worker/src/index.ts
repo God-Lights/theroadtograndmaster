@@ -4,8 +4,11 @@ import { authenticate, fetchPublicUser, AuthUpstreamError, type AppEnv } from '.
 import { battle } from './battle';
 import { craft } from './craft';
 import { ensureCharacter, getCharacter } from './character';
+import { exchange } from './exchange';
+import { guilds } from './guild';
 import { inventory } from './inventory';
 import { skills } from './skills';
+import { social, touchProfile } from './social';
 
 export const app = new Hono<AppEnv>();
 
@@ -15,7 +18,10 @@ app.use('*', authenticate);
 // 게임 데이터를 쓰는 API는 캐릭터(시작 골드·시작 장비)가 만들어진 뒤에 처리한다.
 app.use('/api/*', async (c, next) => {
   const user = c.get('user');
-  if (user && c.req.path !== '/api/health') await ensureCharacter(c.env.DB, user.id);
+  if (user && c.req.path !== '/api/health') {
+    await ensureCharacter(c.env.DB, user.id);
+    await touchProfile(c.env.DB, user);
+  }
   await next();
 });
 
@@ -54,6 +60,9 @@ app.route('/api', inventory);
 app.route('/api', craft);
 app.route('/api', skills);
 app.route('/api', battle);
+app.route('/api', social);
+app.route('/api', guilds);
+app.route('/api', exchange);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));

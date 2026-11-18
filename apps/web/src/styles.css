@@ -242,3 +242,26 @@ a.btn{text-decoration:none}
 .hunger .stance-head{color:var(--warn)}
 .hunger-full{background:#ef535018;border-color:#ef535066}
 .hunger .ap-pips i.on{background:var(--warn);box-shadow:0 0 6px #ffa72666}
+
+/* 소셜 */
+.srow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);min-height:48px}
+.srow:last-child{border-bottom:none}
+.sname{flex:1;min-width:0;font-size:.88rem;overflow-wrap:anywhere}
+.sbtns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.srow .btn-sm{min-height:36px;padding:6px 10px}
+.gdesc{font-size:.74rem;margin-top:2px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#444;margin-right:2px}
+.dot.on{background:var(--success);box-shadow:0 0 5px var(--success)}
+.form-col{display:flex;flex-direction:column;gap:8px}
+.form-col input,.form-col select,.chat-dm,.qty-row input{padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px;font:inherit;font-size:16px;min-width:0;width:100%}
+.qty-row input.donate{flex:1}
+.chat-dm{margin-bottom:10px}
+.chat-box{height:min(50vh,360px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px}
+.cmsg{font-size:.84rem;line-height:1.45;max-width:92%;align-self:flex-start;overflow-wrap:anywhere}
+.cmsg.mine{align-self:flex-end;text-align:right}
+.cname{color:var(--gold2);font-weight:700;font-size:.76rem}
+.ctime{color:var(--dim);font-size:.68rem}
+.cbody{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:inline-block;text-align:left}
+.cmsg.mine .cbody{background:#ffd70014;border-color:#ffd70044}
+.role-leader{color:var(--gold)}.role-officer{color:var(--info)}
+@media(max-width:600px){.pill{min-height:40px}}

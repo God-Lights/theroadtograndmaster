@@ -10,6 +10,7 @@ import { Inventory } from './screens/Inventory';
 import { Profile } from './screens/Profile';
 import { Skills } from './screens/Skills';
 import { Shop } from './screens/Shop';
+import { Social } from './screens/Social';
 import { Wiki, isWikiHash, openWiki, useWikiPath } from './wiki/Wiki';
 
 const TABS = [
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'skills', label: '스킬', icon: 'star', view: Skills },
   { id: 'craft', label: '제작', icon: 'hammer', view: Craft },
   { id: 'shop', label: '상점', icon: 'shop', view: Shop },
+  { id: 'social', label: '소셜', icon: 'users', view: Social },
 ] as const satisfies readonly { id: string; label: string; icon: IconName; view: () => JSX.Element | null }[];
 
 type TabId = (typeof TABS)[number]['id'];
