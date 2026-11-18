@@ -217,3 +217,24 @@ a.btn{text-decoration:none}
 .stance-hint b{color:var(--text)}
 .dungeon-lock{opacity:.55}
 .cost-line{font-size:.78rem;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+
+/* 위키 */
+.wiki-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.wiki-bar .btn{min-height:40px;display:inline-flex;align-items:center;text-decoration:none}
+.wiki-search{display:flex;gap:8px;margin-bottom:12px}
+.wiki-search input{flex:1;min-width:0;padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px}
+.wiki-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wiki-card{display:block;text-decoration:none;color:inherit;margin-bottom:0;min-height:72px}
+.wiki-card .card-title{margin-bottom:4px}
+.wiki-row{display:flex;align-items:center;gap:8px;padding:11px 2px;min-height:44px;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text);font-size:.88rem}
+.wiki-row:last-child{border-bottom:none}
+.wiki-hint{margin-left:auto;font-size:.76rem;text-align:right}
+.wiki-line{padding:5px 0;font-size:.86rem;line-height:1.55}
+.wiki-def{padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;line-height:1.55}
+.wiki-def:last-child{border-bottom:none}
+.wiki-k{font-weight:700;color:var(--gold2);margin-bottom:2px}
+.wiki-focus{background:#ffd70014}
+.wiki-mine{color:var(--gold);font-weight:700}
+.wlink{color:var(--info);text-decoration:none}
+.wlink:active{text-decoration:underline}
+@media(max-width:360px){.wiki-grid{grid-template-columns:1fr}}

@@ -10,6 +10,7 @@ import { Inventory } from './screens/Inventory';
 import { Profile } from './screens/Profile';
 import { Skills } from './screens/Skills';
 import { Shop } from './screens/Shop';
+import { Wiki, isWikiHash, openWiki, useWikiPath } from './wiki/Wiki';
 
 const TABS = [
   { id: 'profile', label: '내 정보', icon: 'person', view: Profile },
@@ -24,6 +25,7 @@ type TabId = (typeof TABS)[number]['id'];
 
 function Shell() {
   const [tab, setTab] = useState<TabId>('profile');
+  const hash = useWikiPath();
   const { me, loadFailed, refresh, fail } = useGame();
   const View = TABS.find((t) => t.id === tab)!.view;
   const mobile = typeof window !== 'undefined' && window.innerWidth <= 600;
@@ -40,10 +42,12 @@ function Shell() {
             <span className="utier">{getProfTier(me.proficiency).name}</span>
           </div>
         )}
+        <button className="btn btn-ghost account-btn" onClick={openWiki}>위키</button>
         <a className="btn btn-ghost account-btn" href={ACCOUNT_ORIGIN} target="_blank" rel="noreferrer">
           계정
         </a>
       </div>
+      {isWikiHash(hash) ? <div className="tab-content"><Wiki hash={hash} /></div> : <>
       <nav className="nav-tabs">
         {TABS.map((t) => (
           <button key={t.id} className={`nav-tab${t.id === tab ? ' active' : ''}`} onClick={() => setTab(t.id)}>
@@ -64,6 +68,7 @@ function Shell() {
           <div className="empty">불러오는 중...</div>
         )}
       </div>
+      </>}
     </div>
   );
 }
