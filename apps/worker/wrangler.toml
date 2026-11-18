@@ -19,7 +19,8 @@ migrations_dir = "migrations"
 # GL Account 서비스 키는 시크릿으로만 등록한다 (코드·저장소에 넣지 않는다):
 #   npx wrangler secret put GL_ACCOUNT_KEY
 # 로컬 개발은 apps/worker/.dev.vars (gitignore 대상) — .dev.vars.example 참고.
-# 서비스 도메인 연결(<서비스>.officialgl.com)은 배포 시 아래처럼 설정한다:
-# routes = [{ pattern = "rtgm.officialgl.com", custom_domain = true }]
+# 커스텀 도메인: officialgl.com 존이 이 Cloudflare 계정에 있어야 한다.
+# gl_session 쿠키(Domain=.officialgl.com)가 오려면 반드시 이 하위 도메인으로 접속해야 한다.
+routes = [{ pattern = "rtgm.officialgl.com", custom_domain = true }]
 
 # 이후 단계에서 추가: 레이드/매치/채팅용 Durable Objects, 캐시용 KV

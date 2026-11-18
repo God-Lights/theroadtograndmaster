@@ -35,6 +35,7 @@ npm run dev:worker   # http://localhost:8787 (API + 빌드된 클라이언트)
 npm run dev:web      # http://localhost:5173 (HMR, /api 는 8787로 프록시)
 ```
 
+배포 도메인은 `rtgm.officialgl.com` (`wrangler.toml`의 `routes`, 커스텀 도메인).
 배포 전에 `wrangler d1 create rtgm`으로 D1을 만들고 `apps/worker/wrangler.toml`의 `database_id`를 교체한다.
 
 ## 로그인 (GL Account 연동)
