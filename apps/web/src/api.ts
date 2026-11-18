@@ -91,8 +91,10 @@ export interface RaidRoomView {
 }
 export interface RaidLobbyPayload {
   proficiency: number;
-  bosses: { id: string; name: string; star: number; maxParty: number; recParty: number; minProficiency: number; note: string; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
+  bosses: { id: string; name: string; star: number; maxParty: number; recParty: number; minProficiency: number; note: string; cooldownMinutes: number; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
   roles: Record<string, { label: string; desc: string; skills: SkillData[] }>;
+  cooldowns: Record<string, number>;
+  lobbyMinutes: number;
   friendRooms: { code: string; leader: string; members: number; max: number; bossName: string }[];
   room: RaidRoomView | null;
 }
@@ -101,6 +103,13 @@ export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
   }
+}
+
+/** 남은 시간을 '1시간 20분' 처럼 */
+export function fmtWait(ms: number): string {
+  const sec = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h > 0 ? `${h}시간 ${m}분` : m > 0 ? `${m}분 ${s}초` : `${s}초`;
 }
 
 const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
@@ -171,6 +180,7 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   party_too_small: (d) => `최소 ${d.min ?? 2}명이 모여야 시작할 수 있어요.`,
   not_ready: () => '모든 파티원이 역할을 고르고 준비해야 해요.',
   raid_active: () => '진행 중인 레이드에서는 나갈 수 없어요.',
+  raid_cooldown: (d) => `아직 대기시간이에요. ${fmtWait(Number(d.until) - Date.now())} 뒤에 다시 도전할 수 있어요.`,
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };

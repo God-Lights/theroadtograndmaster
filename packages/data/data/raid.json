@@ -646,7 +646,8 @@
           "perRound": 0.3
         }
       },
-      "def": 18
+      "def": 18,
+      "cooldownMinutes": 30
     },
     "baekkario": {
       "id": "baekkario",
@@ -843,7 +844,8 @@
           "perRound": 0.3
         }
       },
-      "def": 24
+      "def": 24,
+      "cooldownMinutes": 120
     },
     "ankio": {
       "id": "ankio",
@@ -1029,7 +1031,8 @@
       "def": 20,
       "star": 5,
       "maxParty": 8,
-      "recParty": 6
+      "recParty": 6,
+      "cooldownMinutes": 360
     }
   }
 }

@@ -208,6 +208,68 @@ describe('8인 레이드 (안키오)', () => {
   });
 });
 
+describe('대기시간', () => {
+  const cd = (w: keyof typeof U, boss = 'dragon') => sqlite.prepare('SELECT until FROM raid_cooldowns WHERE user_id = ? AND boss_id = ?').get(U[w].id, boss) as { until: number } | undefined;
+  const win = async (id: string) => {
+    patchState(id, (st) => { st.combatants.find((c: any) => c.id === 'enemy').hp = 1; });
+    await guardAll(['A', 'C', 'D']);
+    await call('B', 'POST', '/api/raid/action', { action: 'attack' });
+  };
+  it('끝나면 보스별 대기시간이 모든 파티원에게 걸리고, 승리는 전체·패배는 절반이다', async () => {
+    const { id } = await setup();
+    const t0 = Date.now();
+    await win(id);
+    const min = RAID_BOSSES.dragon!.cooldownMinutes * 60_000;
+    for (const w of ['A', 'B', 'C', 'D'] as const) expect(cd(w)!.until).toBeGreaterThanOrEqual(t0 + min - 1000);
+    expect(cd('A', 'ankio')).toBeUndefined(); // 다른 보스는 영향 없음
+    const lobby = (await call('A', 'GET', '/api/raid')).json;
+    expect(Object.keys(lobby.cooldowns)).toEqual(['dragon']);
+  });
+  it('패배하면 대기시간이 절반', async () => {
+    const { id } = await setup();
+    patchState(id, (st) => {
+      for (const c of st.combatants) if (c.side === 'player') c.hp = 1;
+      st.intents.enemy = { patternId: 'breath', kind: 'attack', name: '화염 숨결', telegraph: '' };
+    });
+    const t0 = Date.now();
+    await guardAll(['A', 'B', 'C', 'D']);
+    const want = RAID_BOSSES.dragon!.cooldownMinutes * 60_000 * 0.5;
+    const until = cd('A')!.until;
+    expect(until).toBeGreaterThanOrEqual(t0 + want - 1000);
+    expect(until).toBeLessThan(t0 + want + 5000);
+  });
+  it('대기시간 중에는 만들기·입장이 막히고, 지나면 다시 된다. 다른 보스는 바로 가능', async () => {
+    for (const w of ['A', 'B'] as const) { await call(w, 'GET', '/api/me'); setProf(w, 2000); }
+    sqlite.prepare('INSERT INTO raid_cooldowns (user_id, boss_id, until) VALUES (?, ?, ?)').run(U.A.id, 'dragon', Date.now() + 60_000);
+    const blocked = await call('A', 'POST', '/api/raid/create', { bossId: 'dragon' });
+    expect(blocked.status).toBe(429);
+    expect(blocked.json.until).toBeGreaterThan(Date.now());
+    await call('B', 'POST', '/api/raid/create', { bossId: 'dragon' });
+    const code = (await call('B', 'GET', '/api/raid')).json.room.code;
+    expect((await call('A', 'POST', '/api/raid/join', { code })).json.error).toBe('raid_cooldown');
+    expect((await call('A', 'POST', '/api/raid/create', { bossId: 'baekkario' })).status).toBe(200);
+    sqlite.prepare('UPDATE raid_cooldowns SET until = ? WHERE user_id = ?').run(Date.now() - 1, U.A.id);
+    await call('A', 'POST', '/api/raid/leave');
+    expect((await call('A', 'POST', '/api/raid/join', { code })).status).toBe(200);
+    expect((await call('A', 'GET', '/api/raid')).json.cooldowns).toEqual({});
+  });
+  it('대기실은 30분이 지나면 사라진다', async () => {
+    for (const w of ['A', 'B'] as const) { await call(w, 'GET', '/api/me'); setProf(w, 2000); }
+    const { json } = await call('A', 'POST', '/api/raid/create', { bossId: 'dragon' });
+    const code = (await call('A', 'GET', '/api/raid')).json.room.code;
+    sqlite.prepare('UPDATE raid_rooms SET created_at = ? WHERE id = ?').run(Date.now() - 31 * 60_000, json.id);
+    expect((await call('B', 'POST', '/api/raid/join', { code })).status).toBe(404);
+    expect((await call('A', 'GET', '/api/raid')).json.room).toBeNull();
+    expect(room(json.id)).toBeUndefined();
+  });
+  it('시작한 레이드는 30분이 지나도 사라지지 않는다', async () => {
+    const { id } = await setup();
+    sqlite.prepare('UPDATE raid_rooms SET created_at = ? WHERE id = ?').run(Date.now() - 90 * 60_000, id);
+    await call('A', 'GET', '/api/raid');
+    expect(room(id).status).toBe('active');
+  });
+});
+
 describe('결과와 보상', () => {
   it('승리하면 파티원 모두 보상을 한 번만 받는다', async () => {
     const { id } = await setup();
@@ -259,6 +321,8 @@ describe('결과와 보상', () => {
     await guardAll(['A', 'C', 'D']);
     await call('B', 'POST', '/api/raid/action', { action: 'attack' });
     expect(room(id).status).toBe('done');
+    expect((await call('A', 'POST', '/api/raid/create', { bossId: 'dragon' })).json).toMatchObject({ error: 'raid_cooldown' }); // 대기시간 중
+    sqlite.prepare('DELETE FROM raid_cooldowns').run();
     expect((await call('A', 'POST', '/api/raid/create', { bossId: 'dragon' })).status).toBe(200); // 결과 화면을 건너뛰고 새 방
     expect((await view('A')).status).toBe('lobby');
   });

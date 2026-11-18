@@ -197,6 +197,8 @@ export interface RaidBossData {
   star: number;
   /** 최대 인원 / 적정 인원. hp 는 적정 인원 기준이다 */
   maxParty: number; recParty: number;
+  /** 끝난 뒤 다시 입장하기까지 대기시간(분). 승리 기준이고 패배하면 절반 */
+  cooldownMinutes: number;
   hp: number; atk: number; def: number; spd: number;
   minProficiency: number; gold: [number, number]; profWin: number; profLose: number;
   drops: { itemId: string; chance: number }[]; note: string;

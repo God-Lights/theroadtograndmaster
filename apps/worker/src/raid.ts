@@ -20,6 +20,10 @@ export const raid = new Hono<AppEnv>();
 
 export const RAID_ROUND_MS = 60_000;
 export const RAID_MAX_ROUNDS = 60;
+/** 대기실은 만든 지 30분이 지나면 사라진다 */
+export const LOBBY_TTL_MS = 30 * 60_000;
+/** 패배하면 대기시간이 절반 */
+export const DEFEAT_COOLDOWN_FACTOR = 0.5;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const BOSS = 'enemy';
 
@@ -151,6 +155,8 @@ export async function advance(db: D1Database, room: RoomRow): Promise<RoomRow> {
           ...r.items.map((it) =>
             db.prepare('INSERT INTO inventory (user_id, item_id, quantity, equipped) VALUES (?, ?, ?, 0) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = quantity + excluded.quantity').bind(m.user_id, it.itemId, it.quantity),
           ),
+          db.prepare('INSERT INTO raid_cooldowns (user_id, boss_id, until) VALUES (?, ?, ?) ON CONFLICT (user_id, boss_id) DO UPDATE SET until = excluded.until')
+            .bind(m.user_id, boss.id, now + boss.cooldownMinutes * 60_000 * (victory ? 1 : DEFEAT_COOLDOWN_FACTOR)),
         );
       }
       await db.batch([
@@ -191,11 +197,27 @@ async function roomView(db: D1Database, room: RoomRow, me: string) {
   };
 }
 
+/** 이 사람의 보스별 재입장 가능 시각 (지난 것은 제외) */
+async function cooldownsOf(db: D1Database, userId: string): Promise<Record<string, number>> {
+  const { results } = await db.prepare('SELECT boss_id, until FROM raid_cooldowns WHERE user_id = ? AND until > ?').bind(userId, Date.now()).all<{ boss_id: string; until: number }>();
+  return Object.fromEntries((results ?? []).map((r) => [r.boss_id, r.until]));
+}
+
+/** 오래된 대기실을 정리한다 (요청이 올 때 한 번씩) */
+async function sweepLobbies(db: D1Database): Promise<void> {
+  const cutoff = Date.now() - LOBBY_TTL_MS;
+  await db.batch([
+    db.prepare("DELETE FROM raid_members WHERE room_id IN (SELECT id FROM raid_rooms WHERE status = 'lobby' AND created_at < ?)").bind(cutoff),
+    db.prepare("DELETE FROM raid_rooms WHERE status = 'lobby' AND created_at < ?").bind(cutoff),
+  ]);
+}
+
 const makeCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
 
 raid.get('/raid', async (c) => {
   const me = c.get('user').id;
   const db = c.env.DB;
+  await sweepLobbies(db);
   let room = await myRoom(db, me);
   if (room?.status === 'active') room = await advance(db, room);
   const { proficiency } = await getCharacter(db, me);
@@ -210,9 +232,11 @@ raid.get('/raid', async (c) => {
     .all<{ code: string; boss_id: string; nickname: string; n: number }>();
   return c.json({
     proficiency,
-    bosses: Object.values(RAID_BOSSES).sort((a, b) => a.star - b.star).map((b) => ({ id: b.id, name: b.name, star: b.star, maxParty: b.maxParty, recParty: b.recParty, minProficiency: b.minProficiency, note: b.note, hp: b.hp, gold: b.gold, drops: b.drops })),
+    bosses: Object.values(RAID_BOSSES).sort((a, b) => a.star - b.star).map((b) => ({ id: b.id, name: b.name, star: b.star, maxParty: b.maxParty, recParty: b.recParty, minProficiency: b.minProficiency, note: b.note, cooldownMinutes: b.cooldownMinutes, hp: b.hp, gold: b.gold, drops: b.drops })),
     roles: Object.fromEntries(RAID_ROLE_IDS.map((r) => [r, { label: RAID_ROLES[r].label, desc: RAID_ROLES[r].desc, skills: raidKit(r).map((id) => raidSkillById(id)) }])),
     friendRooms: (open ?? []).map((o) => ({ code: o.code, leader: o.nickname, members: o.n, max: RAID_BOSSES[o.boss_id]?.maxParty ?? 4, bossName: RAID_BOSSES[o.boss_id]?.name ?? o.boss_id })),
+    cooldowns: await cooldownsOf(db, me),
+    lobbyMinutes: LOBBY_TTL_MS / 60_000,
     room: room ? await roomView(db, room, me) : null,
   });
 });
@@ -226,6 +250,8 @@ raid.post('/raid/create', async (c) => {
   if ((await getCharacter(db, me)).proficiency < boss.minProficiency) return c.json({ error: 'proficiency_too_low', required: boss.minProficiency }, 403);
   const cur = await myRoom(db, me);
   if (cur && cur.status !== 'done') return c.json({ error: 'already_in_raid' }, 409);
+  const wait = (await cooldownsOf(db, me))[boss.id];
+  if (wait) return c.json({ error: 'raid_cooldown', until: wait }, 429);
 
   const id = crypto.randomUUID();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -245,12 +271,15 @@ raid.post('/raid/join', async (c) => {
   const me = c.get('user').id;
   const db = c.env.DB;
   const { code } = await c.req.json<{ code?: string }>();
+  await sweepLobbies(db);
   const room = typeof code === 'string' ? await db.prepare("SELECT * FROM raid_rooms WHERE code = ? AND status = 'lobby'").bind(code.trim().toUpperCase()).first<RoomRow>() : null;
   if (!room) return c.json({ error: 'room_not_found' }, 404);
   const boss = RAID_BOSSES[room.boss_id]!;
   if ((await getCharacter(db, me)).proficiency < boss.minProficiency) return c.json({ error: 'proficiency_too_low', required: boss.minProficiency }, 403);
   const cur = await myRoom(db, me);
-  if (cur && cur.status !== 'done') return c.json({ error: cur.id === room.id ? 'already_in_raid' : 'already_in_raid' }, 409);
+  if (cur && cur.status !== 'done') return c.json({ error: 'already_in_raid' }, 409);
+  const wait = (await cooldownsOf(db, me))[boss.id];
+  if (wait) return c.json({ error: 'raid_cooldown', until: wait }, 429);
   try {
     const res = await db.batch([
       leaveDone(db, me),
