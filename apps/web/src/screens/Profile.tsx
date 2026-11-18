@@ -1,6 +1,7 @@
 import { getNextTier, getProfTier, itemById } from '@rtgm/data';
 import { ACCOUNT_ORIGIN } from '../api';
 import { useGame } from '../game';
+import { AdminEvents, Events } from '../components/Events';
 import { Icon } from '../Icon';
 
 export function Profile() {
@@ -18,6 +19,8 @@ export function Profile() {
   return (
     <>
       <div className="section-hd"><h2><Icon name="person" className="ico-hd" /> 내 정보</h2></div>
+
+      <Events />
 
       <div className="card">
         <div className="card-title"><Icon name="chart" className="ico-hd" /> 스탯</div>
@@ -50,6 +53,8 @@ export function Profile() {
         <div className="stat-row"><span className="stat-label">아이템 종류</span><span>{inv.items.length} 종</span></div>
         <div className="stat-row"><span className="stat-label">총 수량</span><span>{total} 개</span></div>
       </div>
+
+      {me.isAdmin && <AdminEvents />}
 
       <div className="card">
         <div className="card-title"><Icon name="settings" className="ico-hd" /> 계정</div>

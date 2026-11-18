@@ -1,2 +1,4 @@
 # 복사해서 .dev.vars 로 쓴다 (.dev.vars 는 gitignore 대상). 실제 키를 이 파일에 적지 말 것.
 GL_ACCOUNT_KEY=replace-with-service-key
+# 관리자(GL Account 사용자 ID, 쉼표 구분) — 로컬 개발용
+ADMIN_USER_IDS=

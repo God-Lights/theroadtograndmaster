@@ -271,3 +271,4 @@ a.btn{text-decoration:none}
 .pvp-result.opponent{background:#ef535022;color:var(--danger);border-color:#ef535055}
 .res-win{color:var(--success);font-weight:700}.res-loss{color:var(--danger);font-weight:700}
 .forfeit{width:100%;margin-top:8px;min-height:44px}
+input[type=datetime-local]{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px;font:inherit;font-size:16px}

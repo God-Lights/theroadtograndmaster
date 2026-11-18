@@ -10,6 +10,7 @@ export interface Me {
   username: string;
   nickname: string;
   emailVerified: boolean;
+  isAdmin?: boolean;
   gold: number;
   proficiency: number;
 }
@@ -71,6 +72,13 @@ export interface PvpMatchView {
 }
 export interface RankRow { rank: number; id: string; nickname: string; rating: number; wins: number; losses: number; draws: number; me: boolean }
 
+export type EventKind = 'notice' | 'bonus' | 'gift';
+export interface GameEvent {
+  id: string; title: string; description: string; kind: EventKind; startsAt: number; endsAt: number;
+  status: 'cancelled' | 'upcoming' | 'active' | 'ended'; claimed?: boolean; claims?: number;
+  config: { gold?: number; proficiency?: number; drop?: number; items?: { itemId: string; quantity: number }[] };
+}
+
 export class ApiError extends Error {
   constructor(public code: string, public data: Record<string, unknown> = {}) {
     super(code);
@@ -126,6 +134,14 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   match_not_found: () => '대전을 찾을 수 없어요.',
   already_submitted: () => '이번 라운드의 선택은 이미 제출했어요.',
   invalid_action: () => '낼 수 없는 행동이에요. (PvP에서는 아이템을 쓸 수 없어요)',
+  event_unavailable: () => '지금은 받을 수 없는 이벤트예요.',
+  already_claimed: () => '이미 받았어요.',
+  invalid_title: () => '제목은 2~40자로 써 주세요.',
+  invalid_description: () => '설명은 300자까지예요.',
+  invalid_kind: () => '이벤트 종류를 골라 주세요.',
+  invalid_period: () => '기간이 올바르지 않아요. (끝이 시작보다 뒤, 지금보다 뒤, 최대 60일)',
+  invalid_bonus: () => '보너스 배율은 1 초과 5 이하로, 하나 이상 넣어 주세요.',
+  invalid_gift: () => '선물 내용이 올바르지 않아요. (달런트 0~100만, 아이템 최대 5종·각 999개)',
   network: () => '네트워크 연결을 확인해 주세요.',
   timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
@@ -212,5 +228,10 @@ export const api = {
   pvpAct: (id: string, body: { action: 'attack' | 'guard' | 'skill'; skillId?: string }) => post<PvpMatchView>(`/api/pvp/match/${id}/action`, body),
   pvpForfeit: (id: string) => post<PvpMatchView>(`/api/pvp/match/${id}/forfeit`, {}),
   pvpRanking: () => request<{ ranking: RankRow[] }>('/api/pvp/ranking'),
+  events: () => request<{ events: GameEvent[]; bonus: { gold: number; proficiency: number; drop: number } }>('/api/events'),
+  claimEvent: (id: string) => post<{ ok: true }>(`/api/events/${id}/claim`, {}),
+  adminEvents: () => request<{ events: GameEvent[] }>('/api/admin/events'),
+  adminCreateEvent: (body: Record<string, unknown>) => post<{ id: string }>('/api/admin/events', body),
+  adminCancelEvent: (id: string) => post<{ ok: true }>(`/api/admin/events/${id}/cancel`, {}),
   exchangeCancel: (listingId: string) => post<{ ok: true }>('/api/exchange/cancel', { listingId }),
 };

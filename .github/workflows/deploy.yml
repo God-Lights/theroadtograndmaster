@@ -52,9 +52,11 @@ jobs:
 
       - name: Deploy Worker
         working-directory: apps/worker
-        run: npx wrangler deploy
-        # GitHub 변수(Variables)를 Worker 일반 변수로 넘기려면 위 명령에 --var 를 붙인다:
-        #   npx wrangler deploy --var NAME:${{ vars.NAME }}
+        env:
+          # 관리자: GL Account 사용자 ID(UUID)를 쉼표로 구분해 GitHub 변수(Variables) ADMIN_USER_IDS 에 넣는다
+          ADMIN_USER_IDS: ${{ vars.ADMIN_USER_IDS }}
+        run: npx wrangler deploy --var "ADMIN_USER_IDS:$ADMIN_USER_IDS"
+        # 다른 GitHub 변수도 같은 방식으로 --var 를 추가해 Worker 변수로 넘긴다.
 
       # GitHub 시크릿 → Cloudflare Worker 시크릿. 새 값이 필요하면 아래 env 와 jq 에 한 줄씩 추가한다.
       # 값은 명령행·로그에 나오지 않고 stdin 으로만 전달된다.

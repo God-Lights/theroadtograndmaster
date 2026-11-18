@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { ITEMS, MOBS } from '@rtgm/data';
 import { authenticate, fetchPublicUser, AuthUpstreamError, type AppEnv } from './auth';
+import { isAdmin } from './admin';
 import { battle } from './battle';
+import { adminEvents, events } from './events';
 import { craft } from './craft';
 import { ensureCharacter, getCharacter } from './character';
 import { exchange } from './exchange';
@@ -39,6 +41,7 @@ app.get('/api/me', async (c) => {
     username: user.username,
     nickname: user.nickname,
     emailVerified: user.emailVerified,
+    isAdmin: isAdmin(c.env.ADMIN_USER_IDS, user.id),
     gold,
     proficiency,
   });
@@ -65,6 +68,8 @@ app.route('/api', social);
 app.route('/api', guilds);
 app.route('/api', exchange);
 app.route('/api', pvp);
+app.route('/api', events);
+app.route('/api', adminEvents);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
