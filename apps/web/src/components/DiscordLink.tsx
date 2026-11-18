@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DISCORD_INVITE_URL } from '@rtgm/data';
 import { api, fmtWait } from '../api';
 import { useGame } from '../game';
 
@@ -39,7 +40,7 @@ export function DiscordLink() {
         </>
       ) : (
         <>
-          <div className="note">코드를 만들어 디스코드 봇에 입력하면 이 계정으로 디스코드에서 게임을 할 수 있어요.</div>
+          <div className="note">코드를 만들어 디스코드 봇에 입력하면 이 계정으로 디스코드에서 게임을 할 수 있어요. 아직 서버에 없다면 <a className="wlink" href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">여기서 입장</a>하세요.</div>
           <button className="btn btn-primary" disabled={busy} onClick={async () => { setBusy(true); try { setCode(await api.discordLinkCode()); } catch (e) { fail(e); } finally { setBusy(false); } }}>연동 코드 만들기</button>
         </>
       )}

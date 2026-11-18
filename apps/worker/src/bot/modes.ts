@@ -1,13 +1,18 @@
 import { itemById, fmtWait } from '@rtgm/data';
 import { needsAllyTarget, partyBattleMessage, type PartyView } from './party';
-import type { Caller, Result } from './types';
-import { BLUE, button, row, select, type Msg } from './ui';
+import type { Caller, Publish, Result } from './types';
+import { BLUE, button, publicPvp, publicRaid, publicTeam, row, select, type Msg } from './ui';
 
 /** 레이드 · 1v1 PvP · 4v4 팀전 (동시 선택). 상태는 모두 서버에 있고, 봇은 조회→표시, 버튼→제출을 한다. */
 const ROLE_ICON: Record<string, string> = { tank: '🛡', dealer: '⚔', healer: '✚', support: '★' };
 const ROLE_LABEL: Record<string, string> = { tank: '탱커', dealer: '딜러', healer: '힐러', support: '서포터' };
 const fail = (r: { status: number; json: any }) => ({ error: r });
 /** 게임 계정 id (디스코드 id 가 아니다) */
+const nickOf = async (call: Caller): Promise<string> => (await call('GET', '/api/me')).json?.nickname ?? '모험가';
+/** 끝난 결과는 전체 공개로도 올린다 (같은 결과는 한 번만) */
+const raidPublish = (room: any): Publish | undefined => (room.status === 'done' ? { key: `raid:${room.id}`, build: async () => publicRaid(room) } : undefined);
+const pvpPublish = (m: any): Publish | undefined => (m.status === 'done' ? { key: `pvp:${m.id}`, build: async (call) => publicPvp(await nickOf(call), m) } : undefined);
+const teamPublish = (m: any): Publish | undefined => (m.status === 'done' ? { key: `team:${m.id}`, build: async () => publicTeam(m) } : undefined);
 const myId = async (call: Caller): Promise<string | undefined> => (await call('GET', '/api/me')).json?.id;
 const refreshBtn = (k: string) => button('🔄 새로고침', `${k}:f`, 2);
 const rewardLine = (r?: { gold: number; proficiency: number; items: { itemId: string; quantity: number }[] }) =>
@@ -58,7 +63,7 @@ export async function raidShow(call: Caller, pendingSkill?: string): Promise<Res
       components: [...(options.length ? [row(select('ra:c', '방 만들기 — 보스 고르기', options))] : []), row(refreshBtn('ra'))],
     } };
   }
-  return { msg: room.status === 'lobby' ? raidRoomLobby(room, d.roles) : raidBattle(room, pendingSkill) };
+  return room.status === 'lobby' ? { msg: raidRoomLobby(room, d.roles) } : { msg: raidBattle(room, pendingSkill), publish: raidPublish(room) };
 }
 
 export async function raidPress(call: Caller, id: string, values: string[] | undefined): Promise<Result> {
@@ -76,23 +81,23 @@ export async function raidPress(call: Caller, id: string, values: string[] | und
     case 's': err = await post('/api/raid/start'); break;
     case 'l': err = await post('/api/raid/leave'); break;
     case 'f': break;
-    case 'a': return actionResult(await call('POST', '/api/raid/action', { action: 'attack', targetId: extra }), (room) => raidBattle(room));
-    case 'g': return actionResult(await call('POST', '/api/raid/action', { action: 'guard' }), (room) => raidBattle(room));
+    case 'a': return actionResult(await call('POST', '/api/raid/action', { action: 'attack', targetId: extra }), (room) => raidBattle(room), raidPublish);
+    case 'g': return actionResult(await call('POST', '/api/raid/action', { action: 'guard' }), (room) => raidBattle(room), raidPublish);
     case 'k': {
       const skillId = values?.[0] ?? '';
       const cur = await call('GET', '/api/raid');
       if (cur.status !== 200) return fail(cur);
       if (needsAllyTarget(cur.json.room?.skills ?? {}, skillId)) return raidShow(call, skillId);
-      return actionResult(await call('POST', '/api/raid/action', { action: 'skill', skillId }), (room) => raidBattle(room));
+      return actionResult(await call('POST', '/api/raid/action', { action: 'skill', skillId }), (room) => raidBattle(room), raidPublish);
     }
-    case 't': return actionResult(await call('POST', '/api/raid/action', { action: 'skill', skillId: extra, targetId: values?.[0] }), (room) => raidBattle(room));
+    case 't': return actionResult(await call('POST', '/api/raid/action', { action: 'skill', skillId: extra, targetId: values?.[0] }), (room) => raidBattle(room), raidPublish);
     default: break;
   }
   return err ?? raidShow(call);
 }
 
-function actionResult(r: { status: number; json: any }, build: (room: any) => Msg): Result {
-  return r.status === 200 ? { msg: build(r.json) } : fail(r);
+function actionResult(r: { status: number; json: any }, build: (room: any) => Msg, publish?: (room: any) => Publish | undefined): Result {
+  return r.status === 200 ? { msg: build(r.json), publish: publish?.(r.json) } : fail(r);
 }
 
 // ─── 1v1 PvP ─────────────────────────────────────────────────────────────────
@@ -114,7 +119,7 @@ export async function pvpShow(call: Caller): Promise<Result> {
   const st = s.json;
   if (st.matchId) {
     const m = await call('GET', `/api/pvp/match/${st.matchId}`);
-    return m.status === 200 ? { msg: pvpBattle(m.json) } : fail(m);
+    return m.status === 200 ? { msg: pvpBattle(m.json), publish: pvpPublish(m.json) } : fail(m);
   }
   const hist = (st.history ?? []).slice(0, 5).map((h: any) => `${h.result === 'win' ? '🟢 승' : h.result === 'loss' ? '🔴 패' : '⚪ 무'} vs ${h.opponent}${h.ranked ? ` (${h.ratingChange > 0 ? '+' : ''}${h.ratingChange})` : ' (친선)'}`);
   const embed = {
@@ -133,7 +138,7 @@ export async function pvpPress(call: Caller, id: string, values: string[] | unde
     const mid = await matchId();
     if (!mid) return pvpShow(call);
     const r = await call('POST', `/api/pvp/match/${mid}/action`, body);
-    return r.status === 200 ? { msg: pvpBattle(r.json) } : fail(r);
+    return r.status === 200 ? { msg: pvpBattle(r.json), publish: pvpPublish(r.json) } : fail(r);
   };
   switch (act) {
     case 'q': { const r = await call('POST', '/api/pvp/queue'); if (r.status !== 200) return fail(r); break; }
@@ -179,7 +184,7 @@ export async function teamShow(call: Caller, pendingSkill?: string): Promise<Res
   if (r.status !== 200) return fail(r);
   const d = r.json, m = d.match;
   if (m && m.status === 'lobby') return { msg: teamRoom(m, d.roles) };
-  if (m) return { msg: teamBattle(m, pendingSkill) };
+  if (m) return { msg: teamBattle(m, pendingSkill), publish: teamPublish(m) };
   const top = (d.ranking ?? []).slice(0, 5).map((x: any) => `${x.rank}. ${x.nickname} — ${x.rating}`);
   return { msg: {
     embeds: [{ title: `⚔️ 4v4 팀전 · 레이팅 ${d.rating}`, color: BLUE,
@@ -212,17 +217,17 @@ export async function teamPress(call: Caller, id: string, values: string[] | und
     case 's': err = await post('/api/team/room/start'); break;
     case 'l': err = await post('/api/team/room/leave'); break;
     case 'f': break;
-    case 'a': return actionResult(await call('POST', '/api/team/action', { action: 'attack', targetId: extra }), (m) => teamBattle(m));
-    case 'g': return actionResult(await call('POST', '/api/team/action', { action: 'guard' }), (m) => teamBattle(m));
+    case 'a': return actionResult(await call('POST', '/api/team/action', { action: 'attack', targetId: extra }), (m) => teamBattle(m), teamPublish);
+    case 'g': return actionResult(await call('POST', '/api/team/action', { action: 'guard' }), (m) => teamBattle(m), teamPublish);
     case 'k': {
       const skillId = values?.[0] ?? '';
       const cur = await call('GET', '/api/team/status');
       if (cur.status !== 200) return fail(cur);
       if (needsAllyTarget(cur.json.match?.skills ?? {}, skillId)) return teamShow(call, skillId);
       // 적 단일 대상 스킬: 도발 중인 상대가 있으면 서버가 그 대상을 기본으로 고른다
-      return actionResult(await call('POST', '/api/team/action', { action: 'skill', skillId }), (m) => teamBattle(m));
+      return actionResult(await call('POST', '/api/team/action', { action: 'skill', skillId }), (m) => teamBattle(m), teamPublish);
     }
-    case 't': return actionResult(await call('POST', '/api/team/action', { action: 'skill', skillId: extra, targetId: values?.[0] }), (m) => teamBattle(m));
+    case 't': return actionResult(await call('POST', '/api/team/action', { action: 'skill', skillId: extra, targetId: values?.[0] }), (m) => teamBattle(m), teamPublish);
     default: break;
   }
   return err ?? teamShow(call);

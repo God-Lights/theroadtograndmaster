@@ -1,4 +1,4 @@
-import { getNextTier, getProfTier, itemById } from '@rtgm/data';
+import { DISCORD_INVITE_URL, getNextTier, getProfTier, itemById } from '@rtgm/data';
 import { ACCOUNT_ORIGIN } from '../api';
 import { useGame } from '../game';
 import { DiscordLink } from '../components/DiscordLink';
@@ -53,6 +53,12 @@ export function Profile() {
         <div className="card-title"><Icon name="package" className="ico-hd" /> 인벤토리</div>
         <div className="stat-row"><span className="stat-label">아이템 종류</span><span>{inv.items.length} 종</span></div>
         <div className="stat-row"><span className="stat-label">총 수량</span><span>{total} 개</span></div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">커뮤니티</div>
+        <div className="note">RTGM 디스코드 서버에서 다른 모험가들과 이야기하고, 봇으로 디스코드에서 바로 게임도 할 수 있어요.</div>
+        <a className="btn btn-primary" href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">디스코드 서버 입장</a>
       </div>
 
       <DiscordLink />

@@ -26,7 +26,7 @@ export interface GlPublicUser {
 }
 
 export type AppEnv = {
-  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string };
+  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string; DISCORD_PUBLIC_GUILD_ID?: string; DISCORD_PUBLIC_CHANNEL_ID?: string };
   Variables: { user: GlUser; viaBot?: boolean };
 };
 
@@ -107,7 +107,7 @@ export async function fetchPublicUser(key: string, id: string): Promise<GlPublic
  * 로그인 없이 받을 수 있는 경로: 헬스체크, 앱 아이콘·매니페스트(홈 화면 추가 시 브라우저가
  * 쿠키 없이 요청하기도 한다). 민감한 정보가 없는 정적 파일만 허용한다.
  */
-const PUBLIC_PATHS = /^\/(api\/health|discord\/interactions|manifest\.webmanifest|icon\.svg|icons\/[\w.-]+)$/;
+const PUBLIC_PATHS = /^\/(api\/health|discord\/interactions|bot\/bars\.png|manifest\.webmanifest|icon\.svg|icons\/[\w.-]+)$/;
 
 /** 위 공개 경로를 제외한 모든 요청(페이지·정적 파일·API)은 로그인이 필요하다. */
 export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {

@@ -12,11 +12,15 @@ const KEY = 'bot-key';
 let env: Record<string, any>;
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
 let priv: CryptoKey;
+/** 디스코드로 나간 전체 공개 메시지 (웹훅 후속 메시지) */
+let hooks: { url: string; body: any }[] = [];
 
 const toHex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 beforeEach(async () => {
   clearAuthCache();
-  vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { body: string }) => {
+  hooks = [];
+  vi.stubGlobal('fetch', vi.fn(async (u: string, init: { body: string }) => {
+    if (String(u).includes('discord.com/api')) { hooks.push({ url: String(u), body: JSON.parse(init.body) }); return new Response('{}', { status: 200 }); }
     const user = USERS[JSON.parse(init.body).token as string];
     return user ? new Response(JSON.stringify({ user }), { status: 200 }) : new Response('{}', { status: 401 });
   }));
@@ -27,8 +31,8 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function interact(payload: object) {
-  const body = JSON.stringify(payload);
+async function interact(rawPayload: object) {
+  const body = JSON.stringify({ application_id: 'app1', token: 'tok-abc', guild_id: '1572492493604397110', channel_id: '1572492730641420389', ...rawPayload });
   const ts = String(Math.floor(Date.now() / 1000));
   const sig = await crypto.subtle.sign({ name: 'Ed25519' } as never, priv, new TextEncoder().encode(ts + body));
   const res = await app.request('https://rtgm.officialgl.com/discord/interactions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature-Ed25519': toHex(sig), 'X-Signature-Timestamp': ts }, body }, env);
@@ -90,6 +94,31 @@ describe('봇: 레이드', () => {
     expect(done.json.data.embeds[0].title).toContain('2라운드');
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM raid_members WHERE action IS NOT NULL').get()).toEqual({ n: 0 }); // 한 라운드 처리됨
   });
+  it('레이드 클리어 결과는 파티 이름·보상과 함께 전체 공개된다', async () => {
+    setProf(A.id, 2000); setProf(B.id, 2000);
+    const room = await press('ra:c', ['dragon']);
+    const code = /\*\*([A-Z0-9]{6})\*\*/.exec(text(room))![1]!;
+    await slash('레이드입장', { 코드: code }, DBB);
+    await press('ra:r', ['dealer']); await press('ra:r', ['healer'], DBB);
+    await press('ra:y', undefined, DBB);
+    const started = await press('ra:s');
+    const rid = (sqlite.prepare('SELECT id FROM raid_rooms').get() as any).id;
+    const st = JSON.parse((sqlite.prepare('SELECT state FROM raid_rooms WHERE id = ?').get(rid) as any).state);
+    st.combatants.find((c: any) => c.id === 'enemy').hp = 1;
+    sqlite.prepare('UPDATE raid_rooms SET state = ? WHERE id = ?').run(JSON.stringify(st), rid);
+    await press('ra:g', undefined, DBB);
+    const fin = await press(ids(started).find((x) => x.startsWith('ra:a:'))!);
+    expect(JSON.stringify(fin.json.data.embeds)).toContain('레이드 성공');
+    expect(hooks).toHaveLength(1);
+    const e = hooks[0]!.body.embeds[0];
+    expect(e.title).toContain('드래곤');
+    expect(e.title).toContain('클리어');
+    expect(e.description).toContain('에이');
+    expect(e.description).toContain('비이');
+    expect(e.description).toContain('🎁');
+    await press('ra:f', undefined, DBB);
+    expect(hooks).toHaveLength(1);
+  });
   it('숙련도·대기시간·없는 방은 안내', async () => {
     expect(options(await slash('레이드'), 'ra:c')).toEqual([]); // 숙련도 부족
     expect(text(await slash('레이드입장', { 코드: 'ZZZZZZ' }))).toContain('방이 없거나');
@@ -115,6 +144,13 @@ describe('봇: PvP 1v1', () => {
     const fin = await press(ids(refresh).find((x) => x.startsWith('pv:a:'))!);
     expect(fin.json.data.embeds[0].description).toMatch(/승리|패배/);
     expect(text(await slash('랭킹'))).toContain('PvP 1v1');
+    // 전체 공개: 끝난 결과는 한 번만, 승자 문구로 올라간다 (패자가 새로고침해도 중복 없음)
+    await press('pv:f', undefined, DBB);
+    await slash('대전', {}, DBB);
+    expect(hooks).toHaveLength(1);
+    expect(hooks[0]!.body.flags).toBeUndefined();
+    expect(hooks[0]!.body.embeds[0].title).toMatch(/님이 .*님을 이겼다/);
+    expect(hooks[0]!.body.embeds[0].description).toContain('랭크전');
   });
   it('친구에게 도전 → 상대가 수락', async () => {
     await web('tokA', 'POST', '/api/friends/request', { userId: B.id });
@@ -188,6 +224,19 @@ describe('봇: 친구·유저·길드·교환소·이벤트', () => {
     expect(options(ev, 'ev:c').length).toBe(1);
     expect(text(await press('ev:c', options(ev, 'ev:c'), DBB))).toContain('받았어요');
     expect((sqlite.prepare('SELECT gold FROM characters WHERE user_id = ?').get(B.id) as any).gold).toBe(1200);
+  });
+});
+
+describe('전체 공개 메시지 형식', () => {
+  it('팀전 결과: 승리 팀 표시와 양 팀 구성', async () => {
+    const { publicTeam } = await import('./bot/ui');
+    const msg = publicTeam({ myTeam: 'A', result: 'win', ranked: true, players: [
+      { team: 'A', role: 'tank', nickname: '에이', delta: 16 }, { team: 'B', role: 'dealer', nickname: '비이', delta: -16 }] }) as any;
+    expect(msg.embeds[0].title).toContain('A팀 승리');
+    expect(msg.embeds[0].fields[0].name).toContain('🏆');
+    expect(msg.embeds[0].fields[0].value).toContain('에이 (+16)');
+    expect(msg.embeds[0].fields[1].value).toContain('비이 (-16)');
+    expect((publicTeam({ myTeam: 'A', result: 'draw', ranked: false, players: [] }) as any).embeds[0].title).toContain('무승부');
   });
 });
 

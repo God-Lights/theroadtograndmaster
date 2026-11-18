@@ -1,5 +1,6 @@
-import { ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait } from '@rtgm/data';
+import { DISCORD_INVITE_URL, ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait } from '@rtgm/data';
 import { canUseSkill, type BattleState, type Combatant } from '@rtgm/engine';
+import { rowsToQuery, type Row } from './barimg';
 
 /** 디스코드 메시지를 만드는 순수 함수들 (API 응답 → embed·버튼·선택 메뉴) */
 export interface Msg { embeds?: unknown[]; components?: unknown[]; content?: string }
@@ -13,10 +14,18 @@ export const select = (custom_id: string, placeholder: string, options: { label:
   options: options.slice(0, 25).map((o) => ({ label: clip(o.label, 100), value: o.value, ...(o.description ? { description: clip(o.description, 100) } : {}) })),
 });
 
-export const bar = (hp: number, max: number, n = 10): string => {
-  const filled = max > 0 ? Math.max(hp > 0 ? 1 : 0, Math.round((hp / max) * n)) : 0;
-  return `${'█'.repeat(Math.min(n, filled))}${'░'.repeat(Math.max(0, n - filled))} ${Math.max(0, hp)}/${max}`;
-};
+/** HP 숫자 문구 (막대는 아래 이미지로 그린다) */
+export const hpText = (hp: number, max: number) => `HP ${Math.max(0, hp)}/${max}`;
+
+/** 이미지가 올라올 서버 주소 (요청마다 index.ts 가 정한다) */
+let assetOrigin = 'https://rtgm.officialgl.com';
+export const setAssetOrigin = (origin: string) => { assetOrigin = origin; };
+/** HP·AP 막대 이미지 주소. 같은 값이면 같은 주소라 디스코드가 캐시한다 */
+export const barsUrl = (rows: Row[]) => `${assetOrigin}/bot/bars.png?r=${rowsToQuery(rows)}`;
+export const pct = (hp: number, max: number) => (max > 0 ? Math.max(hp > 0 ? 1 : 0, Math.round((hp / max) * 100)) : 0);
+/** 전투원 한 명의 막대 한 줄 */
+export const hpRow = (c: { hp: number; stats: { maxHp: number }; role?: string }, side: 'a' | 'f' | 'b'): Row =>
+  c.hp <= 0 ? { t: 'x', pct: 0 } : { t: side, pct: pct(c.hp, c.stats.maxHp) };
 export const pips = (ap: number | undefined, max = 6) => (ap === undefined ? '' : `${'●'.repeat(ap)}${'○'.repeat(Math.max(0, max - ap))}`);
 const STATUS: Record<string, string> = {
   weaken: '약화', vulnerable: '취약', bleed: '출혈', slow: '둔화', frenzy: '광란', counter: '반격', ironwall: '철벽', ironwall_next: '철벽 여운',
@@ -48,10 +57,10 @@ export function battleMessage(v: BattleView): Msg {
   const phase = state.boss?.runtime.phase;
   const intent = state.intents?.['enemy'];
   const fields: unknown[] = [
-    { name: `🧑 ${me.name}`, value: `${bar(me.hp, me.stats.maxHp)}\nAP ${pips(me.ap)}${me.gauge !== undefined ? ` · 궁극 ${me.gauge}%` : ''}${statuses(me, state.round) ? `\n${statuses(me, state.round)}` : ''}`, inline: false },
+    { name: `🧑 ${me.name}`, value: `${hpText(me.hp, me.stats.maxHp)}${me.ap !== undefined ? ` · AP ${me.ap}/6` : ''}${me.gauge !== undefined ? ` · 궁극 ${me.gauge}%` : ''}${statuses(me, state.round) ? `\n${statuses(me, state.round)}` : ''}`, inline: false },
     ...enemies.map((e) => ({
       name: `${e.id === 'enemy' ? '👹' : e.role === 'minion' ? '👾' : '🛡️'} ${e.name}${e.id === 'enemy' && phase ? ` (${phase}페이즈)` : ''}`,
-      value: `${bar(e.hp, e.stats.maxHp)}${statuses(e, state.round) ? `\n${statuses(e, state.round)}` : ''}`, inline: false,
+      value: `${hpText(e.hp, e.stats.maxHp)}${statuses(e, state.round) ? `\n${statuses(e, state.round)}` : ''}`, inline: false,
     })),
   ];
   if (!over && intent && state.boss) fields.push({ name: `⚠️ 다음 행동: ${intent.name}`, value: clip(intent.telegraph, 1000), inline: false });
@@ -67,6 +76,8 @@ export function battleMessage(v: BattleView): Msg {
     description: clip([v.note, logText].filter(Boolean).join('\n\n') || '행동을 고르세요!', 3500),
     color: over ? (state.status === 'victory' ? GREEN : RED) : GOLD,
     fields,
+    // 막대 그림: 적(위) → 나(아래, AP 점·궁극기 게이지 포함)
+    image: { url: barsUrl([...enemies.map((e) => hpRow(e, e.id === 'enemy' && state.boss ? 'b' : 'f')), { t: 'gap' }, hpRow(me, 'a'), ...(me.ap !== undefined ? [{ t: 'pips', n: me.ap } as Row] : []), ...(me.gauge !== undefined ? [{ t: 'gauge', pct: me.gauge } as Row] : [])]) },
     footer: { text: over ? (state.status === 'victory' ? '승리!' : '패배…') : '행동은 라운드마다 동시에 처리돼요' },
   };
   if (over) return { embeds: [embed], components: v.deferred ? [row(button('던전으로 돌아가기', 'rv', 1))] : [] };
@@ -110,7 +121,8 @@ export function runMessage(data: { proficiency?: number; gold?: number; dungeons
   if (run && run.status !== 'done') {
     const embed = {
       title: `🗺️ ${run.name} · ${run.floor}/${run.floors}층`, color: GOLD,
-      description: `${bar(run.hp, run.maxHp)}\n\n**전리품** (탈출해야 받아요)\n${lootLine(run.loot)}\n\n${(run.events ?? []).slice(-5).map((e: any) => `${ROOM[e.kind] ?? '·'} ${e.floor}층 · ${e.text}`).join('\n') || '아직 아무 방에도 들어가지 않았어요.'}`,
+      image: { url: barsUrl([hpRow({ hp: run.hp, stats: { maxHp: run.maxHp } }, 'a')]) },
+      description: `${hpText(run.hp, run.maxHp)}\n\n**전리품** (탈출해야 받아요)\n${lootLine(run.loot)}\n\n${(run.events ?? []).slice(-5).map((e: any) => `${ROOM[e.kind] ?? '·'} ${e.floor}층 · ${e.text}`).join('\n') || '아직 아무 방에도 들어가지 않았어요.'}`,
     };
     const last = run.floor + 1 >= run.floors;
     return { embeds: [embed], components: [row(button(last ? '⚠ 마지막 층으로' : `${run.floor + 1}층으로 내려가기`, 'rn', 1), button('후퇴하고 전리품 받기', 'rr', 2))] };
@@ -218,6 +230,7 @@ export const helpMessage = (): Msg => ({ embeds: [{
     '**기타**', '`/소식` — 보스·레이드·던전 전체 알림',
     '', '**함께 하기**', '`/레이드` `/레이드입장` · `/대전` `/도전` · `/팀전` `/팀입장` · `/랭킹`', '`/친구` `/친구신청` `/유저` · `/길드` `/길드생성` `/길드기부`', '`/교환소` `/등록` · `/이벤트`',
     '', '동시 선택 전투는 다른 사람이 고를 때까지 🔄 새로고침으로 확인해요.',
+    `\n[디스코드 서버 초대 링크](${DISCORD_INVITE_URL})`,
   ].join('\n'),
 }] });
 
@@ -227,3 +240,68 @@ export const recipeChoices = (q: string) =>
 export const buyChoices = (q: string) =>
   ITEMS.filter((i) => i.buy !== null && i.name.replace(/\s/g, '').includes(q.replace(/\s/g, ''))).map((i) => ({ name: `${i.name} (${i.buy}D)`, value: i.id })).slice(0, 25);
 
+
+// ─── 전체 공개 결과 ───────────────────────────────────────────────────────────
+
+const pubFooter = { text: 'RTGM · 디스코드에서 즐기는 모험' };
+const rewardText = (r?: { gold: number; proficiency: number; items?: { name?: string; itemId?: string; quantity: number }[] } | null) =>
+  r ? `${r.gold.toLocaleString()}D · 숙련도 +${r.proficiency}${(r.items ?? []).map((i) => ` · ${i.name ?? (i.itemId ? itemById(i.itemId)?.name : '') ?? i.itemId} ×${i.quantity}`).join('')}` : '';
+
+/** 일반 전투(탐험·보스) 결과 */
+export function publicBattle(nick: string, mobName: string, state: BattleState, rewards: { gold: number; proficiency: number; items: { name: string; quantity: number }[] } | undefined, boss: boolean): Msg {
+  const won = state.status === 'victory';
+  const me = state.combatants.find((c) => c.id === 'player');
+  return { embeds: [{
+    color: won ? (boss ? GOLD : GREEN) : RED,
+    title: won ? `${boss ? '👑' : '⚔️'} ${nick}님이 ${mobName}을(를) 쓰러뜨렸다!` : `💀 ${nick}님이 ${mobName}에게 쓰러졌다…`,
+    description: [`**${state.round - 1}라운드**${me && won ? ` · 남은 HP ${me.hp}/${me.stats.maxHp}` : ''}`, won && rewards ? `🎁 ${rewardText(rewards)}` : ''].filter(Boolean).join('\n'),
+    footer: pubFooter,
+  }] };
+}
+
+/** 로그라이크 던전 결과 (완주·후퇴·사망) */
+export function publicRun(nick: string, run: any): Msg {
+  const title = run.result === 'clear' ? `🏆 ${nick}님이 ${run.name}을(를) 완주했다!` : run.result === 'retreat' ? `🎒 ${nick}님이 ${run.name}에서 전리품을 챙겨 돌아왔다` : `💀 ${nick}님이 ${run.name}에서 쓰러졌다…`;
+  return { embeds: [{
+    color: run.result === 'dead' ? RED : run.result === 'clear' ? GOLD : BLUE, title,
+    description: `${run.floor}/${run.floors}층 도달\n${run.result === 'dead' ? '전리품을 모두 잃었다' : `🎁 ${rewardText(run.loot)}`}`,
+    footer: pubFooter,
+  }] };
+}
+
+const roleIcon: Record<string, string> = { tank: '🛡', dealer: '⚔', healer: '✚', support: '★' };
+/** 레이드 결과: 파티원과 보상 */
+export function publicRaid(room: any): Msg {
+  const won = room.result === 'victory';
+  const lines = room.members.map((m: any) => `${m.role ? `${roleIcon[m.role]} ` : ''}**${m.nickname}**${m.rewards ? ` — 🎁 ${rewardText(m.rewards)}` : ''}${m.miss >= 3 ? ' (자리 비움)' : ''}`);
+  return { embeds: [{
+    color: won ? GOLD : RED,
+    title: won ? `🛡️ ${'★'.repeat(room.star ?? 0)} ${room.bossName} 레이드 클리어!` : `🛡️ ${room.bossName} 레이드 실패…`,
+    description: clip(lines.join('\n'), 3800), footer: pubFooter,
+  }] };
+}
+
+/** 1v1 PvP 결과 */
+export function publicPvp(me: string, view: any): Msg {
+  const w = view.result?.winner;
+  const [winner, loser] = w === 'me' ? [me, view.opponent.nickname] : [view.opponent.nickname, me];
+  const delta = view.result?.ratingChange ?? 0;
+  return { embeds: [{
+    color: w === 'draw' ? BLUE : GOLD,
+    title: w === 'draw' ? `⚔️ ${me} vs ${view.opponent.nickname} — 무승부` : `⚔️ ${winner}님이 ${loser}님을 이겼다!`,
+    description: `${view.ranked ? '랭크전' : '친선전'} · ${view.round}라운드${view.ranked && w !== 'draw' ? `\n${me}님 레이팅 ${delta > 0 ? '+' : ''}${delta}` : ''}`, footer: pubFooter,
+  }] };
+}
+
+/** 4v4 팀전 결과: 양 팀 구성 */
+export function publicTeam(view: any): Msg {
+  const myTeam = view.myTeam as 'A' | 'B';
+  const winner = view.result === 'win' ? myTeam : view.result === 'loss' ? (myTeam === 'A' ? 'B' : 'A') : null;
+  const col = (t: string) => view.players.filter((p: any) => p.team === t).map((p: any) => `${roleIcon[p.role] ?? ''} ${p.nickname}${view.ranked ? ` (${p.delta > 0 ? '+' : ''}${p.delta})` : ''}`).join('\n') || '-';
+  return { embeds: [{
+    color: winner ? GOLD : BLUE,
+    title: winner ? `⚔️ 4v4 ${view.ranked ? '랭크전' : '친선전'} — ${winner === 'A' ? '🔵 A팀' : '🔴 B팀'} 승리!` : `⚔️ 4v4 ${view.ranked ? '랭크전' : '친선전'} — 무승부`,
+    fields: [{ name: `🔵 A팀${winner === 'A' ? ' 🏆' : ''}`, value: col('A'), inline: true }, { name: `🔴 B팀${winner === 'B' ? ' 🏆' : ''}`, value: col('B'), inline: true }],
+    footer: pubFooter,
+  }] };
+}
