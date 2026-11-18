@@ -487,6 +487,105 @@
     }
   ],
   "bosses": {
+    "slime_king": {
+      "id": "slime_king",
+      "name": "슬라임 킹 (Slime King)",
+      "star": 0,
+      "maxParty": 4,
+      "recParty": 2,
+      "cooldownMinutes": 10,
+      "hp": 420,
+      "atk": 12,
+      "def": 0,
+      "spd": 5,
+      "minProficiency": 0,
+      "gold": [
+        120,
+        240
+      ],
+      "profWin": 15,
+      "profLose": 5,
+      "drops": [
+        {
+          "itemId": "slime_king_core",
+          "chance": 1
+        },
+        {
+          "itemId": "hp_potion",
+          "chance": 0.5
+        }
+      ],
+      "note": "처음 오는 모험가를 위한 입문 레이드. 장비가 없어도 괜찮아요. 몸통 박치기는 한 명만, 물보라는 모두가 맞아요. 체력이 떨어지면 힐러가 회복해 주세요.",
+      "script": {
+        "patterns": {
+          "bump": {
+            "kind": "attack",
+            "name": "몸통 박치기",
+            "mult": 1.0,
+            "telegraph": "슬라임 킹이 {target}을(를) 향해 몸을 굴린다!",
+            "target": "random"
+          },
+          "splash": {
+            "kind": "attack",
+            "name": "물보라",
+            "mult": 0.45,
+            "telegraph": "슬라임 킹이 몸을 부풀린다.",
+            "target": "all"
+          },
+          "wobble": {
+            "kind": "attack",
+            "name": "출렁이기",
+            "mult": 0.5,
+            "telegraph": "몸이 출렁인다.",
+            "hits": 2,
+            "target": "random"
+          }
+        },
+        "phases": [
+          {
+            "fromHpPct": 100,
+            "atkMult": 1.0,
+            "pool": [
+              {
+                "id": "bump",
+                "weight": 3
+              },
+              {
+                "id": "wobble",
+                "weight": 2
+              },
+              {
+                "id": "splash",
+                "weight": 1
+              }
+            ]
+          },
+          {
+            "fromHpPct": 50,
+            "atkMult": 1.15,
+            "pool": [
+              {
+                "id": "bump",
+                "weight": 2
+              },
+              {
+                "id": "wobble",
+                "weight": 2
+              },
+              {
+                "id": "splash",
+                "weight": 2
+              }
+            ],
+            "enterText": "슬라임 킹의 몸이 더 크게 부풀어 오른다."
+          }
+        ],
+        "enrage": {
+          "fromRound": 20,
+          "perRound": 0.2
+        }
+      }
+    },
     "dragon": {
       "id": "dragon",
       "name": "드래곤 (Dragon)",

@@ -222,6 +222,8 @@ export const RAID_BOSSES = raidJson.bosses as unknown as Record<string, RaidBoss
 export const raidSkillById = (id: string): SkillData | undefined => RAID_SKILLS.find((s) => s.id === id);
 /** 역할 킷의 스킬 id (일반 4 + 궁극기 1) */
 export const raidKit = (role: RaidRole): string[] => [...RAID_ROLES[role].kit, RAID_ROLES[role].ultimate];
+/** 별 표시: 0성은 입문 레이드 */
+export const starLabel = (star: number): string => (star <= 0 ? '입문' : '★'.repeat(star));
 export const RAID_MIN_PARTY = 2;
 export const RAID_MISS_LIMIT = 3;
 

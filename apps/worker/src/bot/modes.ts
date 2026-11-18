@@ -1,4 +1,4 @@
-import { itemById, fmtWait } from '@rtgm/data';
+import { itemById, fmtWait, starLabel } from '@rtgm/data';
 import { needsAllyTarget, partyBattleMessage, type PartyView } from './party';
 import type { Caller, Publish, Result } from './types';
 import { BLUE, button, publicPvp, publicRaid, publicTeam, row, select, type Msg } from './ui';
@@ -25,7 +25,7 @@ function raidBattle(room: any, pendingSkill?: string): Msg {
   const alive = room.members.filter((m: any) => (room.state.combatants.find((c: any) => c.id === m.slot)?.hp ?? 0) > 0);
   const done = room.status === 'done';
   const v: PartyView = {
-    kind: 'ra', title: `🛡 ${'★'.repeat(room.star ?? 0)} ${room.bossName}`, round: room.round, deadline: room.deadline, serverNow: room.serverNow,
+    kind: 'ra', title: `🛡 ${starLabel(room.star ?? 0)} ${room.bossName}`, round: room.round, deadline: room.deadline, serverNow: room.serverNow,
     mySlot: room.mySlot, needsAction: room.needsAction, submitted: !!mine?.submitted, waiting: `파티원 ${alive.filter((m: any) => m.submitted).length}/${alive.length}`,
     state: room.state, skills: room.skills, log: room.log, done, pendingSkill,
     resultText: done ? `${room.result === 'victory' ? '🏆 레이드 성공!' : '레이드 실패…'}\n${rewardLine(mine?.rewards)}` : undefined,
@@ -37,7 +37,7 @@ function raidRoomLobby(room: any, roles: Record<string, any>): Msg {
   const lines = room.members.map((m: any) => `${m.role ? `${ROLE_ICON[m.role]} ${ROLE_LABEL[m.role]}` : '역할 미정'} · ${m.nickname}${m.userId === room.leaderId ? ' 👑' : m.ready ? ' ✔' : ''}`).join('\n');
   const count = (r: string) => room.members.filter((m: any) => m.role === r).length;
   const embed = {
-    title: `🛡 ${'★'.repeat(room.star)} ${room.bossName} · 대기실`, color: BLUE,
+    title: `🛡 ${starLabel(room.star)} ${room.bossName} · 대기실`, color: BLUE,
     description: `초대 코드 **${room.code}**  (친구는 \`/레이드입장 코드:${room.code}\`)\n파티원 ${room.members.length}/${room.maxParty}명 · 최소 ${room.minParty}명 · 적정 ${room.recParty}명\n역할은 ${room.roleCap === 1 ? '겹칠 수 없어요' : `역할마다 ${room.roleCap}명까지`}.\n\n${lines}`,
   };
   const myRole = room.myRole;
@@ -54,10 +54,10 @@ export async function raidShow(call: Caller, pendingSkill?: string): Promise<Res
     const now = Date.now();
     const lines = d.bosses.map((b: any) => {
       const wait = Math.max(0, (d.cooldowns?.[b.id] ?? 0) - now);
-      return `${'★'.repeat(b.star)} **${b.name}** · ${b.recParty}~${b.maxParty}명 · ${d.proficiency < b.minProficiency ? `🔒 숙련도 ${b.minProficiency}` : wait > 0 ? `⏳ ${fmtWait(wait)}` : `숙련도 ${b.minProficiency}+`}`;
+      return `${starLabel(b.star)} **${b.name}** · ${b.recParty}~${b.maxParty}명 · ${d.proficiency < b.minProficiency ? `🔒 숙련도 ${b.minProficiency}` : wait > 0 ? `⏳ ${fmtWait(wait)}` : `숙련도 ${b.minProficiency}+`}`;
     });
     const friends = (d.friendRooms ?? []).map((f: any) => `\`${f.code}\` ${f.leader}님의 ${f.bossName} (${f.members}/${f.max})`);
-    const options = d.bosses.filter((b: any) => d.proficiency >= b.minProficiency && (d.cooldowns?.[b.id] ?? 0) <= now).map((b: any) => ({ label: `${'★'.repeat(b.star)} ${b.name}`, value: b.id, description: `${b.recParty}~${b.maxParty}명` }));
+    const options = d.bosses.filter((b: any) => d.proficiency >= b.minProficiency && (d.cooldowns?.[b.id] ?? 0) <= now).map((b: any) => ({ label: `${starLabel(b.star)} ${b.name}`, value: b.id, description: `${b.recParty}~${b.maxParty}명` }));
     return { msg: {
       embeds: [{ title: '🛡 레이드', color: BLUE, description: `${lines.join('\n')}\n\n방을 만들거나 친구의 코드로 입장해요: \`/레이드입장 코드:XXXXXX\`${friends.length ? `\n\n**친구가 연 방**\n${friends.join('\n')}` : ''}` }],
       components: [...(options.length ? [row(select('ra:c', '방 만들기 — 보스 고르기', options))] : []), row(refreshBtn('ra'))],

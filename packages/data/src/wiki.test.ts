@@ -21,9 +21,9 @@ describe('wiki', () => {
     expect(bossView('rich')!.vessel).toContain('영혼함');
   });
   it('레이드 보스 보기와 역할 설명', () => {
-    for (const id of ['dragon', 'baekkario', 'ankio']) {
+    for (const id of ['slime_king', 'dragon', 'baekkario', 'ankio']) {
       const v = raidBossView(id)!;
-      expect(v.phases.length).toBe(3);
+      expect(v.phases.length).toBe(id === 'slime_king' ? 2 : 3);
       expect(v.enrage).toContain('격노');
       for (const p of v.patterns) { expect(p.text).not.toContain('undefined'); expect(p.text).not.toContain('NaN'); }
       expect(v.patterns.some((p) => p.text.includes('파티 전체'))).toBe(true);

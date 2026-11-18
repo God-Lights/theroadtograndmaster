@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { itemById } from '@rtgm/data';
+import { itemById, starLabel } from '@rtgm/data';
 import { canUseSkill, type Combatant } from '@rtgm/engine';
 import { api, fmtWait, type RaidLobbyPayload, type RaidMemberView, type RaidRoomView } from '../api';
 import { StatusBadges, Resources } from '../components/status';
@@ -186,7 +186,7 @@ export function Raid() {
     return (
       <>
         <div className="card">
-          <div className="card-title"><span className="stars">{'★'.repeat(room.star)}</span> {room.bossName} · 대기실</div>
+          <div className="card-title"><span className="stars">{starLabel(room.star)}</span> {room.bossName} · 대기실</div>
           <div className="stat-row"><span className="stat-label">초대 코드</span><b className="code">{room.code}</b></div>
           <div className="note">친구에게 코드를 알려 주세요. 대기실은 {data.lobbyMinutes}분 뒤에 사라져요. 파티원 {room.members.length}/{room.maxParty}명 · 최소 {room.minParty}명 · 적정 {room.recParty}명. 역할은 {room.roleCap === 1 ? '한 명에 하나씩 겹칠 수 없어요' : `역할마다 ${room.roleCap}명까지 고를 수 있어요`}.</div>
           {room.members.map((m) => (
@@ -231,7 +231,7 @@ export function Raid() {
         const wait = Math.max(0, (data.cooldowns[b.id] ?? 0) - now);
         return (
           <div key={b.id} className="card">
-            <div className="card-title"><Icon name={locked ? 'lock' : 'skull'} /> <span className="stars">{'★'.repeat(b.star)}{'☆'.repeat(5 - b.star)}</span> {b.name}</div>
+            <div className="card-title"><Icon name={locked ? 'lock' : 'skull'} /> <span className="stars">{b.star > 0 ? '★'.repeat(b.star) + '☆'.repeat(5 - b.star) : '입문'}</span> {b.name}</div>
             <div className="note">{b.note}</div>
             <div className="stat-row"><span className="stat-label">입장 숙련도</span><span>{b.minProficiency}+ (현재 {data.proficiency})</span></div>
             <div className="stat-row"><span className="stat-label">파티</span><span>2~{b.maxParty}명 (적정 {b.recParty}명){b.maxParty >= 8 ? ' · 역할당 2명까지' : ' · 역할 1인 1개'}</span></div>

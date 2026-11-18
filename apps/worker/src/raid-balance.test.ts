@@ -112,6 +112,25 @@ const TIERS: Record<string, { roles: RaidRole[]; low: readonly string[]; rec: re
   ankio: { roles: ['tank', 'dealer', 'dealer', 'healer', 'healer', 'support'], low: SETS.mid, rec: SETS.high, high: ['oracle_blade', 'titan_shield', 'glutton_armor'] },
 };
 
+describe('입문 레이드 (슬라임 킹): 처음 온 모험가도 깰 수 있다', () => {
+  const START = ['rusted_sword', 'rusted_armor']; // 신규 캐릭터가 처음 갖는 장비
+  it('시작 장비 2명: 예고를 읽으면 거의 항상, 기본 공격만 해도 절반 이상 깬다', () => {
+    const smart = batch('slime_king', START, { roles: ['dealer', 'healer'] });
+    const naive = batch('slime_king', START, { roles: ['dealer', 'healer'], smart: false });
+    expect(smart.clear).toBeGreaterThan(0.9);
+    expect(naive.clear).toBeGreaterThan(0.4);
+    expect(naive.clear).toBeLessThan(0.9); // 아무 생각 없이 해도 되진 않는다
+  });
+  it('시작 장비 3~4명 파티는 기본 공격만 해도 깬다', () => {
+    expect(batch('slime_king', START, { roles: ['tank', 'dealer', 'healer'], smart: false }).clear).toBeGreaterThan(0.9);
+    expect(batch('slime_king', START, { roles: ROLES, smart: false }).clear).toBeGreaterThan(0.9);
+  });
+  it('숙련도 제한이 없고, 대기시간이 가장 짧다', () => {
+    expect(RAID_BOSSES.slime_king!.minProficiency).toBe(0);
+    for (const [id, b] of Object.entries(RAID_BOSSES)) if (id !== 'slime_king') expect(b.cooldownMinutes).toBeGreaterThan(RAID_BOSSES.slime_king!.cooldownMinutes);
+  });
+});
+
 describe('레이드 밸런스 (시뮬레이션)', () => {
   const out: Record<string, unknown> = {};
   for (const [id, t] of Object.entries(TIERS)) {

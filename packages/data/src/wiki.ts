@@ -1,7 +1,7 @@
 import type { BossScript, PatternDef } from '@rtgm/engine';
 import {
   BOSS_SCRIPTS, DUNGEONS, RAID_BOSSES, ROGUE_DUNGEONS, RAID_ROLES, RAID_ROLE_IDS, raidKit, raidRoleCap, raidSkillById, ITEMS, MOBS, RECIPES, SKILLS, STARTER_ITEMS,
-  entryCost, itemById, mobById,
+  entryCost, itemById, mobById, starLabel,
   type DungeonData, type ItemData, type MobData, type RecipeData, type SkillData,
 } from './index';
 
@@ -182,7 +182,7 @@ export function wikiEntries(): WikiEntry[] {
   const skills = SKILLS.map((s): WikiEntry => ({ kind: 'skill', id: s.id, name: s.name, hint: `${s.ultimate ? '궁극기' : '스킬'} · ${s.role}` }));
   const dungeons = DUNGEONS.map((d): WikiEntry => ({ kind: 'dungeon', id: d.id, name: d.name, hint: `숙련도 ${d.minProficiency}~` }));
   const recipes = RECIPES.map((r): WikiEntry => ({ kind: 'recipe', id: r.id, name: `${itemById(r.resultId)?.name ?? r.resultId} 제작`, hint: `숙련도 ${r.unlockProficiency}에 해금` }));
-  const raids = Object.values(RAID_BOSSES).map((b): WikiEntry => ({ kind: 'raid', id: b.id, name: b.name, hint: `${'★'.repeat(b.star)} · ${b.recParty}~${b.maxParty}명` }));
+  const raids = Object.values(RAID_BOSSES).map((b): WikiEntry => ({ kind: 'raid', id: b.id, name: b.name, hint: `${starLabel(b.star)} · ${b.recParty}~${b.maxParty}명` }));
   const rogues = ROGUE_DUNGEONS.map((d): WikiEntry => ({ kind: 'rogue', id: d.id, name: d.name, hint: `${d.floors}층 · 숙련도 ${d.minProficiency}~` }));
   return [...items, ...mobs, ...skills, ...dungeons, ...recipes, ...raids, ...rogues];
 }

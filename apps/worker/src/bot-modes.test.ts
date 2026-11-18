@@ -66,7 +66,7 @@ describe('봇: 레이드', () => {
     setProf(A.id, 2000); setProf(B.id, 2000);
     const lobby = await slash('레이드');
     expect(text(lobby)).toContain('드래곤');
-    expect(options(lobby, 'ra:c')).toEqual(['dragon', 'baekkario', 'ankio']);
+    expect(options(lobby, 'ra:c')).toEqual(['slime_king', 'dragon', 'baekkario', 'ankio']);
     const room = await press('ra:c', ['dragon']);
     expect(room.json.type).toBe(7);
     const code = /\*\*([A-Z0-9]{6})\*\*/.exec(text(room))![1]!;
@@ -120,7 +120,7 @@ describe('봇: 레이드', () => {
     expect(hooks).toHaveLength(1);
   });
   it('숙련도·대기시간·없는 방은 안내', async () => {
-    expect(options(await slash('레이드'), 'ra:c')).toEqual([]); // 숙련도 부족
+    expect(options(await slash('레이드'), 'ra:c')).toEqual(['slime_king']); // 숙련도가 낮으면 입문 레이드만 고를 수 있다
     expect(text(await slash('레이드입장', { 코드: 'ZZZZZZ' }))).toContain('방이 없거나');
   });
 });
