@@ -4,11 +4,11 @@ import { canUseSkill, type BattleState, type Combatant } from '@rtgm/engine';
 /** 디스코드 메시지를 만드는 순수 함수들 (API 응답 → embed·버튼·선택 메뉴) */
 export interface Msg { embeds?: unknown[]; components?: unknown[]; content?: string }
 
-const GOLD = 0xffd700, GREEN = 0x66bb6a, RED = 0xef5350, BLUE = 0x42a5f5;
+export const GOLD = 0xffd700, GREEN = 0x66bb6a, RED = 0xef5350, BLUE = 0x42a5f5;
 export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-const row = (...components: unknown[]) => ({ type: 1, components });
-const button = (label: string, custom_id: string, style: 1 | 2 | 3 | 4 = 2, disabled = false) => ({ type: 2, style, label: clip(label, 80), custom_id, disabled });
-const select = (custom_id: string, placeholder: string, options: { label: string; value: string; description?: string }[]) => ({
+export const row = (...components: unknown[]) => ({ type: 1, components });
+export const button = (label: string, custom_id: string, style: 1 | 2 | 3 | 4 = 2, disabled = false) => ({ type: 2, style, label: clip(label, 80), custom_id, disabled });
+export const select = (custom_id: string, placeholder: string, options: { label: string; value: string; description?: string }[]) => ({
   type: 3, custom_id, placeholder: clip(placeholder, 150), min_values: 1, max_values: 1,
   options: options.slice(0, 25).map((o) => ({ label: clip(o.label, 100), value: o.value, ...(o.description ? { description: clip(o.description, 100) } : {}) })),
 });
@@ -17,12 +17,12 @@ export const bar = (hp: number, max: number, n = 10): string => {
   const filled = max > 0 ? Math.max(hp > 0 ? 1 : 0, Math.round((hp / max) * n)) : 0;
   return `${'█'.repeat(Math.min(n, filled))}${'░'.repeat(Math.max(0, n - filled))} ${Math.max(0, hp)}/${max}`;
 };
-const pips = (ap: number | undefined, max = 6) => (ap === undefined ? '' : `${'●'.repeat(ap)}${'○'.repeat(Math.max(0, max - ap))}`);
+export const pips = (ap: number | undefined, max = 6) => (ap === undefined ? '' : `${'●'.repeat(ap)}${'○'.repeat(Math.max(0, max - ap))}`);
 const STATUS: Record<string, string> = {
   weaken: '약화', vulnerable: '취약', bleed: '출혈', slow: '둔화', frenzy: '광란', counter: '반격', ironwall: '철벽', ironwall_next: '철벽 여운',
   will: '의지', regen: '재생', shield: '보호막', morale: '사기', overdrive: '극한 개방', command: '지휘', unyielding: '불굴', lastshield: '최후의 방패',
 };
-const statuses = (c: Combatant, round: number) => (c.statuses ?? []).filter((s) => s.until >= round).map((s) => STATUS[s.id] ?? s.id).join(' · ');
+export const statuses = (c: Combatant, round: number) => (c.statuses ?? []).filter((s) => s.until >= round).map((s) => STATUS[s.id] ?? s.id).join(' · ');
 
 export const errorMsg = (code: string, data: Record<string, unknown> = {}): Msg => {
   if (code === 'not_linked') {
@@ -216,7 +216,8 @@ export const helpMessage = (): Msg => ({ embeds: [{
     '**캐릭터**', '`/프로필` · `/인벤토리` · `/스킬`', '',
     '**경제**', '`/상점` · `/구매` · `/판매` · `/제작`', '',
     '**기타**', '`/소식` — 보스·레이드·던전 전체 알림',
-    '', '레이드·PvP·길드·교환소는 웹에서 해 주세요. (곧 봇에도 들어와요)',
+    '', '**함께 하기**', '`/레이드` `/레이드입장` · `/대전` `/도전` · `/팀전` `/팀입장` · `/랭킹`', '`/친구` `/친구신청` `/유저` · `/길드` `/길드생성` `/길드기부`', '`/교환소` `/등록` · `/이벤트`',
+    '', '동시 선택 전투는 다른 사람이 고를 때까지 🔄 새로고침으로 확인해요.',
   ].join('\n'),
 }] });
 

@@ -4,8 +4,10 @@ import {
   shopMessage, skillsMessage, withItems, type Msg,
 } from './ui';
 
-export interface CallResult { status: number; json: any }
-export type Caller = (method: string, path: string, body?: unknown) => Promise<CallResult>;
+import { exchangePress, exchangeShow, eventPress, eventsShow, friendPress, friendRequest, friendsShow, guildPress, guildShow, rankingShow, usersShow } from './social';
+import { pvpPress, pvpShow, raidPress, raidShow, teamPress, teamShow } from './modes';
+import type { CallResult, Caller } from './types';
+export type { CallResult, Caller } from './types';
 
 const EPHEMERAL = 64;
 const reply = (msg: Msg) => ({ type: 4, data: { ...msg, flags: EPHEMERAL } });
@@ -15,6 +17,11 @@ const userIdOf = (i: any): string | undefined => i.member?.user?.id ?? i.user?.i
 
 /** 오류 응답을 메시지로. 명령어는 새 메시지, 버튼·메뉴는 원래 메시지를 그대로 두고 알림만 띄운다 */
 const fail = (r: CallResult) => reply(errorMsg(r.json?.error ?? 'unknown', r.json ?? {}));
+
+/** 화면 결과 → 새 메시지(명령어) */
+const view = (r: { msg: Msg } | { error: CallResult }) => ('msg' in r ? reply(r.msg) : fail(r.error));
+/** 화면 결과 → 원래 메시지 갱신(버튼·메뉴) */
+const viewUpdate = (r: { msg: Msg } | { error: CallResult }) => ('msg' in r ? update(r.msg) : fail(r.error));
 
 /** 한 라운드를 진행하고 전투 메시지를 만든다 */
 async function round(call: Caller, battleId: string, body: Record<string, unknown>) {
@@ -113,6 +120,26 @@ async function command(i: any, uid: string, call: Caller): Promise<object> {
       if (r.status !== 200) return fail(r);
       return reply({ embeds: [{ color: 0x66bb6a, description: `🔨 **${r.json.crafted.name}** ×${r.json.crafted.quantity} 제작 완료! (숙련도 +${r.json.proficiencyGained})` }] });
     }
+    case '레이드': return view(await raidShow(call));
+    case '레이드입장': { const r = await call('POST', '/api/raid/join', { code: String(optionOf(i, '코드') ?? '') }); return r.status === 200 ? view(await raidShow(call)) : fail(r); }
+    case '대전': return view(await pvpShow(call));
+    case '도전': { const r = await call('POST', '/api/pvp/challenge', { userId: String(optionOf(i, '유저') ?? '') }); return r.status === 200 ? reply({ embeds: [{ color: 0x66bb6a, description: '⚔️ 도전장을 보냈어요! 상대가 `/대전`에서 수락하면 시작돼요.' }] }) : fail(r); }
+    case '팀전': return view(await teamShow(call));
+    case '팀입장': { const r = await call('POST', '/api/team/room/join', { code: String(optionOf(i, '코드') ?? '') }); return r.status === 200 ? view(await teamShow(call)) : fail(r); }
+    case '친구': return view(await friendsShow(call));
+    case '친구신청': return view(await friendRequest(call, String(optionOf(i, '닉네임') ?? '').trim()));
+    case '유저': return view(await usersShow(call, String(optionOf(i, '검색') ?? '').trim()));
+    case '길드': return view(await guildShow(call));
+    case '길드생성': { const r = await call('POST', '/api/guild/create', { name: String(optionOf(i, '이름') ?? ''), description: String(optionOf(i, '소개') ?? '') }); return r.status === 200 ? view(await guildShow(call)) : fail(r); }
+    case '길드기부': { const amount = Number(optionOf(i, '금액')); const r = await call('POST', '/api/guild/donate', { amount }); return r.status === 200 ? reply({ embeds: [{ color: 0x66bb6a, description: `💰 ${amount.toLocaleString()}D를 길드에 기부했어요!` }] }) : fail(r); }
+    case '교환소': return view(await exchangeShow(call));
+    case '등록': {
+      const itemId = String(optionOf(i, '아이템')), quantity = Number(optionOf(i, '수량')), price = Number(optionOf(i, '가격'));
+      const r = await call('POST', '/api/exchange/list', { itemId, quantity, price, to: null });
+      return r.status === 200 ? reply({ embeds: [{ color: 0x66bb6a, description: `🧺 **${itemById(itemId)?.name ?? itemId}** ×${quantity}을(를) ${price.toLocaleString()}D에 올렸어요. (판매되면 수수료를 뺀 금액이 들어와요)` }] }) : fail(r);
+    }
+    case '이벤트': return view(await eventsShow(call));
+    case '랭킹': return view(await rankingShow(call));
     case '소식': {
       const r = await call('GET', '/api/announcements?after=0');
       return r.status === 200 ? reply(newsMessage(r.json.announcements)) : fail(r);
@@ -136,6 +163,13 @@ async function component(i: any, call: Caller): Promise<object> {
     const r = await round(call, battleId!, body);
     return 'msg' in r ? update(r.msg!) : fail(r.error!);
   }
+  if (id.startsWith('ra:')) return viewUpdate(await raidPress(call, id, i.data.values));
+  if (id.startsWith('pv:')) return viewUpdate(await pvpPress(call, id, i.data.values));
+  if (id.startsWith('tm:')) return viewUpdate(await teamPress(call, id, i.data.values));
+  if (id.startsWith('fr:')) return viewUpdate(await friendPress(call, id, i.data.values));
+  if (id.startsWith('gl:')) return viewUpdate(await guildPress(call, id, i.data.values));
+  if (id.startsWith('ex:')) return viewUpdate(await exchangePress(call, id, i.data.values));
+  if (id.startsWith('ev:')) return viewUpdate(await eventPress(call, id, i.data.values));
   switch (id) {
     case 'rs': { const r = await call('POST', '/api/run/start', { dungeonId: value }); if (r.status !== 200) return fail(r); const v = await showRun(call, `**${r.json.name}** 에 입장했다!`); return 'msg' in v ? update(v.msg) : fail(v.error); }
     case 'rn': { const r = await advanceRun(call); return 'msg' in r ? update(r.msg!) : fail(r.error!); }
@@ -163,7 +197,19 @@ async function autocomplete(i: any, call: Caller): Promise<object> {
   let choices: { name: string; value: string }[] = [];
   if (i.data.name === '구매') choices = buyChoices(q);
   else if (i.data.name === '제작') choices = recipeChoices(q);
-  else if (i.data.name === '판매') {
+  else if (i.data.name === '도전') {
+    const fr = await call('GET', '/api/friends');
+    if (fr.status === 200) choices = fr.json.friends.filter((p: any) => norm(p.nickname).includes(norm(q))).slice(0, 25).map((p: any) => ({ name: `${p.nickname}${p.online ? ' (접속 중)' : ''}`, value: p.id }));
+  } else if (i.data.name === '등록') {
+    const inv = await call('GET', '/api/inventory');
+    if (inv.status === 200) {
+      choices = inv.json.items
+        .map((r: any) => ({ r, it: itemById(r.itemId) }))
+        .filter((x: any) => x.it && norm(x.it.name).includes(norm(q)))
+        .slice(0, 25)
+        .map((x: any) => ({ name: `${x.it.name} ×${x.r.quantity}`, value: x.it.id }));
+    }
+  } else if (i.data.name === '판매') {
     const inv = await call('GET', '/api/inventory');
     if (inv.status === 200) {
       choices = inv.json.items
