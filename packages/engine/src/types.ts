@@ -142,6 +142,10 @@ export type PatternDef =
   | { kind: 'summon'; name: string; count: number; minPhase: number; telegraph: string }
   /** 이번 라운드 웅크린다: 선행으로 받는 피해를 줄이고 일부를 반사 (공격한 쪽이 손해) */
   | { kind: 'stance'; name: string; takenMult: number; reflectPct: number; telegraph: string }
+  /** 식사: 대상을 크게 물어뜯고 준 피해의 일부만큼 회복한다. 허기가 minHunger 이상일 때만 나오고, 먹고 나면 허기가 0이 된다 */
+  | { kind: 'devour'; name: string; mult: number; healPct: number; minHunger: number; telegraph: string }
+  /** 아이템 복제('부족해!'): 플레이어가 직전 라운드에 쓴 회복 아이템을 보스가 똑같이 쓴다 (최대 HP 비율로 상한) */
+  | { kind: 'copy_item'; name: string; maxHealPct: number; telegraph: string }
   /** 거울 복제: 플레이어가 직전 라운드에 입힌 피해의 일부를 되돌려 준다 */
   | { kind: 'mirror'; name: string; pct: number; telegraph: string }
   | {
@@ -200,11 +204,13 @@ export interface BossScript {
   };
   minion?: { name: string; stats: Stats; max: number; healBossPct: number };
   stance?: StanceConfig;
+  /** 허기: 매 라운드 쌓이고 쌓인 만큼 공격력이 오른다 (식사로 해소) */
+  hunger?: { perRound: number; max: number; atkPerStack: number };
 }
 
 export type IntentKind =
   | 'attack' | 'debuff' | 'drain' | 'summon' | 'charge' | 'release'
-  | 'stunned' | 'phase_shift' | 'minion_attack' | 'stance' | 'mirror';
+  | 'stunned' | 'phase_shift' | 'minion_attack' | 'stance' | 'mirror' | 'devour' | 'copy_item';
 
 /** 다음 라운드 적의 행동 예고. 선택 단계에서 플레이어에게 보여 준다. */
 export interface Intent {
@@ -239,6 +245,11 @@ export interface BossRuntime {
   /** 플레이어가 직전 라운드에 입힌 총 피해 / 이번 라운드 누적 */
   lastPlayerDamage: number;
   playerDamageThisRound: number;
+  /** 허기 스택 (hunger 규칙이 있는 보스만) */
+  hunger: number;
+  /** 플레이어가 직전 라운드에 쓴 아이템의 회복량 / 이번 라운드 누적 */
+  lastItemHeal: number;
+  itemHealThisRound: number;
 }
 
 export interface BattleState {

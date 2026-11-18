@@ -296,5 +296,128 @@
     "profLose": 20,
     "dungeon": "midrealm_1",
     "note": "직전에 한 행동의 반대 자세를 취해요. 공격하면 반격, 방어하면 공세. 스킬을 섞어 풀어 보세요."
+  },
+  {
+    "id": "raidos",
+    "name": "레이도스 (Raidos)",
+    "kind": "normal",
+    "hp": 620,
+    "atk": 78,
+    "def": 22,
+    "spd": 16,
+    "gold": [
+      90,
+      200
+    ],
+    "drops": [
+      {
+        "itemId": "raidos_fang",
+        "chance": 0.65
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "번개처럼 빠르고 세 번 연달아 베어요. 가드로 버티며 반격하세요."
+  },
+  {
+    "id": "core_lord",
+    "name": "코어로드 (Core Lord)",
+    "kind": "normal",
+    "hp": 900,
+    "atk": 70,
+    "def": 30,
+    "spd": 5,
+    "gold": [
+      120,
+      260
+    ],
+    "drops": [
+      {
+        "itemId": "core_fragment",
+        "chance": 0.55
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "핵을 충전한 뒤 크게 폭발해요. 충전 중에 큰 피해를 주면 끊을 수 있어요."
+  },
+  {
+    "id": "ancient_lord",
+    "name": "에이션트 로드 (Ancient Lord)",
+    "kind": "normal",
+    "hp": 760,
+    "atk": 82,
+    "def": 26,
+    "spd": 9,
+    "gold": [
+      130,
+      280
+    ],
+    "drops": [
+      {
+        "itemId": "ancient_relic",
+        "chance": 0.5
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "저주로 공격력을 깎고 생기를 빨아들여요. 정화를 챙기세요."
+  },
+  {
+    "id": "paka",
+    "name": "더파카 (The Paka)",
+    "kind": "normal",
+    "hp": 560,
+    "atk": 74,
+    "def": 20,
+    "spd": 12,
+    "gold": [
+      100,
+      220
+    ],
+    "drops": [
+      {
+        "itemId": "paka_tail",
+        "chance": 0.6
+      }
+    ],
+    "profWin": 25,
+    "profLose": 10,
+    "dungeon": "midrealm_2",
+    "note": "당신이 쓴 회복 아이템을 가로채 써요. 아이템은 꼭 필요할 때만 쓰세요."
+  },
+  {
+    "id": "fodermore",
+    "name": "포더모어 (Fodermore)",
+    "kind": "boss",
+    "hp": 1300,
+    "atk": 70,
+    "def": 30,
+    "spd": 8,
+    "gold": [
+      900,
+      1600
+    ],
+    "drops": [
+      {
+        "itemId": "abyss_crystal",
+        "chance": 1
+      },
+      {
+        "itemId": "fodermore_spoon",
+        "chance": 0.4
+      },
+      {
+        "itemId": "titan_metal",
+        "chance": 0.25
+      }
+    ],
+    "profWin": 80,
+    "profLose": 30,
+    "dungeon": "midrealm_2",
+    "note": "배고픔이 쌓일수록 강해지고, 다 쌓이면 식사로 회복해요. 쓴 아이템을 빼앗고 과식 일격을 준비해요."
   }
 ]

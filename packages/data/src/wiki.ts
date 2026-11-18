@@ -58,6 +58,10 @@ export function describePattern(def: PatternDef, phase = 1): string {
       return `하수인을 최대 ${def.count}체까지 소환 (${def.minPhase}페이즈부터)`;
     case 'stance':
       return `이번 라운드 받는 피해 -${pct(1 - def.takenMult)}, 공격한 쪽에 ${pct(def.reflectPct)} 반사`;
+    case 'devour':
+      return `공격력 ${pct(def.mult)}로 물어뜯고 준 피해의 ${pct(def.healPct)}만큼 회복해요. 허기가 ${def.minHunger} 이상일 때 쓰고, 먹으면 허기가 0이 돼요`;
+    case 'copy_item':
+      return `직전 라운드에 당신이 쓴 회복 아이템을 똑같이 써요 (최대 HP의 ${pct(def.maxHealPct)}까지 회복). 아이템을 쓰지 않았다면 나오지 않아요`;
     case 'mirror':
       return `플레이어가 직전 라운드에 입힌 피해의 ${pct(def.pct)}를 되돌려 줌`;
     case 'charge_attack': {
@@ -93,6 +97,7 @@ export interface BossView {
   vessel?: string;
   minion?: string;
   stance?: string[];
+  hunger?: string;
 }
 
 /** 몹의 패턴 스크립트를 사람이 읽는 형태로 바꾼다. 스크립트가 없으면 undefined (일반 AI) */
@@ -135,6 +140,10 @@ export function bossView(mobId: string): BossView | undefined {
       `${s.enhancedFromPhase}페이즈부터 같은 행동을 연속하면 자세 효과가 ×${s.enhancedMult}로 강해져요.`,
       `${s.reversalFromPhase}페이즈부터 ${s.reversalEvery}라운드마다 규칙이 뒤집혀요 (공격 → 공세, 방어 → 반격).`,
     ];
+  }
+  if (script.hunger) {
+    const h = script.hunger;
+    view.hunger = `허기: 매 라운드 +${h.perRound} (최대 ${h.max}), 허기 1당 공격력 +${pct(h.atkPerStack)}. 식사로 해소해요.`;
   }
   return view;
 }

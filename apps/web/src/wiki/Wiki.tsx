@@ -243,11 +243,12 @@ function MobPage({ id }: { id: string }) {
               </div>
             ))}
           </div>
-          {(view.vessel || view.minion || view.stance) && (
+          {(view.vessel || view.minion || view.stance || view.hunger) && (
             <div className="card">
               <div className="card-title">특수 규칙</div>
               {view.vessel && <div className="wiki-line">{view.vessel}</div>}
               {view.minion && <div className="wiki-line">{view.minion}</div>}
+              {view.hunger && <div className="wiki-line">{view.hunger}</div>}
               {view.stance?.map((t) => <div key={t} className="wiki-line">{t}</div>)}
             </div>
           )}

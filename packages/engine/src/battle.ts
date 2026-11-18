@@ -19,8 +19,8 @@ export const GAUGE_ON_HEAL = 8;
 /** 방어력 기반 스킬(방패 강타 등)의 공격값 = 방어력 × 이 값 × 계수 */
 export const DEF_SCALE = 3;
 
-const RUNTIME_DEFAULTS: Pick<BossRuntime, 'stance' | 'stanceBoost' | 'reversed' | 'lastPlayerDamage'> = {
-  stance: 'neutral', stanceBoost: 1, reversed: false, lastPlayerDamage: 0,
+const RUNTIME_DEFAULTS: Pick<BossRuntime, 'stance' | 'stanceBoost' | 'reversed' | 'lastPlayerDamage' | 'hunger' | 'lastItemHeal' | 'itemHealThisRound'> = {
+  stance: 'neutral', stanceBoost: 1, reversed: false, lastPlayerDamage: 0, hunger: 0, lastItemHeal: 0, itemHealThisRound: 0,
 };
 
 const clone = (c: Combatant): Combatant => ({
@@ -56,6 +56,7 @@ export function createBattle(
         sinceUsed: Object.fromEntries(Object.keys(script.patterns).map((id) => [id, 99])),
         damageThisRound: 0, minionSeq: 0,
         stance: 'neutral', stanceBoost: 1, reversed: false, lastActions: [], lastPlayerDamage: 0, playerDamageThisRound: 0,
+        hunger: 0, lastItemHeal: 0, itemHealThisRound: 0,
       },
     };
     state.intents = planIntents(state, mulberry32((seed ^ 0xa5a5a5a5) >>> 0));
@@ -291,7 +292,8 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   const stanceCfg = boss.script.stance;
   const offense = !!stanceCfg && actor.role === 'boss' && rt.stance === 'offense';
   const phaseMult = (actor.role === 'boss' ? (boss.script.phases[rt.phase - 1]?.atkMult ?? 1) : 1)
-    * (offense ? 1 + (stanceCfg!.offense.atkMult - 1) * rt.stanceBoost : 1);
+    * (offense ? 1 + (stanceCfg!.offense.atkMult - 1) * rt.stanceBoost : 1)
+    * (actor.role === 'boss' && boss.script.hunger ? 1 + boss.script.hunger.atkPerStack * rt.hunger : 1);
   const pierce = offense ? Math.min(1, stanceCfg!.offense.guardPierce * rt.stanceBoost) : 0;
 
   switch (intent.kind) {
@@ -323,6 +325,15 @@ function execIntent(ctx: Ctx, actor: Combatant, intent: Intent): void {
   } else if (def.kind === 'stance') {
     addStatus(actor, { id: 'shell', until: ctx.round, takenMult: def.takenMult, reflectPct: def.reflectPct });
     say(ctx, 'status', actor.id, `${josa(actor.name, '이', '가')} ${def.name}! ${def.telegraph}`);
+  } else if (def.kind === 'devour' && target && target.hp > 0) {
+    rt.hunger = 0;
+    const dmg = hit(ctx, actor, target, effectiveAtk(actor, ctx.round) * def.mult * phaseMult, { label: def.name, guardPierce: pierce });
+    const healed = healTo(ctx, actor, Math.round(dmg * def.healPct));
+    if (healed > 0) say(ctx, 'heal', actor.id, `${josa(actor.name, '은', '는')} 배를 채웠다! HP ${healed} 회복. 허기가 가셨다.`, { amount: healed });
+  } else if (def.kind === 'copy_item') {
+    const want = Math.min(rt.lastItemHeal, Math.round(actor.stats.maxHp * def.maxHealPct));
+    const healed = healTo(ctx, actor, want);
+    say(ctx, 'heal', actor.id, `“부족해!” ${josa(actor.name, '이', '가')} 당신이 쓴 아이템을 가로채 똑같이 썼다. HP ${healed} 회복.`, { amount: healed });
   } else if (def.kind === 'mirror' && target && target.hp > 0) {
     const raw = Math.round(rt.lastPlayerDamage * def.pct);
     if (raw <= 0) {
@@ -654,6 +665,7 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
         c, prio: 2, speed: c.stats.spd,
         run: () => {
           const healed = healTo(ctx, c, item.healHp);
+          if (next.boss && c.side === 'player') next.boss.runtime.itemHealThisRound += item.healHp;
           addGauge(c, GAUGE_ON_HEAL);
           say(ctx, 'heal', c.id, `${josa(c.name, '이', '가')} 아이템으로 HP ${healed} 회복.`, { amount: healed });
         },
@@ -683,6 +695,10 @@ export function resolveRound(state: BattleState, actions: Record<string, Action>
     if (playerKind) rt.lastActions = [...rt.lastActions, playerKind].slice(-2);
     rt.lastPlayerDamage = rt.playerDamageThisRound;
     rt.playerDamageThisRound = 0;
+    rt.lastItemHeal = rt.itemHealThisRound;
+    rt.itemHealThisRound = 0;
+    const hg = next.boss.script.hunger;
+    if (hg) rt.hunger = Math.min(hg.max, rt.hunger + hg.perRound);
     updateStance(ctx);
   }
 

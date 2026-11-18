@@ -159,5 +159,68 @@
     ],
     "gold": 5000,
     "unlockProficiency": 950
+  },
+  {
+    "id": "fodermore_key",
+    "resultId": "fodermore_key",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "oppoko_mask",
+        "quantity": 1
+      },
+      {
+        "itemId": "chaos_crystal",
+        "quantity": 1
+      }
+    ],
+    "gold": 1000,
+    "unlockProficiency": 1200
+  },
+  {
+    "id": "glutton_armor",
+    "resultId": "glutton_armor",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "titan_armor",
+        "quantity": 1
+      },
+      {
+        "itemId": "fodermore_spoon",
+        "quantity": 2
+      },
+      {
+        "itemId": "core_fragment",
+        "quantity": 4
+      }
+    ],
+    "gold": 8000,
+    "unlockProficiency": 1600
+  },
+  {
+    "id": "devourer_sword",
+    "resultId": "devourer_sword",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "titan_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "fodermore_spoon",
+        "quantity": 3
+      },
+      {
+        "itemId": "abyss_crystal",
+        "quantity": 2
+      },
+      {
+        "itemId": "ancient_relic",
+        "quantity": 3
+      }
+    ],
+    "gold": 12000,
+    "unlockProficiency": 1700
   }
 ]

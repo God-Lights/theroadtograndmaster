@@ -36,5 +36,23 @@
       "xenosaurs",
       "oppoko"
     ]
+  },
+  {
+    "id": "midrealm_2",
+    "name": "중간계 던전 II",
+    "description": "허기진 자들이 모이는 깊은 층. 던전의 주인 포더모어는 먹을수록 강해지는 식객의 왕입니다. 보스에 도전하려면 포더모어의 식권이 필요해요.",
+    "minProficiency": 1300,
+    "entry": {
+      "normalGold": 200,
+      "bossGold": 800,
+      "bossKey": "fodermore_key"
+    },
+    "mobs": [
+      "raidos",
+      "core_lord",
+      "ancient_lord",
+      "paka",
+      "fodermore"
+    ]
   }
 ]

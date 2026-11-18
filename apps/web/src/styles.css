@@ -238,3 +238,7 @@ a.btn{text-decoration:none}
 .wlink{color:var(--info);text-decoration:none}
 .wlink:active{text-decoration:underline}
 @media(max-width:360px){.wiki-grid{grid-template-columns:1fr}}
+.hunger{background:#ffa72614;border-color:#ffa72655}
+.hunger .stance-head{color:var(--warn)}
+.hunger-full{background:#ef535018;border-color:#ef535066}
+.hunger .ap-pips i.on{background:var(--warn);box-shadow:0 0 6px #ffa72666}

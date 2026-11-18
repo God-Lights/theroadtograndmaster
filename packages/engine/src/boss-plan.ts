@@ -38,6 +38,9 @@ function usable(state: BattleState, id: string, def: PatternDef): boolean {
   }
   // 거울 복제는 되돌려 줄 피해가 있을 때만
   if (def.kind === 'mirror') return rt.lastPlayerDamage > 0;
+  // 식사는 허기가 쌓였을 때만, 아이템 복제는 플레이어가 아이템을 썼을 때만
+  if (def.kind === 'devour') return rt.hunger >= def.minHunger;
+  if (def.kind === 'copy_item') return rt.lastItemHeal > 0;
   return true;
 }
 
