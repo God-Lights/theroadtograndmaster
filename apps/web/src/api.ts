@@ -84,16 +84,16 @@ export interface RaidMemberView {
   rewards?: Rewards;
 }
 export interface RaidRoomView {
-  id: string; code: string; status: 'lobby' | 'active' | 'done'; bossId: string; bossName: string; leaderId: string; maxParty: number; minParty: number; roundSeconds: number;
+  id: string; code: string; status: 'lobby' | 'active' | 'done'; bossId: string; bossName: string; leaderId: string; maxParty: number; recParty: number; star: number; roleCap: number; minParty: number; roundSeconds: number;
   members: RaidMemberView[]; mySlot: string | null; myRole: RaidMemberView['role'];
   round: number; deadline: number; serverNow: number; needsAction: boolean;
   state: Omit<BattleState, 'rngSeed'> | null; skills: Record<string, SkillDef>; log: LogEntry[]; result?: 'victory' | 'defeat';
 }
 export interface RaidLobbyPayload {
   proficiency: number;
-  bosses: { id: string; name: string; minProficiency: number; note: string; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
+  bosses: { id: string; name: string; star: number; maxParty: number; recParty: number; minProficiency: number; note: string; hp: number; gold: [number, number]; drops: { itemId: string; chance: number }[] }[];
   roles: Record<string, { label: string; desc: string; skills: SkillData[] }>;
-  friendRooms: { code: string; leader: string; members: number; bossName: string }[];
+  friendRooms: { code: string; leader: string; members: number; max: number; bossName: string }[];
   room: RaidRoomView | null;
 }
 
@@ -163,8 +163,8 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   unknown_boss: () => '알 수 없는 레이드예요.',
   already_in_raid: () => '이미 레이드 방에 들어가 있어요.',
   room_not_found: () => '그 코드의 방이 없거나 이미 시작했어요.',
-  room_full: () => '방이 가득 찼어요. (최대 4명)',
-  role_taken: () => '이미 다른 사람이 고른 역할이에요.',
+  room_full: () => '방이 가득 찼어요.',
+  role_taken: () => '그 역할은 자리가 모두 찼어요.',
   role_required: () => '먼저 역할을 골라 주세요.',
   not_in_lobby: () => '대기실에 있지 않아요.',
   not_in_raid: () => '레이드에 참가 중이 아니에요.',

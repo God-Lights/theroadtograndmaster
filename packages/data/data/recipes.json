@@ -243,5 +243,47 @@
     ],
     "gold": 20000,
     "unlockProficiency": 1850
+  },
+  {
+    "id": "dragon_blade",
+    "resultId": "dragon_blade",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "god_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "dragon_scale",
+        "quantity": 4
+      },
+      {
+        "itemId": "dragon_heart",
+        "quantity": 1
+      }
+    ],
+    "gold": 5000,
+    "unlockProficiency": 1000
+  },
+  {
+    "id": "baek_blade",
+    "resultId": "baek_blade",
+    "resultQty": 1,
+    "materials": [
+      {
+        "itemId": "titan_sword",
+        "quantity": 1
+      },
+      {
+        "itemId": "baek_mane",
+        "quantity": 4
+      },
+      {
+        "itemId": "baek_fang",
+        "quantity": 2
+      }
+    ],
+    "gold": 10000,
+    "unlockProficiency": 1500
   }
 ]

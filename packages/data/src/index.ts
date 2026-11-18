@@ -192,21 +192,24 @@ export interface RaidRoleData {
   ultimate: string;
 }
 export interface RaidBossData {
-  id: string; name: string; hp: number; atk: number; def: number; spd: number;
+  id: string; name: string;
+  /** 난이도 (1~5성) */
+  star: number;
+  /** 최대 인원 / 적정 인원. hp 는 적정 인원 기준이다 */
+  maxParty: number; recParty: number;
+  hp: number; atk: number; def: number; spd: number;
   minProficiency: number; gold: [number, number]; profWin: number; profLose: number;
   drops: { itemId: string; chance: number }[]; note: string;
   script: Record<string, unknown>;
 }
 
 export const RAID_CAPS = raidJson.caps as { maxHp: number; atk: number; def: number };
-export const RAID_PARTY_HP_SCALE = raidJson.partyHpScale as Record<string, number>;
 export const RAID_ROLES = raidJson.roles as unknown as Record<RaidRole, RaidRoleData>;
 export const RAID_SKILLS = raidJson.skills as unknown as SkillData[];
 export const RAID_BOSSES = raidJson.bosses as unknown as Record<string, RaidBossData>;
 export const raidSkillById = (id: string): SkillData | undefined => RAID_SKILLS.find((s) => s.id === id);
 /** 역할 킷의 스킬 id (일반 4 + 궁극기 1) */
 export const raidKit = (role: RaidRole): string[] => [...RAID_ROLES[role].kit, RAID_ROLES[role].ultimate];
-export const RAID_MAX_PARTY = 4;
 export const RAID_MIN_PARTY = 2;
 export const RAID_MISS_LIMIT = 3;
 
@@ -221,5 +224,10 @@ export function raidStats(role: RaidRole, gear: CombatStats): CombatStats {
     int: r.int,
   };
 }
-export const raidBossHp = (bossId: string, partySize: number): number =>
-  Math.round(RAID_BOSSES[bossId]!.hp * (RAID_PARTY_HP_SCALE[String(partySize)] ?? 1));
+/** 보스 HP: 적정 인원일 때 기본 HP. 인원이 적으면 줄고 많으면 는다 (인원 1명당 비례 70% + 고정 30%) */
+export function raidBossHp(bossId: string, partySize: number): number {
+  const b = RAID_BOSSES[bossId]!;
+  return Math.round(b.hp * (0.3 + 0.7 * (partySize / b.recParty)));
+}
+/** 한 역할을 맡을 수 있는 최대 인원 (4인 레이드는 역할당 1명, 8인은 2명) */
+export const raidRoleCap = (bossId: string): number => Math.max(1, Math.floor(RAID_BOSSES[bossId]!.maxParty / RAID_ROLE_IDS.length));

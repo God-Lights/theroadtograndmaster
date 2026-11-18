@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import {
-  RAID_BOSSES, RAID_MAX_PARTY, RAID_MIN_PARTY, RAID_MISS_LIMIT, RAID_ROLES, RAID_ROLE_IDS, START_AP, computeStats, itemById,
-  raidBossHp, raidKit, raidSkillById, raidStats, type RaidBossData, type RaidRole,
+  RAID_BOSSES, RAID_MIN_PARTY, RAID_MISS_LIMIT, RAID_ROLES, RAID_ROLE_IDS, START_AP, computeStats, itemById,
+  raidBossHp, raidKit, raidRoleCap, raidSkillById, raidStats, type RaidBossData, type RaidRole,
 } from '@rtgm/data';
 import {
   canUseSkill, createBattle, mulberry32, resolveRound,
@@ -13,7 +13,7 @@ import { activeBonus, type BonusConfig } from './events';
 import { guard } from './guard';
 
 /**
- * 레이드(안키오): 2~4명 파티, 역할(탱커·딜러·힐러·서포터)은 겹치지 않게 하나씩.
+ * 레이드(별 1~5개): 2명 이상, 최대 4명(8인 레이드는 8명). 역할(탱커·딜러·힐러·서포터)은 4인 레이드는 하나씩, 8인 레이드는 둘까지.
  * PvP와 같은 동시 선택 방식 — 모두 행동을 숨겨서 내면 서버가 한꺼번에 처리한다. 60초 제한, 3회 연속 미제출이면 쓰러진 것으로 본다.
  */
 export const raid = new Hono<AppEnv>();
@@ -176,7 +176,7 @@ async function roomView(db: D1Database, room: RoomRow, me: string) {
   const kit = mine?.role ? raidKit(mine.role) : [];
   return {
     id: room.id, code: room.code, status: room.status, bossId: boss.id, bossName: boss.name, leaderId: room.leader_id,
-    maxParty: RAID_MAX_PARTY, minParty: RAID_MIN_PARTY, roundSeconds: RAID_ROUND_MS / 1000,
+    maxParty: boss.maxParty, recParty: boss.recParty, star: boss.star, roleCap: raidRoleCap(boss.id), minParty: RAID_MIN_PARTY, roundSeconds: RAID_ROUND_MS / 1000,
     members: members.map((m) => ({
       userId: m.user_id, nickname: m.nickname ?? '알 수 없음', role: m.role, ready: !!m.ready, slot: m.slot, submitted: m.action !== null, miss: m.miss,
       rewards: m.rewards ? (JSON.parse(m.rewards) as RaidRewards) : undefined,
@@ -210,9 +210,9 @@ raid.get('/raid', async (c) => {
     .all<{ code: string; boss_id: string; nickname: string; n: number }>();
   return c.json({
     proficiency,
-    bosses: Object.values(RAID_BOSSES).map((b) => ({ id: b.id, name: b.name, minProficiency: b.minProficiency, note: b.note, hp: b.hp, gold: b.gold, drops: b.drops })),
+    bosses: Object.values(RAID_BOSSES).sort((a, b) => a.star - b.star).map((b) => ({ id: b.id, name: b.name, star: b.star, maxParty: b.maxParty, recParty: b.recParty, minProficiency: b.minProficiency, note: b.note, hp: b.hp, gold: b.gold, drops: b.drops })),
     roles: Object.fromEntries(RAID_ROLE_IDS.map((r) => [r, { label: RAID_ROLES[r].label, desc: RAID_ROLES[r].desc, skills: raidKit(r).map((id) => raidSkillById(id)) }])),
-    friendRooms: (open ?? []).map((o) => ({ code: o.code, leader: o.nickname, members: o.n, bossName: RAID_BOSSES[o.boss_id]?.name ?? o.boss_id })),
+    friendRooms: (open ?? []).map((o) => ({ code: o.code, leader: o.nickname, members: o.n, max: RAID_BOSSES[o.boss_id]?.maxParty ?? 4, bossName: RAID_BOSSES[o.boss_id]?.name ?? o.boss_id })),
     room: room ? await roomView(db, room, me) : null,
   });
 });
@@ -255,7 +255,7 @@ raid.post('/raid/join', async (c) => {
     const res = await db.batch([
       leaveDone(db, me),
       db.prepare("INSERT INTO raid_members (room_id, user_id, joined_at) SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM raid_members WHERE room_id = ?) < ? AND EXISTS (SELECT 1 FROM raid_rooms WHERE id = ? AND status = 'lobby')")
-        .bind(room.id, me, Date.now(), room.id, RAID_MAX_PARTY, room.id),
+        .bind(room.id, me, Date.now(), room.id, boss.maxParty, room.id),
     ]);
     if (res[1]?.meta.changes === 0) return c.json({ error: 'room_full' }, 400);
   } catch {
@@ -277,10 +277,10 @@ raid.post('/raid/role', async (c) => {
   if (!role || !RAID_ROLE_IDS.includes(role as RaidRole)) return c.json({ error: 'invalid_request' }, 400);
   const lobby = await lobbyOf(c.env.DB, me);
   if (!lobby) return c.json({ error: 'not_in_lobby' }, 400);
-  // 다른 사람이 이미 고른 역할이면 변경되지 않는다 (changes() = 0)
+  // 그 역할의 정원(4인 레이드 1명, 8인 레이드 2명)이 찼으면 변경되지 않는다 (changes() = 0)
   const res = await c.env.DB
-    .prepare('UPDATE raid_members SET role = ?, ready = 0 WHERE room_id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM raid_members WHERE room_id = ? AND role = ? AND user_id != ?)')
-    .bind(role, lobby.room.id, me, lobby.room.id, role, me)
+    .prepare('UPDATE raid_members SET role = ?, ready = 0 WHERE room_id = ? AND user_id = ? AND (SELECT COUNT(*) FROM raid_members WHERE room_id = ? AND role = ? AND user_id != ?) < ?')
+    .bind(role, lobby.room.id, me, lobby.room.id, role, me, raidRoleCap(lobby.room.boss_id))
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'role_taken' }, 409);
   return c.json({ ok: true });

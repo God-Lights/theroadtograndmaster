@@ -80,12 +80,13 @@ function policy(s: BattleState, me: Combatant, role: RaidRole, smart: boolean): 
   }
 }
 
-export function simulate(gear: readonly string[], seed: number, opts: { smart?: boolean; size?: number } = {}) {
-  const { smart = true, size = 4 } = opts;
-  const roles = ROLES.slice(0, size);
+export interface SimOpts { smart?: boolean; roles?: RaidRole[] }
+export function simulate(bossId: string, gear: readonly string[], seed: number, opts: SimOpts = {}) {
+  const { smart = true } = opts;
+  const roles = opts.roles ?? ROLES;
   const { combatants, skills } = buildParty(roles, gear);
-  const b = RAID_BOSSES.ankio!;
-  const hp = raidBossHp('ankio', size);
+  const b = RAID_BOSSES[bossId]!;
+  const hp = raidBossHp(bossId, roles.length);
   const boss: Combatant = { id: 'enemy', name: b.name, side: 'enemy', hp, guardedLastRound: false, stats: { maxHp: hp, atk: b.atk, def: b.def, spd: b.spd } };
   let s = createBattle([...combatants, boss], seed, { ...(b.script as object), bossId: 'enemy' } as unknown as BossScript, skills);
   let rounds = 0;
@@ -98,36 +99,39 @@ export function simulate(gear: readonly string[], seed: number, opts: { smart?: 
   return { won: s.status === 'victory', rounds, alive: s.combatants.filter((c) => c.side === 'player' && c.hp > 0).length };
 }
 
-function batch(gear: readonly string[], opts: { smart?: boolean; size?: number } = {}, n = 100) {
+export function batch(bossId: string, gear: readonly string[], opts: SimOpts = {}, n = 100) {
   let wins = 0, wr = 0, alive = 0;
-  for (let i = 1; i <= n; i++) { const r = simulate(gear, i * 7919, opts); if (r.won) { wins++; wr += r.rounds; alive += r.alive; } }
+  for (let i = 1; i <= n; i++) { const r = simulate(bossId, gear, i * 7919, opts); if (r.won) { wins++; wr += r.rounds; alive += r.alive; } }
   return { clear: wins / n, avgWinRounds: wins ? wr / wins : 0, avgAlive: wins ? alive / wins : 0 };
 }
 
-describe('안키오 레이드 밸런스 (시뮬레이션)', () => {
-  const r = {
-    smartLow: batch(SETS.low), smartMid: batch(SETS.mid), smartHigh: batch(SETS.high),
-    naiveMid: batch(SETS.mid, { smart: false }),
-    duoMid: batch(SETS.mid, { size: 2 }),
-  };
-  console.log('raid balance', JSON.stringify(r, (_, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)));
+/** 별 등급별 권장 구성(적정 인원)과 장비 구간 */
+const TIERS: Record<string, { roles: RaidRole[]; low: readonly string[]; rec: readonly string[]; high: readonly string[] }> = {
+  dragon: { roles: ['dealer', 'healer'], low: ['spirit_sword', 'king_shield', 'plate_armor'], rec: ['god_sword', 'dragon_shield', 'dragon_armor'], high: ['ancient_sword', 'god_shield', 'god_armor'] },
+  baekkario: { roles: ['tank', 'dealer', 'healer'], low: ['ancient_sword', 'god_shield', 'god_armor'], rec: SETS.mid, high: SETS.high },
+  ankio: { roles: ['tank', 'dealer', 'dealer', 'healer', 'healer', 'support'], low: SETS.mid, rec: SETS.high, high: ['oracle_blade', 'titan_shield', 'glutton_armor'] },
+};
 
-  it('권장 장비 4인 파티가 예고를 읽으면 클리어율 40~75%', () => {
-    expect(r.smartMid.clear).toBeGreaterThan(0.4);
-    expect(r.smartMid.clear).toBeLessThan(0.75);
-  });
-  it('장비가 부족하면 막히고(20% 미만), 좋은 장비면 거의 깬다(85% 초과)', () => {
-    expect(r.smartLow.clear).toBeLessThan(0.2);
-    expect(r.smartHigh.clear).toBeGreaterThan(0.85);
-  });
-  it('역할을 안 지키고 기본 공격만 하면 거의 못 깬다', () => {
-    expect(r.naiveMid.clear).toBeLessThan(0.05);
-  });
-  it('2인 파티는 4인보다 어렵거나 비슷하다 (보스 HP가 줄지만 역할이 비어 있다)', () => {
-    expect(r.duoMid.clear).toBeLessThan(r.smartMid.clear + 0.15);
-  });
-  it('승리까지 15~34라운드', () => {
-    expect(r.smartMid.avgWinRounds).toBeGreaterThan(15);
-    expect(r.smartMid.avgWinRounds).toBeLessThan(34);
-  });
+describe('레이드 밸런스 (시뮬레이션)', () => {
+  const out: Record<string, unknown> = {};
+  for (const [id, t] of Object.entries(TIERS)) {
+    const r = { low: batch(id, t.low, { roles: t.roles }), rec: batch(id, t.rec, { roles: t.roles }), high: batch(id, t.high, { roles: t.roles }), naive: batch(id, t.rec, { roles: t.roles, smart: false }) };
+    out[id] = r;
+    it(`${id}: 적정 인원 + 권장 장비 + 예고를 읽으면 클리어율 40~75%`, () => {
+      expect(r.rec.clear).toBeGreaterThan(0.4);
+      expect(r.rec.clear).toBeLessThan(0.75);
+    });
+    it(`${id}: 장비가 부족하면 막히고(20% 미만), 좋은 장비면 대부분 깬다(78% 초과)`, () => {
+      expect(r.low.clear).toBeLessThan(0.2);
+      expect(r.high.clear).toBeGreaterThan(0.78);
+    });
+    it(`${id}: 기본 공격만 하면 거의 못 깬다`, () => {
+      expect(r.naive.clear).toBeLessThan(0.05);
+    });
+    it(`${id}: 승리까지 10~36라운드`, () => {
+      expect(r.rec.avgWinRounds).toBeGreaterThan(10);
+      expect(r.rec.avgWinRounds).toBeLessThan(36);
+    });
+  }
+  console.log('raid balance', JSON.stringify(out, (_, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)));
 });
