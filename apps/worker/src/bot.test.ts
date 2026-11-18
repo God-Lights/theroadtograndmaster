@@ -116,6 +116,7 @@ describe('연동과 프로필', () => {
   });
   it('도움말과 모르는 명령어', async () => {
     expect(embedText(await slash('도움말'))).toContain('/탐험');
+    expect(embedText(await slash('도움말'))).toContain('https://discord.gg/wwY9GHhHmJ');
     expect((await slash('없는명령')).json.data.content).toContain('알 수 없는');
   });
 });

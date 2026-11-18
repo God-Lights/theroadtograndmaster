@@ -1,4 +1,4 @@
-import { ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait } from '@rtgm/data';
+import { DISCORD_INVITE_URL, ITEMS, RECIPES, getNextTier, getProfTier, itemById, errorMessage, fmtWait } from '@rtgm/data';
 import { canUseSkill, type BattleState, type Combatant } from '@rtgm/engine';
 import { rowsToQuery, type Row } from './barimg';
 
@@ -230,6 +230,7 @@ export const helpMessage = (): Msg => ({ embeds: [{
     '**기타**', '`/소식` — 보스·레이드·던전 전체 알림',
     '', '**함께 하기**', '`/레이드` `/레이드입장` · `/대전` `/도전` · `/팀전` `/팀입장` · `/랭킹`', '`/친구` `/친구신청` `/유저` · `/길드` `/길드생성` `/길드기부`', '`/교환소` `/등록` · `/이벤트`',
     '', '동시 선택 전투는 다른 사람이 고를 때까지 🔄 새로고침으로 확인해요.',
+    `\n[디스코드 서버 초대 링크](${DISCORD_INVITE_URL})`,
   ].join('\n'),
 }] });
 

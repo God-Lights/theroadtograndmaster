@@ -312,3 +312,6 @@ export function rogueRoom(dungeon: RogueDungeon, floor: number, rand: number): R
 }
 
 export { ERROR_TEXT, errorMessage, fmtWait } from './errors';
+
+/** 공식 디스코드 서버 초대 링크 */
+export const DISCORD_INVITE_URL = 'https://discord.gg/wwY9GHhHmJ';

@@ -75,3 +75,7 @@ GitHub 저장소 설정(Settings → Secrets and variables → Actions)에 등�
 - 구현: 제작(숙련도로 해금되는 레시피 카드, 재료·골드 소모는 한 트랜잭션), 전투 승패 숙련도 보상
 - 미구현: 시장·농장·길드·PvP·친구 탭, 스킬·역할 시스템, 마나/AP, 제작, 친구·길드·레이드·교환소·PvP
 - 임시값: 피해 공식(`calcDamage`)은 EDRPG 계산식과 대조 후 교체 예정
+
+## 커뮤니티
+
+공식 디스코드 서버: https://discord.gg/wwY9GHhHmJ
