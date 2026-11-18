@@ -1,0 +1,18 @@
+{
+  "name": "rtgm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RTGM (The Road to Grand Master) - web RPG",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:web": "npm run dev -w @rtgm/web",
+    "dev:worker": "npm run dev -w @rtgm/worker",
+    "build": "npm run build -w @rtgm/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "deploy": "npm run build && npm run deploy -w @rtgm/worker"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

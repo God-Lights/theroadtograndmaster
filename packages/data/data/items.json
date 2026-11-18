@@ -1,0 +1,15 @@
+[
+  { "id": "rusted_sword",  "name": "어느 전사의 낡은 검",   "type": "sword",  "rarity": "basic",  "atk": 2,  "def": 0, "hp": 0,  "heal": 0,   "buy": null, "sell": 10,  "minProficiency": 0 },
+  { "id": "rusted_armor",  "name": "어느 전사의 낡은 갑옷", "type": "armor",  "rarity": "basic",  "atk": 0,  "def": 0, "hp": 10, "heal": 0,   "buy": null, "sell": 5,   "minProficiency": 0 },
+  { "id": "decent_sword",  "name": "꽤 괜찮은 검",          "type": "sword",  "rarity": "normal", "atk": 6,  "def": 0, "hp": 0,  "heal": 0,   "buy": 200,  "sell": 80,  "minProficiency": 0 },
+  { "id": "iron_sword",    "name": "철검",                  "type": "sword",  "rarity": "normal", "atk": 8,  "def": 0, "hp": 0,  "heal": 0,   "buy": 300,  "sell": 120, "minProficiency": 20 },
+  { "id": "good_sword",    "name": "좋은 검",               "type": "sword",  "rarity": "normal", "atk": 12, "def": 0, "hp": 0,  "heal": 0,   "buy": 500,  "sell": 200, "minProficiency": 50 },
+  { "id": "iron_shield",   "name": "철 방패",               "type": "shield", "rarity": "normal", "atk": 0,  "def": 7, "hp": 0,  "heal": 0,   "buy": 600,  "sell": 240, "minProficiency": 80 },
+  { "id": "leather_armor", "name": "가죽 갑옷",             "type": "armor",  "rarity": "normal", "atk": 0,  "def": 0, "hp": 20, "heal": 0,   "buy": 300,  "sell": 100, "minProficiency": 0 },
+  { "id": "chain_armor",   "name": "사슬 갑옷",             "type": "armor",  "rarity": "normal", "atk": 0,  "def": 0, "hp": 40, "heal": 0,   "buy": 800,  "sell": 280, "minProficiency": 50 },
+  { "id": "bread",         "name": "빵",                    "type": "consumable", "rarity": "normal", "atk": 0, "def": 0, "hp": 0, "heal": 20,  "buy": 50,  "sell": 15,  "minProficiency": 0 },
+  { "id": "hp_potion",     "name": "회복 포션",             "type": "consumable", "rarity": "normal", "atk": 0, "def": 0, "hp": 0, "heal": 100, "buy": 150, "sell": 50,  "minProficiency": 0 },
+  { "id": "hp_potion_l",   "name": "대형 회복 포션",        "type": "consumable", "rarity": "rare",   "atk": 0, "def": 0, "hp": 0, "heal": 300, "buy": 400, "sell": 130, "minProficiency": 50 },
+  { "id": "rotten_lich_piece", "name": "썩은 리치 조각",    "type": "material", "rarity": "normal", "atk": 0, "def": 0, "hp": 0, "heal": 0, "buy": null, "sell": 30, "minProficiency": 0 },
+  { "id": "golden_lich",   "name": "황금 리치",             "type": "material", "rarity": "rare",   "atk": 0, "def": 0, "hp": 0, "heal": 0, "buy": null, "sell": 800, "minProficiency": 0 }
+]

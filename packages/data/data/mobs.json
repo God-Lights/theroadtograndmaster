@@ -1,0 +1,8 @@
+[
+  { "id": "zombie",   "name": "좀비",               "kind": "normal", "hp": 32, "atk": 7,  "def": 1, "spd": 5,  "gold": [5, 20],   "drops": [{ "itemId": "rotten_lich_piece", "chance": 0.8 }] },
+  { "id": "skeleton", "name": "스켈레톤",           "kind": "normal", "hp": 28, "atk": 9,  "def": 1, "spd": 8,  "gold": [8, 25],   "drops": [] },
+  { "id": "goblin",   "name": "고블린",             "kind": "normal", "hp": 40, "atk": 12, "def": 2, "spd": 12, "gold": [10, 35],  "drops": [{ "itemId": "bread", "chance": 0.4 }] },
+  { "id": "orc",      "name": "오크 전사",          "kind": "normal", "hp": 60, "atk": 13, "def": 3, "spd": 6,  "gold": [20, 60],  "drops": [] },
+  { "id": "richmond", "name": "리치몬드 (Richmond)", "kind": "normal", "hp": 45, "atk": 11, "def": 4, "spd": 7,  "gold": [15, 40],  "drops": [{ "itemId": "rotten_lich_piece", "chance": 0.8 }] },
+  { "id": "rich",     "name": "리치 (Rich)",        "kind": "boss",   "hp": 260, "atk": 32, "def": 8, "spd": 9, "gold": [200, 450], "drops": [{ "itemId": "golden_lich", "chance": 1 }, { "itemId": "rotten_lich_piece", "chance": 0.8 }] }
+]
