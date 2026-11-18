@@ -460,11 +460,12 @@ describe('스킬 전투', () => {
   });
 
   it('스킬을 쓰면 계수만큼 피해를 주고 AP가 줄었다가 라운드 종료에 회복된다', async () => {
-    const b = await start();
+    // 일반 몹은 무작위로 방어해서 피해가 달라지므로, 방어하지 않는 스크립트 보스(리치)로 결정적으로 확인한다
+    const b = await start('rich');
     const r = await round(b.id, { action: 'skill', skillId: 'strike' });
     expect(r.status).toBe(200);
     const hit = r.json.log.find((l: any) => l.type === 'attack' && l.actorId === 'player');
-    expect(hit.amount).toBe(Math.max(1, Math.round((10 * 1.3) - 3))); // 낡은 검 ATK 10 × 130% − 오크 DEF 3
+    expect(hit.amount).toBe(Math.max(1, Math.round(10 * 1.3 - 6))); // 낡은 검 ATK 10 × 130% − 리치 DEF 6
     expect(r.json.state.combatants.find((c: any) => c.id === 'player').ap).toBe(4 - 2 + 2);
   });
 
@@ -493,8 +494,14 @@ describe('스킬 전투', () => {
     setProf(A.id, 700);
     await call('tokA', 'POST', '/api/skills/unequip', { skillId: 'heal' });
     await call('tokA', 'POST', '/api/skills/equip', { skillId: 'focus' });
-    const b = await start('orc');
-    setState(b.id, (st) => { st.combatants.find((c: any) => c.id === 'enemy').stats.maxHp = 5000; st.combatants.find((c: any) => c.id === 'enemy').hp = 5000; });
+    const b = await start('rich'); // 방어하지 않는 보스로 피해를 결정적으로 확인한다
+    setState(b.id, (st) => {
+      st.combatants.find((c: any) => c.id === 'enemy').stats.maxHp = 5000;
+      st.combatants.find((c: any) => c.id === 'enemy').hp = 5000;
+      // 리치가 무작위로 약화의 저주를 걸면 피해가 달라지므로, 암흑 화살만 쓰게 고정한다
+      st.boss.script.phases.forEach((p: any) => { p.pool = [{ id: 'dark_arrow', weight: 1 }]; });
+      st.intents.enemy = { patternId: 'dark_arrow', kind: 'attack', name: '암흑 화살', telegraph: '', targetId: 'player' };
+    });
     const r1 = await round(b.id, { action: 'skill', skillId: 'focus' });
     expect(r1.status).toBe(200);
     expect(r1.json.state.combatants.find((c: any) => c.id === 'player').pending).toBeDefined();
@@ -502,7 +509,7 @@ describe('스킬 전투', () => {
     const r2 = await round(b.id, { action: 'guard' });
     expect(r2.status).toBe(200);
     const hit = r2.json.log.find((l: any) => l.type === 'attack' && l.actorId === 'player');
-    expect(hit.amount).toBe(Math.round(10 * 2.2 - 3));
+    expect(hit.amount).toBe(Math.round(10 * 2.2 - 6)); // ATK 10 × 220% − 리치 DEF 6
   });
 
   it('궁극기는 게이지가 가득 차야 쓸 수 있다', async () => {
