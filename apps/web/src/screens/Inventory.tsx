@@ -7,25 +7,33 @@ import { ItemStats, rarityClass } from './ItemInfo';
 
 function SellForm({ item, max, onChange }: { item: ItemData; max: number; onChange: (n: number) => void }) {
   const [qty, setQty] = useState(1);
+  const set = (n: number) => { const v = Math.max(1, Math.min(max, n)); setQty(v); onChange(v); };
   return (
     <>
       <p className={rarityClass(item)}>{item.name}</p>
       <p style={{ color: 'var(--gold2)' }}>개당 판매가: {item.sell.toLocaleString()}D</p>
-      <input
-        id="sell-qty" type="number" min={1} max={max} value={qty}
-        onChange={(e) => { const n = Math.max(1, Math.min(max, Number(e.target.value) || 1)); setQty(n); onChange(n); }}
-      />
-      <p className="muted" style={{ fontSize: '.78rem' }}>최대 {max}개</p>
+      <div className="qty-row">
+        <button className="qty-btn" aria-label="수량 줄이기" onClick={() => set(qty - 1)}>−</button>
+        <input
+          id="sell-qty" type="text" inputMode="numeric" pattern="[0-9]*" value={qty} aria-label="판매 수량"
+          onChange={(e) => set(Number(e.target.value.replace(/\D/g, '')) || 1)}
+        />
+        <button className="qty-btn" aria-label="수량 늘리기" onClick={() => set(qty + 1)}>+</button>
+        <button className="qty-btn" style={{ minWidth: 56, fontSize: '.8rem' }} onClick={() => set(max)}>최대</button>
+      </div>
+      <p className="muted" style={{ fontSize: '.78rem', marginTop: 6 }}>최대 {max}개 · 합계 {(item.sell * qty).toLocaleString()}D</p>
     </>
   );
 }
 
 export function Inventory() {
   const { inv, refresh, toast, modal, fail } = useGame();
+  const [busy, setBusy] = useState(false);
   if (!inv) return null;
 
   const run = async (fn: () => Promise<unknown>, okMsg?: string) => {
-    try { await fn(); await refresh(); if (okMsg) toast(okMsg); } catch (e) { fail(e); }
+    setBusy(true); // 연타·중복 요청 방지
+    try { await fn(); await refresh(); if (okMsg) toast(okMsg); } catch (e) { fail(e); } finally { setBusy(false); }
   };
 
   const openSell = (item: ItemData, owned: number, equipped: boolean) => {
@@ -60,13 +68,13 @@ export function Inventory() {
                 <ItemStats item={item} />
                 <div className="item-actions">
                   {canEquip && !row.equipped && (
-                    <button className="btn btn-primary btn-sm" onClick={() => run(() => api.equip(item.id), '장착 완료!')}>장착</button>
+                    <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run(() => api.equip(item.id), '장착 완료!')}>장착</button>
                   )}
                   {canEquip && row.equipped && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => run(() => api.unequip(item.id))}>해제</button>
+                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => run(() => api.unequip(item.id))}>해제</button>
                   )}
                   {canSell && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => openSell(item, row.quantity, row.equipped)}>팔기({item.sell}D)</button>
+                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => openSell(item, row.quantity, row.equipped)}>팔기({item.sell}D)</button>
                   )}
                 </div>
               </div>

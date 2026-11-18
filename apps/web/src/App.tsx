@@ -20,7 +20,7 @@ type TabId = (typeof TABS)[number]['id'];
 
 function Shell() {
   const [tab, setTab] = useState<TabId>('profile');
-  const { me } = useGame();
+  const { me, loadFailed, refresh, fail } = useGame();
   const View = TABS.find((t) => t.id === tab)!.view;
   const mobile = typeof window !== 'undefined' && window.innerWidth <= 600;
   const gold = me ? (mobile && me.gold >= 1000 ? `${Math.floor(me.gold / 1000)}k` : me.gold.toLocaleString()) : '';
@@ -48,7 +48,18 @@ function Shell() {
           </button>
         ))}
       </nav>
-      <div className="tab-content">{me ? <View /> : <div className="empty">불러오는 중...</div>}</div>
+      <div className="tab-content">
+        {me ? (
+          <View />
+        ) : loadFailed ? (
+          <div className="empty">
+            <div>불러오지 못했어요.</div>
+            <button className="btn btn-primary retry" onClick={() => refresh().catch(fail)}>다시 시도</button>
+          </div>
+        ) : (
+          <div className="empty">불러오는 중...</div>
+        )}
+      </div>
     </div>
   );
 }

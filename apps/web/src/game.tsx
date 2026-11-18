@@ -12,6 +12,8 @@ export interface ModalSpec {
 interface GameContextValue {
   me?: Me;
   inv?: InventorySnapshot;
+  /** 첫 로딩 실패 여부 (재시도 버튼 표시용) */
+  loadFailed: boolean;
   refresh: () => Promise<void>;
   toast: (msg: string, type?: ToastType) => void;
   modal: (spec: ModalSpec | null) => void;
@@ -28,6 +30,7 @@ export const useGame = (): GameContextValue => {
 export function GameProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me>();
   const [inv, setInv] = useState<InventorySnapshot>();
+  const [loadFailed, setLoadFailed] = useState(false);
   const [toastState, setToastState] = useState<{ msg: string; type: ToastType }>();
   const [modalSpec, setModalSpec] = useState<ModalSpec | null>(null);
   const timer = useRef<number>();
@@ -36,6 +39,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const [m, i] = await Promise.all([api.me(), api.inventory()]);
     setMe(m);
     setInv(i);
+    setLoadFailed(false);
   }, []);
 
   const toast = useCallback((msg: string, type: ToastType = 'ok') => {
@@ -47,11 +51,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const fail = useCallback((e: unknown) => toast(errorText(e), 'error'), [toast]);
 
   useEffect(() => {
-    refresh().catch(fail);
+    refresh().catch((e) => { setLoadFailed(true); fail(e); });
   }, [refresh, fail]);
 
+  // 폰은 앱을 백그라운드에 두었다 돌아오는 일이 많다. 돌아오면 골드·인벤토리를 새로 불러온다.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh().catch(() => {}); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refresh]);
+
   return (
-    <Ctx.Provider value={{ me, inv, refresh, toast, modal: setModalSpec, fail }}>
+    <Ctx.Provider value={{ me, inv, loadFailed, refresh, toast, modal: setModalSpec, fail }}>
       {children}
       {toastState && <div className={`toast ${toastState.type}`}>{toastState.msg}</div>}
       {modalSpec && (

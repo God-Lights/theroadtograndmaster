@@ -102,6 +102,19 @@ describe('GL Account 로그인 연동', () => {
     expect(res.status).toBe(200);
   });
 
+  it('앱 아이콘·매니페스트는 로그인 없이 받을 수 있고, 다른 정적 파일은 로그인이 필요하다', async () => {
+    const env = makeEnv();
+    for (const path of ['/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png']) {
+      const res = await app.request(`https://rtgm.officialgl.com${path}`, {}, env);
+      expect(res.status, path).toBe(200);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    for (const path of ['/assets/index.js', '/icons/../api/me', '/index.html']) {
+      const res = await app.request(`https://rtgm.officialgl.com${path}`, {}, env);
+      expect([302, 401], path).toContain(res.status);
+    }
+  });
+
   it('서비스 키가 설정되지 않으면 500 (키 값은 노출하지 않음)', async () => {
     const env = { ...makeEnv(), GL_ACCOUNT_KEY: undefined };
     const res = await app.request('https://rtgm.officialgl.com/api/me', withCookie('x'), env);

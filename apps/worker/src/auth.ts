@@ -102,10 +102,16 @@ export async function fetchPublicUser(key: string, id: string): Promise<GlPublic
   return body.user;
 }
 
-/** /api/health 만 공개. 나머지(페이지·정적 파일·API)는 모두 로그인이 필요하다. */
+/**
+ * 로그인 없이 받을 수 있는 경로: 헬스체크, 앱 아이콘·매니페스트(홈 화면 추가 시 브라우저가
+ * 쿠키 없이 요청하기도 한다). 민감한 정보가 없는 정적 파일만 허용한다.
+ */
+const PUBLIC_PATHS = /^\/(api\/health|manifest\.webmanifest|icon\.svg|icons\/[\w.-]+)$/;
+
+/** 위 공개 경로를 제외한 모든 요청(페이지·정적 파일·API)은 로그인이 필요하다. */
 export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {
   const { pathname } = new URL(c.req.url);
-  if (pathname === '/api/health') return next();
+  if (PUBLIC_PATHS.test(pathname)) return next();
 
   const key = c.env.GL_ACCOUNT_KEY;
   if (!key) return c.json({ error: 'server misconfigured' }, 500);

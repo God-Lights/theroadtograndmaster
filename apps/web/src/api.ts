@@ -40,15 +40,30 @@ const ERROR_TEXT: Record<string, (d: Record<string, unknown>) => string> = {
   not_equippable: () => '장착할 수 없는 아이템입니다.',
   no_item: () => '아이템이 없습니다.',
   invalid_request: () => '잘못된 요청입니다.',
+  network: () => '네트워크 연결을 확인해 주세요.',
+  timeout: () => '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
 };
 export const errorText = (e: unknown): string =>
   e instanceof ApiError ? (ERROR_TEXT[e.code]?.(e.data) ?? e.code) : '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
 
+/** 모바일 회선에서 요청이 멈춰 화면이 굳는 것을 막는다 */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    });
+  } catch (e) {
+    throw new ApiError(e instanceof DOMException && e.name === 'AbortError' ? 'timeout' : 'network');
+  } finally {
+    clearTimeout(timer);
+  }
   if (res.status === 401) {
     location.href = loginUrl();
     return new Promise<T>(() => {}); // 이동하는 동안 이후 처리를 멈춘다

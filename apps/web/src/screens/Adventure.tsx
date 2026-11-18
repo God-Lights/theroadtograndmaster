@@ -8,6 +8,9 @@ import { Icon } from '../Icon';
 /** 보스 권장 숙련도 (참고용 안내. 입장을 막지는 않는다) */
 const RECOMMENDED: Record<string, number> = { rich: 450 };
 
+/** 폰 진동(지원하는 기기만). 피격·승패 피드백 */
+const haptic = (pattern: number | number[]) => { try { navigator.vibrate?.(pattern); } catch { /* 미지원 */ } };
+
 const logClass = (l: LogEntry) =>
   l.type === 'attack' ? 'la' : l.type === 'guard' ? 'ld' : l.type === 'heal' ? 'ls' : 'lf';
 
@@ -39,6 +42,7 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
   const finish = async (status: 'victory' | 'defeat', rewards?: Rewards) => {
     await refresh();
     const close = () => { modal(null); onEnd(); };
+    haptic(status === 'victory' ? [30, 40, 30] : 120);
     if (status === 'victory') {
       modal({
         title: <><Icon name="trophy" className="ico-hd" /> 승리!</>,
@@ -65,6 +69,7 @@ function Battle({ battleId, initial, mobName, onEnd }: { battleId: string; initi
       const res = await api.round(battleId, action, itemId);
       setState(res.state);
       setLog((l) => [...l, ...res.log]);
+      if (res.log.some((l) => l.type === 'attack' && l.targetId === 'player')) haptic(15);
       if (action === 'item') await refresh();
       if (res.state.status !== 'ongoing') await finish(res.state.status, res.rewards);
     } catch (e) {
