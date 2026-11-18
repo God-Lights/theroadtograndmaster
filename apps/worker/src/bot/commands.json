@@ -1,0 +1,28 @@
+[
+  { "name": "도움말", "description": "RTGM 봇 사용법" },
+  { "name": "연동", "description": "게임 계정과 연동해요 (웹 → 내 정보 → 디스코드 연동에서 코드를 만드세요)",
+    "options": [{ "type": 3, "name": "코드", "description": "웹에서 만든 8자리 연동 코드", "required": true }] },
+  { "name": "프로필", "description": "내 캐릭터 정보" },
+  { "name": "탐험", "description": "지역을 탐험해 몬스터와 싸워요 (대기시간 1분 30초)",
+    "options": [{ "type": 3, "name": "지역", "description": "탐험할 지역", "required": true, "choices": [
+      { "name": "버려진 평원", "value": "plains" }, { "name": "어둠의 숲", "value": "forest" }, { "name": "시든 묘지", "value": "graveyard" },
+      { "name": "중간계 던전 I", "value": "midrealm_1" }, { "name": "중간계 던전 II", "value": "midrealm_2" } ] }] },
+  { "name": "보스", "description": "지역의 보스에 도전해요",
+    "options": [{ "type": 3, "name": "보스", "description": "도전할 보스", "required": true, "choices": [
+      { "name": "리치 (시든 묘지)", "value": "rich" }, { "name": "코에도스 (중간계 I, 열쇠 필요)", "value": "oppoko" }, { "name": "포더모어 (중간계 II, 식권 필요)", "value": "fodermore" } ] }] },
+  { "name": "던전", "description": "로그라이크 던전 (층마다 몬스터·보물·함정)" },
+  { "name": "인벤토리", "description": "가진 아이템과 장비 장착" },
+  { "name": "스킬", "description": "스킬 장착" },
+  { "name": "상점", "description": "상점 품목 보기" },
+  { "name": "구매", "description": "상점에서 아이템을 사요",
+    "options": [
+      { "type": 3, "name": "아이템", "description": "살 아이템", "required": true, "autocomplete": true },
+      { "type": 4, "name": "수량", "description": "개수 (기본 1)", "min_value": 1, "max_value": 99 }] },
+  { "name": "판매", "description": "아이템을 팔아요",
+    "options": [
+      { "type": 3, "name": "아이템", "description": "팔 아이템", "required": true, "autocomplete": true },
+      { "type": 4, "name": "수량", "description": "개수 (기본 1)", "min_value": 1, "max_value": 9999 }] },
+  { "name": "제작", "description": "재료로 아이템을 만들어요",
+    "options": [{ "type": 3, "name": "레시피", "description": "만들 아이템", "required": true, "autocomplete": true }] },
+  { "name": "소식", "description": "최근 전체 알림 (보스·레이드·던전 소식)" }
+]

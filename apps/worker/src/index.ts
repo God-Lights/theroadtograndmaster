@@ -3,6 +3,9 @@ import { ITEMS, MOBS } from '@rtgm/data';
 import { authenticate, fetchPublicUser, AuthUpstreamError, type AppEnv } from './auth';
 import { isAdmin } from './admin';
 import { battle } from './battle';
+import { handleInteraction } from './bot/handler';
+import { relayAnnouncements } from './bot/relay';
+import { verifyDiscordSignature } from './bot/verify';
 import { discord } from './discord';
 import { adminEvents, events } from './events';
 import { craft } from './craft';
@@ -31,6 +34,30 @@ app.use('/api/*', async (c, next) => {
     await touchProfile(c.env.DB, user);
   }
   await next();
+});
+
+/**
+ * 디스코드 봇 (HTTP 상호작용): 슬래시 명령어·버튼·선택 메뉴가 여기로 온다. 서명을 검증한 뒤,
+ * 같은 서버의 게임 API를 '그 디스코드 사용자로' 호출해서 결과를 메시지로 바꾼다.
+ */
+app.post('/discord/interactions', async (c) => {
+  const publicKey = c.env.DISCORD_PUBLIC_KEY;
+  if (!publicKey || !c.env.BOT_API_KEY) return c.json({ error: 'bot_disabled' }, 404);
+  const body = await c.req.text();
+  const ok = await verifyDiscordSignature(publicKey, c.req.header('X-Signature-Ed25519') ?? '', c.req.header('X-Signature-Timestamp') ?? '', body);
+  if (!ok) return c.text('invalid request signature', 401);
+  let interaction: unknown;
+  try { interaction = JSON.parse(body); } catch { return c.text('bad request', 400); }
+  const botKey = c.env.BOT_API_KEY;
+  const callFor = (discordId: string) => async (method: string, path: string, payload?: unknown) => {
+    const res = await app.request(path, {
+      method,
+      headers: { Authorization: `Bearer ${botKey}`, 'X-Discord-User': discordId, 'Content-Type': 'application/json' },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    }, c.env);
+    return { status: res.status, json: await res.json().catch(() => ({})) };
+  };
+  return c.json(await handleInteraction(interaction, callFor));
 });
 
 app.get('/api/health', (c) => c.json({ ok: true, game: 'RTGM' }));
@@ -84,4 +111,10 @@ app.route('/api', adminEvents);
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  /** 1분마다: 새 전체 알림을 디스코드 채널로 중계 (설정이 없으면 아무것도 하지 않는다) */
+  async scheduled(_event: unknown, env: Parameters<typeof relayAnnouncements>[0], ctx: { waitUntil(p: Promise<unknown>): void }) {
+    ctx.waitUntil(relayAnnouncements(env).catch(() => 0));
+  },
+};
