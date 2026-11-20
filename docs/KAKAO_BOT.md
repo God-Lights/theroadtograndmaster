@@ -14,53 +14,19 @@
 2. GitHub 시크릿 `KAKAO_BOT_KEY` 에 길고 무작위인 문자열을 넣는다. (디스코드 `BOT_API_KEY`와 **다른 값**.) 이 키는 폰 스크립트에도 넣는다.
 3. (선택) GitHub 변수 `KAKAO_PUBLIC_ROOM` 에 공개 결과·전체 알림을 받을 **단체방 이름**을 넣는다.
 4. 배포하면 서버가 켜진다. 키가 비어 있으면 `/api/kakao/*` 는 503 이다.
-5. 아래 스크립트를 메신저봇R에 붙여 넣고 `KEY` 를 채운 뒤 컴파일한다.
+5. 아래 레거시 스크립트를 메신저봇R에 붙여 넣고 `KEY` 를 채운 뒤 컴파일한다.
 6. 웹 **내 정보 → 봇 연동**에서 코드를 만들고, 봇과의 **1:1 대화**에서 `!연동 코드` 를 보낸다. (코드는 디스코드·카톡 모두에 쓸 수 있고 한 번만 쓴다.)
 
-## 스크립트 (API2 기준 초안)
+## 스크립트 (레거시 API)
 
-> API 이름은 메신저봇R 문서 기준 기억이라 실제 버전에서 한 번 확인한다. 특히 HTTP 호출과 반복 실행(스레드) 부분.
+[`docs/kakao/rtgm-bot.legacy.js`](kakao/rtgm-bot.legacy.js) 를 메신저봇R의 **레거시 API** 스크립트에 그대로 붙여 넣고, 맨 위 `KEY` 만 `KAKAO_BOT_KEY` 와 같은 값으로 바꾼다. 문법은 ES5(var, function)만 쓴다.
 
-```js
-const bot = BotManager.getCurrentBot();
-const BASE = "https://rtgm.officialgl.com/api/kakao";
-const KEY = "여기에_KAKAO_BOT_KEY";
-const VER = 1; // 서버가 요구하는 최소 버전보다 낮으면 서버가 업데이트 안내를 보낸다
-
-function post(path, body) {
-  const res = org.jsoup.Jsoup.connect(BASE + path)
-    .header("Authorization", "Bearer " + KEY)
-    .header("Content-Type", "application/json")
-    .requestBody(JSON.stringify(body))
-    .ignoreContentType(true).ignoreHttpErrors(true).timeout(8000)
-    .method(org.jsoup.Connection.Method.POST).execute();
-  return JSON.parse(res.body());
-}
-
-bot.addListener(Event.MESSAGE, function (msg) {
-  const t = String(msg.content);
-  if (t.charAt(0) !== "!" && !/^(\d{1,2}|취소)$/.test(t.trim())) return; // 명령·번호 답만 서버로 (나머지는 보내지 않는다)
-  try {
-    const r = post("/message", { room: msg.room, group: msg.isGroupChat, name: msg.author.name, hash: msg.author.hash, text: t, ver: VER, ts: Date.now() });
-    (r.replies || []).forEach(function (line, i) { java.lang.Thread.sleep(i ? 700 : 0); msg.reply(line); });
-  } catch (e) { /* 서버가 안 열려 있으면 조용히 */ }
-});
-
-// 서버가 먼저 보내는 알림(전체 알림 등): 4초마다 가져가서 보내고, 다음 요청에 ack 로 알린다
-let acks = [];
-const worker = new java.lang.Thread({ run: function () {
-  while (!java.lang.Thread.currentThread().isInterrupted()) {
-    try {
-      const r = post("/outbox", { ver: VER, ack: acks, max: 5 });
-      acks = [];
-      (r.items || []).forEach(function (it) { bot.send(it.room, it.text); acks.push(it.id); java.lang.Thread.sleep(1000); });
-    } catch (e) {}
-    java.lang.Thread.sleep(4000);
-  }
-} });
-worker.start();
-bot.addListener(Event.START_COMPILE, function () { worker.interrupt(); }); // 다시 컴파일할 때 이전 반복을 멈춘다
-```
+- `response(room, msg, sender, isGroupChat, replier, ImageDB, packageName)` 가 명령(`!…`)과 번호 답만 서버로 보내고, 돌아온 글을 `replier.reply` 로 보낸다. 일반 대화는 서버로 보내지 않는다.
+- 사람 구분용 해시는 `ImageDB.getProfileImage()` 의 SHA-256 이다. 사진이 없으면 `noimg` 고정값이라 이름과 함께 묶어 쓴다(서버가 `해시|이름`으로 본다).
+- 서버가 먼저 보내는 글은 스레드가 4초마다 `/api/kakao/outbox` 에서 가져가 `Api.replyRoom` 으로 보낸다. 보냈을 때만 다음 요청에 ack 한다.
+- **레거시 API의 제약**: `Api.replyRoom` 은 봇이 켜진 뒤 **그 방에서 메시지를 한 번이라도 받은 적이 있어야** 보낼 수 있다. 공개 방 알림이 안 나가면 방에서 아무 말이나 한 번 하면 된다. 보내지 못한 알림은 ack 하지 않아서 서버가 잠시 뒤 다시 내보낸다(최대 4번, 1시간 안에).
+- 다시 컴파일할 때는 `onStartCompile` 이 이전 반복 스레드를 멈춘다.
+- 코드는 서버와 주고받는 부분(`post`)만 `java.net.HttpURLConnection` 을 쓴다. 메신저봇R 버전이 달라도 동작하게 하려는 것이고, 메신저봇R 쪽 API(`Api.replyRoom` 의 반환값 등)는 버전별로 달라질 수 있어 처음 돌릴 때 확인한다.
 
 ## 규칙
 
