@@ -11,6 +11,8 @@ import { setAssetOrigin, type Msg } from './bot/ui';
 export const PUBLIC_RESULT_GUILD_ID = '1572492493604397110';
 export const PUBLIC_RESULT_CHANNEL_ID = '1572492730641420389';
 import { relayAnnouncements } from './bot/relay';
+import { kakaoRoutes } from './kakao/routes';
+import { relayKakaoAnnouncements } from './kakao/relay';
 import { verifyDiscordSignature } from './bot/verify';
 import { discord } from './discord';
 import { adminEvents, events } from './events';
@@ -150,6 +152,7 @@ app.route('/api', announcements);
 app.route('/api', team);
 app.route('/api', events);
 app.route('/api', discord);
+app.route('/api', kakaoRoutes((path, init, env) => app.request(path, init, env)));
 app.route('/api', adminEvents);
 
 // 인증을 통과한 나머지 요청은 빌드된 React 클라이언트(정적 에셋)로 넘긴다.
@@ -160,5 +163,6 @@ export default {
   /** 1분마다: 새 전체 알림을 디스코드 채널로 중계 (설정이 없으면 아무것도 하지 않는다) */
   async scheduled(_event: unknown, env: Parameters<typeof relayAnnouncements>[0], ctx: { waitUntil(p: Promise<unknown>): void }) {
     ctx.waitUntil(relayAnnouncements(env).catch(() => 0));
+    ctx.waitUntil(relayKakaoAnnouncements(env as Parameters<typeof relayKakaoAnnouncements>[0]).catch(() => 0));
   },
 };

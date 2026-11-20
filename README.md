@@ -48,6 +48,8 @@ GitHub 저장소 설정(Settings → Secrets and variables → Actions)에 등�
 | `CLOUDFLARE_ACCOUNT_ID` | Secret | Cloudflare 계정 ID |
 | `GL_ACCOUNT_KEY` | Secret | GL Account 서비스 키 → 배포 때 Worker 시크릿으로 자동 동기화 |
 | `BOT_API_KEY` | Secret (선택) | 디스코드 봇 서비스 키 → 비어 있으면 봇 기능 꺼짐. 사용법은 [docs/DISCORD_BOT.md](docs/DISCORD_BOT.md) |
+| `KAKAO_BOT_KEY` | Secret (선택) | 카카오톡 봇(메신저봇R) 전용 키 → 비어 있으면 카톡 봇 꺼짐. 사용법은 [docs/KAKAO_BOT.md](docs/KAKAO_BOT.md) |
+| `KAKAO_PUBLIC_ROOM` | Variable (선택) | 카톡 공개 결과·전체 알림을 받을 단체방 이름 |
 
 `production` Environment를 만들어 두면 배포 승인자·브랜치 제한을 걸 수 있다. 일반 변수는 GitHub Variables에 두고 워크플로우의 `wrangler deploy --var NAME:${{ vars.NAME }}`로 넘긴다.
 

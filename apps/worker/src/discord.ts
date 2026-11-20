@@ -43,8 +43,17 @@ discord.use('/discord/*', async (c, next) => {
 });
 
 discord.get('/discord/status', async (c) => {
-  const row = await c.env.DB.prepare('SELECT linked_at FROM discord_links WHERE user_id = ?').bind(c.get('user').id).first<{ linked_at: number }>();
-  return c.json({ linked: !!row, linkedAt: row?.linked_at ?? null, botEnabled: !!c.env.BOT_API_KEY });
+  const uid = c.get('user').id;
+  const [row, kk] = await Promise.all([
+    c.env.DB.prepare('SELECT linked_at FROM discord_links WHERE user_id = ?').bind(uid).first<{ linked_at: number }>(),
+    c.env.DB.prepare('SELECT linked_at FROM kakao_links WHERE user_id = ?').bind(uid).first<{ linked_at: number }>(),
+  ]);
+  return c.json({ linked: !!row, linkedAt: row?.linked_at ?? null, botEnabled: !!c.env.BOT_API_KEY, kakaoLinked: !!kk, kakaoLinkedAt: kk?.linked_at ?? null, kakaoEnabled: !!c.env.KAKAO_BOT_KEY });
+});
+
+discord.post('/discord/kakao-unlink', async (c) => {
+  await c.env.DB.prepare('DELETE FROM kakao_links WHERE user_id = ?').bind(c.get('user').id).run();
+  return c.json({ ok: true });
 });
 
 discord.post('/discord/link-code', async (c) => {

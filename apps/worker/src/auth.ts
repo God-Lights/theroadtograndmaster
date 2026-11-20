@@ -1,6 +1,7 @@
 import { getCookie } from 'hono/cookie';
 import type { MiddlewareHandler } from 'hono';
 import { BOT_OPEN_PATHS, DISCORD_ID_RE, safeEqual, userForDiscord } from './discord';
+import { userForKakao } from './kakao/link';
 
 /** GL Account 연동 (docs: gl-account/docs/INTEGRATION.md). 서비스 키는 Worker 시크릿으로만 쓴다. */
 export const ACCOUNT_ORIGIN = 'https://account.officialgl.com';
@@ -26,7 +27,7 @@ export interface GlPublicUser {
 }
 
 export type AppEnv = {
-  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string; DISCORD_PUBLIC_GUILD_ID?: string; DISCORD_PUBLIC_CHANNEL_ID?: string };
+  Bindings: { DB: D1Database; ASSETS: Fetcher; GL_ACCOUNT_KEY?: string; ADMIN_USER_IDS?: string; BOT_API_KEY?: string; DISCORD_PUBLIC_KEY?: string; DISCORD_BOT_TOKEN?: string; DISCORD_ANNOUNCE_CHANNEL_ID?: string; DISCORD_PUBLIC_GUILD_ID?: string; DISCORD_PUBLIC_CHANNEL_ID?: string; KAKAO_BOT_KEY?: string; KAKAO_PUBLIC_ROOM?: string; KAKAO_INTERNAL?: boolean };
   Variables: { user: GlUser; viaBot?: boolean };
 };
 
@@ -116,6 +117,27 @@ export const authenticate: MiddlewareHandler<AppEnv> = async (c, next) => {
 
   const key = c.env.GL_ACCOUNT_KEY;
   if (!key) return c.json({ error: 'server misconfigured' }, 500);
+
+  // 카카오톡 봇(메신저봇R): 폰의 스크립트는 전용 키로 /api/kakao/* 만 부를 수 있다. 게임 API는 서버가 안에서 대신 부른다.
+  if (pathname.startsWith('/api/kakao/')) {
+    const kakaoKey = c.env.KAKAO_BOT_KEY;
+    if (!kakaoKey) return c.json({ error: 'kakao_disabled' }, 503);
+    const given = c.req.header('Authorization');
+    if (!given?.startsWith('Bearer ') || !safeEqual(given.slice(7).trim(), kakaoKey)) return c.json({ error: 'unauthorized' }, 401);
+    return next();
+  }
+  // 서버 안에서만 쓰는 호출(KAKAO_INTERNAL 은 런타임 환경 값이라 밖에서 흉내 낼 수 없다): 연동된 카톡 사용자로 게임 API 호출
+  if (c.env.KAKAO_INTERNAL === true) {
+    let kakaoUser = '';
+    try { kakaoUser = decodeURIComponent(c.req.header('X-Kakao-User') ?? ''); } catch { /* 잘못된 값 */ }
+    if (!pathname.startsWith('/api/') || pathname.startsWith('/api/admin/') || pathname.startsWith('/api/kakao/')) return c.json({ error: 'not_found' }, 404);
+    if (BOT_OPEN_PATHS.test(pathname)) { c.set('viaBot', true); return next(); }
+    const linked = await userForKakao(c.env.DB, kakaoUser);
+    if (!linked) return c.json({ error: 'not_linked' }, 403);
+    c.set('user', linked);
+    c.set('viaBot', true);
+    return next();
+  }
 
   // 디스코드 봇: 서비스 키로 인증하고, 연동된 사용자 대신 게임 API를 호출한다 (페이지·관리자 API는 불가)
   const bearer = c.req.header('Authorization');

@@ -58,7 +58,9 @@ jobs:
           # 디스코드 봇 (공개 값이라 변수로 둔다): 앱의 Public Key, 전체 알림을 올릴 채널 ID
           DISCORD_PUBLIC_KEY: ${{ vars.DISCORD_PUBLIC_KEY }}
           DISCORD_ANNOUNCE_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCE_CHANNEL_ID }}
-        run: npx wrangler deploy --var "ADMIN_USER_IDS:$ADMIN_USER_IDS" --var "DISCORD_PUBLIC_KEY:$DISCORD_PUBLIC_KEY" --var "DISCORD_ANNOUNCE_CHANNEL_ID:$DISCORD_ANNOUNCE_CHANNEL_ID"
+          # 카카오톡 봇: 공개 결과·전체 알림을 보낼 단체방 이름 (선택)
+          KAKAO_PUBLIC_ROOM: ${{ vars.KAKAO_PUBLIC_ROOM }}
+        run: npx wrangler deploy --var "ADMIN_USER_IDS:$ADMIN_USER_IDS" --var "DISCORD_PUBLIC_KEY:$DISCORD_PUBLIC_KEY" --var "DISCORD_ANNOUNCE_CHANNEL_ID:$DISCORD_ANNOUNCE_CHANNEL_ID" --var "KAKAO_PUBLIC_ROOM:$KAKAO_PUBLIC_ROOM"
         # 다른 GitHub 변수도 같은 방식으로 --var 를 추가해 Worker 변수로 넘긴다.
 
       # GitHub 시크릿 → Cloudflare Worker 시크릿. 새 값이 필요하면 아래 env 와 jq 에 한 줄씩 추가한다.
@@ -71,9 +73,11 @@ jobs:
           BOT_API_KEY: ${{ secrets.BOT_API_KEY }}
           # 봇 토큰 (선택): 전체 알림을 채널에 올릴 때만 필요
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          # 카카오톡 봇 전용 키 (선택). 폰의 메신저봇R 스크립트에 같은 값을 넣는다. 비어 있으면 카톡 봇이 꺼진 상태로 유지된다.
+          KAKAO_BOT_KEY: ${{ secrets.KAKAO_BOT_KEY }}
         run: |
           test -n "$GL_ACCOUNT_KEY" || { echo "::error::GitHub 시크릿 GL_ACCOUNT_KEY 가 비어 있습니다"; exit 1; }
-          jq -n --arg gl "$GL_ACCOUNT_KEY" --arg bot "$BOT_API_KEY" --arg dt "$DISCORD_BOT_TOKEN" '{GL_ACCOUNT_KEY: $gl} + (if $bot != "" then {BOT_API_KEY: $bot} else {} end) + (if $dt != "" then {DISCORD_BOT_TOKEN: $dt} else {} end)' | npx wrangler secret bulk
+          jq -n --arg gl "$GL_ACCOUNT_KEY" --arg bot "$BOT_API_KEY" --arg dt "$DISCORD_BOT_TOKEN" --arg kk "$KAKAO_BOT_KEY" '{GL_ACCOUNT_KEY: $gl} + (if $bot != "" then {BOT_API_KEY: $bot} else {} end) + (if $dt != "" then {DISCORD_BOT_TOKEN: $dt} else {} end) + (if $kk != "" then {KAKAO_BOT_KEY: $kk} else {} end)' | npx wrangler secret bulk
 
       # 슬래시 명령어 등록 (DISCORD_APP_ID 변수와 DISCORD_BOT_TOKEN 시크릿이 있을 때만; 없으면 건너뜀)
       - name: Register Discord commands
